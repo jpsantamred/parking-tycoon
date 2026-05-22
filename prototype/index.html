@@ -2,6 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
     <title>Parking Tycoon — Nivel 1: Papeleta</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -209,6 +214,62 @@
             #info-board { grid-template-columns: repeat(2, 1fr); }
         }
 
+        /* ── Mobile touch controls ──────────────────────── */
+        #touch-actions {
+            display: none;
+            position: fixed;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            gap: 6px;
+            z-index: 70;
+            background: rgba(15, 23, 42, 0.92);
+            padding: 8px;
+            border-radius: 12px;
+            border: 1px solid #475569;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+        }
+        #touch-actions button {
+            background: #1e293b;
+            color: #fff;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 12px 14px;
+            min-width: 56px;
+            min-height: 50px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        #touch-actions button:active { background: #475569; transform: scale(0.95); }
+        #touch-actions button.primary { background: #16a34a; }
+        #touch-actions button.primary:active { background: #15803d; }
+        #touch-actions button.warn { background: #ca8a04; }
+        #touch-actions button.danger { background: #dc2626; }
+
+        /* Mobile-only layout adjustments */
+        @media (max-width: 800px), (pointer: coarse) {
+            body { padding: 4px; }
+            h1 { font-size: 14px; }
+            .subtitle { font-size: 10px; }
+            .hint-row { display: none; }   /* keyboard hints irrelevant on touch */
+            #touch-actions { display: flex; }
+            #info-board { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+            .info-section { padding: 6px 8px; }
+            .info-section h3 { font-size: 11px; }
+            .info-row { font-size: 10px; }
+            /* leave extra bottom padding so touch-actions doesn't cover the
+               employee strip when scrolling */
+            body { padding-bottom: 100px; }
+            /* Music toggle stays accessible */
+            #music-toggle { top: 4px; right: 4px; padding: 8px; font-size: 18px; }
+            /* Hide car tooltips on touch (no hover) */
+            #car-tooltip { display: none !important; }
+        }
+
         /* ── Employee Cards Strip ────────────────────────── */
         #employee-strip-wrapper {
             width: 100%;
@@ -388,6 +449,14 @@
     <!-- ── CAR HOVER TOOLTIP ─────────────────────────── -->
     <div id="car-tooltip" style="display:none; position:absolute; background:#0f172aee; border:1px solid #fbbf24; color:#fff; font-family:monospace; font-size:11px; padding:6px 10px; border-radius:6px; pointer-events:none; z-index:60; box-shadow:0 4px 12px rgba(0,0,0,0.4); white-space:nowrap;"></div>
 
+    <!-- ── MOBILE TOUCH ACTION BUTTONS ─────────────── -->
+    <div id="touch-actions">
+        <button id="touch-attend" class="primary" title="Atender (Espacio)">🛂<br><span style="font-size:9px;">Atender</span></button>
+        <button id="touch-gestion" title="Gestión (G)">⚙️<br><span style="font-size:9px;">Gestión</span></button>
+        <button id="touch-hire" class="warn" title="Contratar (H)">➕<br><span style="font-size:9px;">Contratar</span></button>
+        <button id="touch-pause" title="Pausa (P)">⏸<br><span style="font-size:9px;">Pausa</span></button>
+    </div>
+
     <!-- ── ONBOARDING TIP (Día 1) ──────────────────────── -->
     <div id="onboarding" style="display:none; position:fixed; left:50%; bottom:80px; transform:translateX(-50%); background:#0f172aee; border:2px solid #fbbf24; border-radius:10px; padding:18px 24px; max-width:560px; z-index:1000; box-shadow:0 8px 30px rgba(0,0,0,0.5); font-family:monospace;">
         <div style="font-size:16px; font-weight:bold; color:#fbbf24; margin-bottom:10px;">💡 Día 1 — Cómo jugar</div>
@@ -420,7 +489,7 @@
             <div id="splash-clear-save" style="display:none; margin-top:8px; font-size:11px; color:#94a3b8; cursor:pointer; text-decoration:underline;">
                 ↻ Borrar partida guardada y empezar de cero
             </div>
-            <div class="splash-version">v0.33 · prototype</div>
+            <div class="splash-version">v0.34 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -429,7 +498,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.33 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.34 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -544,6 +613,21 @@
 
         document.getElementById('onboarding-close').addEventListener('click', () => {
             document.getElementById('onboarding').style.display = 'none';
+        });
+
+        // ── Mobile touch action buttons ──────────────────
+        // Wire to game.js functions (defined when game loads).
+        document.getElementById('touch-attend').addEventListener('click', () => {
+            if (typeof attemptCobroAnyone === 'function') attemptCobroAnyone();
+        });
+        document.getElementById('touch-gestion').addEventListener('click', () => {
+            if (typeof toggleManagementPanel === 'function') toggleManagementPanel();
+        });
+        document.getElementById('touch-hire').addEventListener('click', () => {
+            if (typeof hireEmployee === 'function') hireEmployee();
+        });
+        document.getElementById('touch-pause').addEventListener('click', () => {
+            if (typeof togglePause === 'function') togglePause();
         });
     </script>
 </body>
