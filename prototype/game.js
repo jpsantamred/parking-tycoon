@@ -45,6 +45,11 @@ const CONFIG = {
     barrierScanMs: 400,              // gate open + close animation duration
     barrierEscapeReductionPct: 90,   // % of would-be escapes prevented by physical gate
 
+    // Entry ticket totem (end of Nivel 3) — self-service entry, frees up cobrador
+    entryTotemCost: 120000,          // moderate capex
+    entryTotemTickMs: 1100,          // how often the totem dispenses a ticket (per car)
+    entryTotemDispenseMs: 600,       // ticket dispensing animation time
+
     // NEW — Cameras prevent robberies
     cameraCost: 35000,
 
@@ -360,6 +365,7 @@ const S = {
         booth: false,
         pos: false,
         barriers: false,                    // Nivel 3 — automatic gate scanner
+        entryTotem: false,                  // Nivel 3 end — self-service ticket totem
         adScreens: 0,
         signs: 0,
         expansions: 0,
@@ -551,6 +557,7 @@ function create() {
     drawSafetyAndServices(this);
     drawAesthetics(this);
     if (S.upgrades.barriers) drawBarriers(this);
+    if (S.upgrades.entryTotem) drawEntryTotem(this);
     // drawPaymentDecal removed — was redundant with booth sticker / SERVICIOS card,
     // and the previous position interfered with road traffic / ad screens.
 
@@ -1455,10 +1462,29 @@ function renderUpgradesTab(scene, contentY, panelW) {
             onClick: () => { purchaseBarriers(); renderManagementPanel(); },
         });
     } else if (S.upgrades.barriers) {
-        renderRow(colLX, yL, { done: true, doneLabel: 'Barreras Auto (Nivel 3)' });
+        renderRow(colLX, yL, { done: true, doneLabel: 'Barreras (Nivel 3)' });
     } else {
         S.managementUI.push(scene.add.text(colLX, yL,
             '  🚧  BARRERAS  — bloqueado (necesita POS)',
+            { font: 'italic 11px monospace', color: '#64748b' }));
+    }
+    yL += rowH + 6;
+
+    // Tótem de tickets de entrada (final Nivel 3) — requires barriers
+    if (S.upgrades.barriers && !S.upgrades.entryTotem) {
+        renderRow(colLX, yL, {
+            done: false,
+            cost: CONFIG.entryTotemCost,
+            label: `🎫 TÓTEM ENTRADA  $${CONFIG.entryTotemCost.toLocaleString('es-CL')}`,
+            color: '#0891b2',
+            desc: 'self-service · cobrador solo en salidas',
+            onClick: () => { purchaseEntryTotem(); renderManagementPanel(); },
+        });
+    } else if (S.upgrades.entryTotem) {
+        renderRow(colLX, yL, { done: true, doneLabel: 'Tótem de entrada' });
+    } else {
+        S.managementUI.push(scene.add.text(colLX, yL,
+            '  🎫  TÓTEM ENTRADA  — bloqueado (necesita Barreras)',
             { font: 'italic 11px monospace', color: '#64748b' }));
     }
     yL += rowH + 6;
@@ -1795,6 +1821,47 @@ function operateGate(kind, onOpen, onClosed) {
     });
 }
 
+// ─── ENTRY TICKET TOTEM (Final Nivel 3) ───────────────────
+// Self-service ticket dispenser at the entry. Car arrives → ticket pops
+// out → barrier opens → car drives in. No cobrador needed for entries.
+// The cobrador now only handles exits (where the actual cobro happens).
+function drawEntryTotem(scene) {
+    // Place just east of the entry barrier post (driver-side reachable)
+    const x = L.entryOpeningX + 22;
+    const y = L.lotFenceY - 14;
+    S.entryTotemSprites = [];
+    // Concrete base
+    S.entryTotemSprites.push(scene.add.rectangle(x, y + 18, 14, 6, 0x52525b));
+    // Main body (red/orange — branded for ParkingApp)
+    S.entryTotemSprites.push(scene.add.rectangle(x, y + 4, 12, 28, 0x1e293b).setStrokeStyle(1, 0x0f172a));
+    // ParkingApp badge on top
+    drawParkingAppBadge(scene, x, y - 5, 0.55).forEach(s => S.entryTotemSprites.push(s));
+    // Screen (small green LCD)
+    S.entryTotemSprites.push(scene.add.rectangle(x, y + 4, 9, 6, 0x10b981).setStrokeStyle(1, 0x064e3b));
+    S.entryTotemSprites.push(scene.add.text(x, y + 4, 'TKT', {
+        font: 'bold 4px monospace', color: '#0f172a'
+    }).setOrigin(0.5));
+    // Ticket dispense slot (thin horizontal line)
+    S.entryTotemSprites.push(scene.add.rectangle(x, y + 12, 8, 1.5, 0x9ca3af));
+    // Blinking LED (yellow when ready)
+    const led = scene.add.circle(x + 4, y - 2, 1.2, 0xfde047);
+    scene.tweens.add({ targets: led, alpha: { from: 1, to: 0.4 }, duration: 800, yoyo: true, repeat: -1 });
+    S.entryTotemSprites.push(led);
+}
+
+// Animate a "ticket popping out" at the totem when a car is processed
+function dispenseTicket() {
+    if (!S.upgrades.entryTotem) return;
+    const x = L.entryOpeningX + 22;
+    const y = L.lotFenceY - 14 + 12;
+    const ticket = S.scene.add.rectangle(x, y, 5, 3, 0xf3f4f6).setStrokeStyle(1, 0x6b7280);
+    S.scene.tweens.add({
+        targets: ticket, y: y + 8, alpha: { from: 1, to: 0 },
+        duration: CONFIG.entryTotemDispenseMs, ease: 'Power2',
+        onComplete: () => ticket.destroy()
+    });
+}
+
 // "Aceptamos:" sign — hung on the sidewalk pole next to the booth window
 // (NOT on the road — cars drove over the old floor decal which made no sense)
 function drawPaymentDecal(scene) {
@@ -2095,6 +2162,21 @@ function purchaseBarriers() {
     S.upgrades.barriers = true;
     closeManagementPanel();
     showBarriersCelebration();
+}
+
+function purchaseEntryTotem() {
+    if (S.upgrades.entryTotem) return;
+    if (!S.upgrades.barriers) {
+        flashEvent('⚠️ Necesitas Barreras (Nivel 3) antes de instalar el tótem.');
+        return;
+    }
+    if (S.money < CONFIG.entryTotemCost) return;
+    S.money -= CONFIG.entryTotemCost;
+    S.upgrades.entryTotem = true;
+    closeManagementPanel();
+    flashEvent('🎫 ¡Tótem instalado! Los autos ahora entran solos. Vos cobrá las salidas.');
+    SFX.purchase();
+    S.scene.scene.restart();   // re-render so totem appears
 }
 
 function showBarriersCelebration() {
@@ -2492,11 +2574,20 @@ function update(time, delta) {
         S.lifetimeRevenue += adIncome;
     }
 
-    // NOTE: Nivel 3 (Barreras) is still operator-driven — there's no LPR yet.
-    // The cobrador uses the POS to generate the ticket, and that triggers the
-    // gate to open. Cars must wait at the closed barrier until the operator
-    // acts. Auto-processing (LPR + Redcomercio direct charge) will come at a
-    // later level (e.g., Nivel 4 — Tótem autopago).
+    // Final-Nivel-3 upgrade: Tótem de tickets en la entrada.
+    // Cuando está instalado, los autos sacan ticket automáticamente y entran
+    // sin que el cobrador tenga que hacer nada. La salida sigue requiriendo
+    // al cobrador (POS + cobro). Esto libera al operador para concentrarse
+    // en cobros de salida (que es donde está la plata).
+    if (S.upgrades.entryTotem && isOpen()) {
+        S.entryTotemTimer = (S.entryTotemTimer || 0) + delta;
+        if (S.entryTotemTimer >= CONFIG.entryTotemTickMs) {
+            S.entryTotemTimer = 0;
+            if (S.queue.some(c => c.state === 'queueing')) {
+                processEntryViaTotem();
+            }
+        }
+    }
 
     S.spawnTimer += delta;
     if (S.spawnTimer >= S.nextSpawnIn) {
@@ -2825,8 +2916,94 @@ function attemptCobroBy(emp) {
         flashEvent(`💤 ${emp.name} fuera de turno (${emp.shift.label}).`); return;
     }
     if (S.exitQueue.some(c => c.state === 'exit-waiting')) { attendExit(emp); return; }
-    if (S.queue.length > 0) { attendEntry(emp); return; }
+    // With entry totem installed, entries are self-service — cobrador stays
+    // focused on exits and shouldn't handle entry queue manually.
+    if (!S.upgrades.entryTotem && S.queue.length > 0) { attendEntry(emp); return; }
+    if (S.upgrades.entryTotem && S.queue.length > 0) {
+        flashEvent('🎫 El tótem se encarga de las entradas. Vos cobrá las salidas.');
+        return;
+    }
     flashEvent('💭 Nada en cola.');
+}
+
+// ─── ENTRY VIA TOTEM (Final Nivel 3) ───────────────────────
+// Self-service entry: car arrives → ticket dispenses from totem → barrier
+// opens → car drives in. No cobrador interaction needed. Cobrador stays
+// in booth and handles exits only.
+function processEntryViaTotem() {
+    if (S.dayEnded || S.paused) return;
+    if (S.queue.length === 0) return;
+
+    // EV-priority space allocation (same logic as attendEntry)
+    const carIsEV = S.queue.find(c => c.state === 'queueing')?.isEV;
+    let space;
+    if (carIsEV) {
+        space = S.spaces.find(s => !s.occupied && s.isEV);
+        if (!space) space = S.spaces.find(s => !s.occupied && !s.isEV);
+    } else {
+        space = S.spaces.find(s => !s.occupied && !s.isEV);
+    }
+    if (!space) return;  // lot full, totem can't dispense
+
+    const carIdx = S.queue.findIndex(c => c.state === 'queueing');
+    if (carIdx < 0) return;
+    const car = S.queue.splice(carIdx, 1)[0];
+    car.state = 'attending-entry';
+    if (car.angryHint) {
+        S.scene.tweens.killTweensOf([car.sprite, car.windows]);
+        car.sprite.setAngle(90); car.windows.setAngle(90);
+        car.sprite.clearTint();
+        if (car.angryEmoji) { car.angryEmoji.destroy(); car.angryEmoji = null; }
+    }
+    if (car.evBadge) { car.evBadge.destroy(); car.evBadge = null; }
+
+    flashEvent(`🎫 Tótem dispensa ticket → abre barrera...`);
+    dispenseTicket();
+    SFX.beep && SFX.beep(900, 60, 0.2);
+
+    S.scene.time.delayedCall(CONFIG.entryTotemDispenseMs, () => {
+        operateGate('entry');
+
+        car.entryTimeMinutes = S.timeMinutes;
+        car.space = space;
+        space.occupied = car;
+        space.sprite.setFillStyle(COLORS.spaceOccupied);
+
+        const isLeftOfEntry = space.x < L.entryVlaneX;
+        const horizontalAngle = isLeftOfEntry ? 180 : 0;
+        const turnIntoSpaceAngle = space.facing === 'up' ? -90 : 90;
+        const useSouthLane = space.y > L.row2Y + 30;
+        const wps = useSouthLane
+            ? [
+                { x: L.entryVlaneX, y: L.centerLaneY, angle: 90, duration: 500 },
+                { x: L.entryVlaneX, y: L.expansionLaneY, duration: 400 },
+                { angle: horizontalAngle, duration: 200 },
+                { x: space.x, y: L.expansionLaneY, duration: 500 },
+                { angle: turnIntoSpaceAngle, duration: 200 },
+                { x: space.x, y: space.y, duration: 350 },
+              ]
+            : [
+                { x: L.entryVlaneX, y: L.centerLaneY, angle: 90, duration: 600 },
+                { angle: horizontalAngle, duration: 200 },
+                { x: space.x, y: L.centerLaneY, duration: 600 },
+                { angle: turnIntoSpaceAngle, duration: 200 },
+                { x: space.x, y: space.y, duration: 450 },
+              ];
+        const entryLockMs = useSouthLane ? 1100 : 800;
+        S.scene.time.delayedCall(CONFIG.barrierScanMs, () => {
+            acquireLane('entryV', entryLockMs, () => {
+                driveCar(car, wps, () => {
+                    car.state = 'parked';
+                    S.parkedCars.push(car);
+                    if (S.upgrades.carwash && !car.washed) {
+                        car.sprite.setInteractive({ useHandCursor: true });
+                        car.sprite.on('pointerdown', () => triggerWash(car));
+                    }
+                });
+                repositionQueue();
+            });
+        });
+    });
 }
 
 // ─── ENTRY COBRO ───────────────────────────────────────────
@@ -3209,6 +3386,7 @@ function updateInfoBoard() {
     if (S.upgrades.booth) services.push({ label: '🛂 Caseta', active: true });
     if (S.upgrades.pos) services.push({ label: '💳 POS', active: true });
     if (S.upgrades.barriers) services.push({ label: '🚧 Barreras', active: true });
+    if (S.upgrades.entryTotem) services.push({ label: '🎫 Tótem entrada', active: true });
     // ParkingApp + Redcomercio shown as a "tech stack" badge once integrated
     if (S.cinematicShown) services.push({ label: '🅿️ ParkingApp', active: true });
     if (S.upgrades.pos) services.push({ label: '💳 Redcomercio', active: true });
@@ -3504,7 +3682,7 @@ function hardReset() {
     S.dayOfWeek = 0;
     S.reputation = 100;
     S.upgrades = {
-        booth: false, pos: false, barriers: false,
+        booth: false, pos: false, barriers: false, entryTotem: false,
         adScreens: 0, signs: 0, expansions: 0,
         convenios: [],
         cameras: false, carwash: false, evCharger: false,
