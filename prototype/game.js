@@ -522,6 +522,8 @@ function resetTransientState() {
     S.boothSprites = []; S.boothWindowSprite = null; S.boothCobradorSprite = null;
     S.closedSignGroup = null; S.streetClosedSign = null;
     S.endDayUI = [];
+    S.laneBusy = { entryV: false, exitV: false };
+    S.laneQueue = { entryV: [], exitV: [] };
 }
 
 function ensureInitialRoster() {
@@ -2612,6 +2614,32 @@ function driveCar(car, waypoints, onDone) {
     step();
 }
 
+// ─── LANE LOCKS — cars are solid objects, can't drive through each other ──
+// We serialize movement on the two vertical lanes (entry going south, exit
+// going north). Acquire before driving, release when the relevant segment
+// of the route has cleared. Calls to acquireLane queue up if busy.
+S.laneBusy = S.laneBusy || { entryV: false, exitV: false };
+S.laneQueue = S.laneQueue || { entryV: [], exitV: [] };
+
+function acquireLane(lane, holdMs, callback) {
+    // If free, take it immediately; otherwise queue.
+    const run = () => {
+        S.laneBusy[lane] = true;
+        // Auto-release after holdMs
+        S.scene.time.delayedCall(holdMs, () => {
+            S.laneBusy[lane] = false;
+            const next = S.laneQueue[lane].shift();
+            if (next) next();
+        });
+        callback();
+    };
+    if (!S.laneBusy[lane]) {
+        run();
+    } else {
+        S.laneQueue[lane].push(run);
+    }
+}
+
 // ─── SPAWN ─────────────────────────────────────────────────
 function spawnCar() {
     if (!isOpen()) { spawnDrivePast(); return; }
@@ -2879,15 +2907,23 @@ function attendEntry(emp) {
             // With barriers active, hold the car for ~400ms so the gate visibly
             // opens before the car drives through.
             const driveDelay = hasBarriers ? CONFIG.barrierScanMs : 0;
-            S.scene.time.delayedCall(driveDelay, () => driveCar(car, wps, () => {
-                car.state = 'parked';
-                S.parkedCars.push(car);
-                // If carwash station purchased, make this car clickable to add a wash
-                if (S.upgrades.carwash && !car.washed) {
-                    car.sprite.setInteractive({ useHandCursor: true });
-                    car.sprite.on('pointerdown', () => triggerWash(car));
-                }
-            }));
+            // Entry vlane is in use while the car descends the entry vlane and turns
+            // (first 2 waypoints ~= 700-900ms). Hold the lock that long so the next
+            // car waits at its queue position before starting its descent.
+            const entryLockMs = useSouthLane ? 1100 : 800;
+            S.scene.time.delayedCall(driveDelay, () => {
+                acquireLane('entryV', entryLockMs, () => {
+                    driveCar(car, wps, () => {
+                        car.state = 'parked';
+                        S.parkedCars.push(car);
+                        // If carwash station purchased, make this car clickable to add a wash
+                        if (S.upgrades.carwash && !car.washed) {
+                            car.sprite.setInteractive({ useHandCursor: true });
+                            car.sprite.on('pointerdown', () => triggerWash(car));
+                        }
+                    });
+                });
+            });
 
             if (hasBooth) {
                 emp.busy = false;
@@ -2959,9 +2995,15 @@ function requestExit(car) {
             { angle: -90, duration: 200 },
             { x: L.exitWaitX, y: L.exitWaitY + queuePos * L.exitQueueSpacing, duration: 500 },
           ];
-    driveCar(car, wps, () => {
-        car.state = 'exit-waiting';
-        flashEvent('🚙 Auto pide salida');
+    // The full route to the exit wait spot covers ~1900-2400ms; the exit vlane
+    // (vertical segment going up to centerLane → wait area) is busy roughly
+    // through the last 3 waypoints.
+    const exitLockMs = isRow3 ? 1100 : 1200;
+    acquireLane('exitV', exitLockMs, () => {
+        driveCar(car, wps, () => {
+            car.state = 'exit-waiting';
+            flashEvent('🚙 Auto pide salida');
+        });
     });
 }
 
@@ -3021,15 +3063,21 @@ function attendExit(emp) {
             if (hasBarriers) operateGate('exit');
             // Hold the car briefly so the gate visibly opens before driving through
             const driveDelay = hasBarriers ? CONFIG.barrierScanMs : 0;
-            S.scene.time.delayedCall(driveDelay, () => driveCar(car, [
-                { x: L.exitVlaneX, y: L.exitWaitY - 20, duration: 300 },
-                { x: L.exitVlaneX, y: L.bypassLaneY, duration: 600 },
-                { angle: 0, duration: 200 },
-                { x: L.exitOffscreenX, y: L.bypassLaneY, duration: 900 },
-            ], () => {
-                car.sprite.destroy(); car.windows.destroy();
-                S.cars = S.cars.filter(c => c.id !== car.id);
-            }));
+            // Acquire the exit vlane — the car drives north out (300+600 = 900ms
+            // in the vlane), then turns east on bypass.
+            S.scene.time.delayedCall(driveDelay, () => {
+                acquireLane('exitV', 1100, () => {
+                    driveCar(car, [
+                        { x: L.exitVlaneX, y: L.exitWaitY - 20, duration: 300 },
+                        { x: L.exitVlaneX, y: L.bypassLaneY, duration: 600 },
+                        { angle: 0, duration: 200 },
+                        { x: L.exitOffscreenX, y: L.bypassLaneY, duration: 900 },
+                    ], () => {
+                        car.sprite.destroy(); car.windows.destroy();
+                        S.cars = S.cars.filter(c => c.id !== car.id);
+                    });
+                });
+            });
 
             if (hasBooth) {
                 emp.busy = false;
