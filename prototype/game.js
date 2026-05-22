@@ -5611,10 +5611,31 @@ function updateHUD() {
         if (S.rivalActive && S.day < (S.rivalUntilDay || 0)) {
             const daysLeft = S.rivalUntilDay - S.day;
             S.hud.rival.setText(`⚔️ RIVAL (-25% ${daysLeft}d)`);
+            if (!S.hud.counterBtn) {
+                const btn = S.scene.add.text(820, 52, '📣 Counter $20K', {
+                    font: 'bold 10px monospace', color: '#fff',
+                    backgroundColor: '#dc2626', padding: { x: 6, y: 3 }
+                }).setInteractive({ useHandCursor: true });
+                btn.on('pointerdown', counterRival);
+                S.hud.counterBtn = btn;
+            }
         } else {
             S.hud.rival.setText('');
+            if (S.hud.counterBtn) { S.hud.counterBtn.destroy(); S.hud.counterBtn = null; }
         }
     }
+}
+
+function counterRival() {
+    if (!S.rivalActive) return;
+    if (S.money < 20000) { flashEvent('💸 Necesitás $20.000 para el counter-marketing.'); return; }
+    S.money -= 20000;
+    S.rivalActive = false;
+    S.rivalUntilDay = 0;
+    S.reputation = Math.min(100, S.reputation + 2);
+    flashEvent('📣 ¡Counter-marketing exitoso! Rival eliminado. -$20.000 +2 rep.');
+    SFX.purchase && SFX.purchase();
+    if (S.hud.counterBtn) { S.hud.counterBtn.destroy(); S.hud.counterBtn = null; }
 }
 
 // ─── THIEF (ladrón) MECHANIC ───────────────────────────────
