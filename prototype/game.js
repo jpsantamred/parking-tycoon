@@ -542,6 +542,7 @@ function create() {
     drawSigns(this);
     drawSafetyAndServices(this);
     drawAesthetics(this);
+    drawPaymentDecal(this);
 
     if (S.upgrades.booth) drawBooth(this);
     else drawPlaceholder(this);
@@ -733,6 +734,19 @@ function drawBooth(scene) {
         sprites.push(scene.add.text(posCx + 12, posCy, 'POS', {
             font: 'bold 8px monospace', color: '#10b981'
         }).setOrigin(0, 0.5));
+        // Tiny Redcomercio sticker (right of POS) — payment network branding
+        drawRedcomercioBadge(scene, posCx + 22, posCy + 4, 0.55).forEach(s => sprites.push(s));
+    }
+
+    // ParkingApp sticker on the side of the booth (only after ParkingApp cinematic)
+    if (S.cinematicShown) {
+        // Side panel — visible plaque on the booth wall
+        sprites.push(scene.add.rectangle(cx - w/2 + 9, cy + 8, 14, 18, 0xffffff)
+            .setStrokeStyle(1, 0x1e40af));
+        drawParkingAppBadge(scene, cx - w/2 + 9, cy + 3, 0.7).forEach(s => sprites.push(s));
+        sprites.push(scene.add.text(cx - w/2 + 9, cy + 13, 'app', {
+            font: 'bold 5px monospace', color: '#1e40af'
+        }).setOrigin(0.5));
     }
 
     S.boothSprites = sprites;
@@ -1580,6 +1594,32 @@ function renderStatsTab(scene, contentY, panelW) {
     });
 }
 
+// Small ParkingApp logo badge (blue rounded square with white "P")
+// scale ≈ 1 → ~14x14 px; scale ≈ 0.6 → ~8x8 px (tiny sticker)
+function drawParkingAppBadge(scene, x, y, scale) {
+    const s = scale || 1;
+    const sprites = [];
+    // Blue rounded body (slight gradient via 2 rectangles)
+    sprites.push(scene.add.rectangle(x, y, 14*s, 14*s, 0x3b82f6).setStrokeStyle(1, 0x1e40af));
+    sprites.push(scene.add.rectangle(x, y - 2*s, 12*s, 4*s, 0x60a5fa, 0.6));   // highlight
+    // White "P"
+    sprites.push(scene.add.text(x, y, 'P', {
+        font: `bold ${Math.round(11*s)}px monospace`, color: '#ffffff'
+    }).setOrigin(0.5));
+    return sprites;
+}
+
+// Small Redcomercio badge (red square with "RC")
+function drawRedcomercioBadge(scene, x, y, scale) {
+    const s = scale || 1;
+    const sprites = [];
+    sprites.push(scene.add.rectangle(x, y, 16*s, 10*s, 0xdc2626).setStrokeStyle(1, 0x7f1d1d));
+    sprites.push(scene.add.text(x, y, 'RC', {
+        font: `bold ${Math.round(7*s)}px monospace`, color: '#ffffff'
+    }).setOrigin(0.5));
+    return sprites;
+}
+
 function drawAdScreens(scene) {
     // LED billboards on the sidewalk flanking the openings
     const positions = [
@@ -1587,6 +1627,14 @@ function drawAdScreens(scene) {
         { x: L.exitOpeningX  + 75, y: L.sidewalkY },
         { x: L.entryOpeningX + 75, y: L.sidewalkY },
     ];
+
+    // Rotating ad slides. After ParkingApp cinematic, include ParkingApp + Redcomercio.
+    const slides = [
+        { line1: 'PARKING', line2: '★ AQUÍ ★', c1: '#38bdf8', c2: '#fde047' },
+        { line1: '⚡ ParkingApp', line2: 'Paga rápido', c1: '#60a5fa', c2: '#a7f3d0' },
+        { line1: 'Redcomercio', line2: 'Pago seguro', c1: '#fca5a5', c2: '#fde047' },
+    ];
+
     for (let i = 0; i < S.upgrades.adScreens && i < positions.length; i++) {
         const { x, y } = positions[i];
         // Mounting bracket (vertical pole)
@@ -1600,17 +1648,46 @@ function drawAdScreens(scene) {
         for (let r = -12; r <= 12; r += 4) {
             scene.add.rectangle(x, y + r, 66, 1, 0x000000, 0.15);
         }
-        // Pixel text
-        const t1 = scene.add.text(x, y - 7, 'PARKING', { font: 'bold 10px monospace', color: '#38bdf8' }).setOrigin(0.5);
-        const t2 = scene.add.text(x, y + 7, '★ AQUÍ ★', { font: 'bold 9px monospace', color: '#fde047' }).setOrigin(0.5);
-        // Blinking text effect
-        scene.tweens.add({ targets: t2, alpha: { from: 1, to: 0.4 }, duration: 700, yoyo: true, repeat: -1 });
+        // Rotating text — each screen starts on a different slide so they look alive
+        const startIdx = i % slides.length;
+        const slide = slides[startIdx];
+        const t1 = scene.add.text(x, y - 7, slide.line1, { font: 'bold 10px monospace', color: slide.c1 }).setOrigin(0.5);
+        const t2 = scene.add.text(x, y + 7, slide.line2, { font: 'bold 9px monospace', color: slide.c2 }).setOrigin(0.5);
+        // Cycle slides every 4 seconds
+        let slideIdx = startIdx;
+        scene.time.addEvent({
+            delay: 4000, loop: true,
+            callback: () => {
+                slideIdx = (slideIdx + 1) % slides.length;
+                const ns = slides[slideIdx];
+                t1.setText(ns.line1); t1.setColor(ns.c1);
+                t2.setText(ns.line2); t2.setColor(ns.c2);
+            }
+        });
+        // Subtle blink on bottom text
+        scene.tweens.add({ targets: t2, alpha: { from: 1, to: 0.55 }, duration: 700, yoyo: true, repeat: -1 });
         // Corner LEDs
         scene.add.rectangle(x - 32, y - 16, 2, 2, 0xef4444);
         scene.add.rectangle(x + 32, y - 16, 2, 2, 0xef4444);
         scene.add.rectangle(x - 32, y + 16, 2, 2, 0x10b981);
         scene.add.rectangle(x + 32, y + 16, 2, 2, 0x10b981);
     }
+}
+
+// Floor decal at the lot entrance (post-cinematic) — shows accepted payment networks
+function drawPaymentDecal(scene) {
+    if (!S.cinematicShown) return;
+    // Placed inside the lot, just past the entry opening, on the central drive lane
+    const dx = L.entryVlaneX, dy = L.centerLaneY + 22;
+    // White rounded mat
+    scene.add.rectangle(dx, dy, 70, 14, 0xf3f4f6).setStrokeStyle(1, 0x9ca3af);
+    // "ACEPTA" label
+    scene.add.text(dx - 24, dy, 'ACEPTA:', {
+        font: 'bold 6px monospace', color: '#1f2937'
+    }).setOrigin(0.5);
+    // Mini ParkingApp + Redcomercio side by side
+    drawParkingAppBadge(scene, dx + 4, dy, 0.55);
+    drawRedcomercioBadge(scene, dx + 22, dy, 0.55);
 }
 
 function drawAesthetics(scene) {
@@ -1738,6 +1815,13 @@ function drawSigns(scene) {
         scene.add.text(x + 9, y, i === 0 ? '→' : '←', { font: 'bold 14px monospace', color: '#000' }).setOrigin(0.5);
         // Highlight gleam
         scene.add.rectangle(x - 15, y - 11, 2, 6, 0xffffff, 0.7);
+        // After ParkingApp cinematic: "powered by" plaque under the sign
+        if (S.cinematicShown) {
+            scene.add.rectangle(x, y + 21, 44, 7, 0x1e40af).setStrokeStyle(1, 0x1e3a8a);
+            scene.add.text(x, y + 21, 'by ParkingApp', {
+                font: 'bold 5px monospace', color: '#dbeafe'
+            }).setOrigin(0.5);
+        }
     }
 }
 
@@ -2800,6 +2884,9 @@ function updateInfoBoard() {
     const services = [];
     if (S.upgrades.booth) services.push({ label: '🛂 Caseta', active: true });
     if (S.upgrades.pos) services.push({ label: '💳 POS', active: true });
+    // ParkingApp + Redcomercio shown as a "tech stack" badge once integrated
+    if (S.cinematicShown) services.push({ label: '🅿️ ParkingApp', active: true });
+    if (S.upgrades.pos) services.push({ label: '💳 Redcomercio', active: true });
     if (S.upgrades.adScreens > 0) services.push({ label: `📺 ${S.upgrades.adScreens} pantallas`, active: true });
     if (S.upgrades.signs > 0) services.push({ label: `📣 ${S.upgrades.signs} carteles`, active: true });
     if (S.upgrades.expansions > 0) services.push({ label: `🏗️ ${S.upgrades.expansions} expansión`, active: true });
