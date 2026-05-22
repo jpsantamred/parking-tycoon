@@ -427,6 +427,84 @@ const EVENTS = [
             }
         }
     },
+    // ── NEW EVENTS (v0.45) ──
+    {
+        id: 'blackout', weight: 5, name: 'Corte de luz',
+        apply: () => {
+            // If we have lights upgrade, less impact (backup power)
+            if (S.upgrades.lights) {
+                flashEvent('⚡ Corte de luz en el barrio — backup eléctrico de luminarias salvó el día.');
+                return;
+            }
+            // Without lights: spawn freeze + customer impatience
+            S.rushUntilMin = S.timeMinutes - 1;   // cancel any rush
+            S.reputation = Math.max(0, S.reputation - 4);
+            flashEvent('🔌 ¡Corte de luz! Lote a oscuras. -4 reputación. Comprá Luminarias para evitarlo.');
+        }
+    },
+    {
+        id: 'festival', weight: 6, name: 'Festival barrial',
+        apply: () => {
+            S.rushUntilMin = S.timeMinutes + 120;  // 2-hour boost
+            S.nextCarMultiplier = 1.5;
+            flashEvent('🎉 ¡Festival en la cuadra! Demanda x2 por 2 horas + próximo cobro +50%.');
+        }
+    },
+    {
+        id: 'dog', weight: 4, name: 'Perro suelto',
+        apply: () => {
+            // Random parked car gets agitated — minor rep hit
+            if (S.parkedCars.length > 0) {
+                S.reputation = Math.max(0, S.reputation - 2);
+                flashEvent('🐕 Perro suelto entre los autos. Algún cliente se asustó. -2 rep.');
+            } else {
+                flashEvent('🐕 Un perrito callejero pasa por el lote. Tomás le da agua.');
+                S.reputation = Math.min(100, S.reputation + 1);  // wholesome bonus
+            }
+        }
+    },
+    {
+        id: 'accident', weight: 3, name: 'Accidente menor',
+        apply: () => {
+            // 2 cars colliding inside the lot — claim cost
+            const cost = 12000;
+            S.money -= cost;
+            S.reputation = Math.max(0, S.reputation - 5);
+            flashEvent(`💥 Accidente menor en el lote. Seguro paga ${cost.toLocaleString('es-CL')} -5 rep.`);
+        }
+    },
+    {
+        id: 'foodtruck', weight: 5, name: 'Food truck',
+        apply: () => {
+            // Random good event: food truck parks near, attracts customers
+            S.rushUntilMin = S.timeMinutes + 45;
+            const tip = 3500;
+            S.money += tip;
+            flashEvent(`🌮 Food truck se instala cerca. +Demanda 45min · +$${tip.toLocaleString('es-CL')} alquiler espacio.`);
+        }
+    },
+    {
+        id: 'celebrity', weight: 2, name: 'Famoso de visita',
+        apply: () => {
+            // Rare event: a celebrity parks at the lot, huge rep boost
+            S.reputation = Math.min(100, S.reputation + 10);
+            S.nextCarMultiplier = 3;
+            flashEvent('🌟 ¡Famoso estaciona en tu lote! +10 rep · próximo cobro x3.');
+        }
+    },
+    {
+        id: 'protest', weight: 3, name: 'Protesta cercana',
+        apply: () => {
+            // Streets blocked — spawn rate drops, but if you have ParkingApp, less impact
+            if (S.upgrades.parkingApp) {
+                flashEvent('📱 Protesta en la zona — la app redirige clientes alternativos. Impacto mínimo.');
+                return;
+            }
+            S.rushUntilMin = 0;
+            S.spawnTimer = -3000;   // delay next spawn 3s real time
+            flashEvent('🚧 Protesta corta las calles. Menos autos llegando. ¡La app ParkingApp ayudaría!');
+        }
+    },
 ];
 
 function triggerRandomEvent() {
@@ -3614,6 +3692,20 @@ function purchaseSubscription() {
 
 // ─── HUD ───────────────────────────────────────────────────
 function createHUD(scene) {
+    // Day/Night overlay — full-canvas tint that changes by game hour.
+    // Drawn BEFORE the HUD so the HUD bar sits on top, but UNDER the canvas
+    // entities so cars/booth show through. Depth chosen between background
+    // (default 0) and HUD elements.
+    S.dayNightOverlay = scene.add.rectangle(
+        CONFIG.width/2, (L.hudH + CONFIG.height) / 2,
+        CONFIG.width, CONFIG.height - L.hudH,
+        0x000033, 0
+    ).setDepth(11);   // above booth (15? actually 12 vs cars) — fine-tune below
+    // Actually want the tint OVER cars and lot but UNDER UI, so depth ~ 50.
+    S.dayNightOverlay.setDepth(50);
+    // BlendMode MULTIPLY would tint everything but rendering issues — use
+    // simple alpha overlay with a tinted color so it darkens uniformly.
+
     scene.add.rectangle(CONFIG.width / 2, L.hudH / 2, CONFIG.width, L.hudH, 0x1e293b)
         .setStrokeStyle(2, 0x334155);
 
@@ -4769,9 +4861,36 @@ function updateInfoBoard() {
     $('info-served-today').textContent = String(S.carsServedToday);
 }
 
+// ─── DAY/NIGHT TINT ────────────────────────────────────────
+// Returns {color: int, alpha: float} based on game hour.
+// 8-10: dawn (warm yellow, 0.05)
+// 10-15: bright day (clear, 0)
+// 15-17: afternoon (slight warm, 0.05)
+// 17-19: golden hour (orange, 0.12)
+// 19-21: dusk (purple, 0.25)
+// 21-22+: night (dark blue, 0.40)
+function getDayNightTint(hour) {
+    if (hour < 9)       return { color: 0xfbbf24, alpha: 0.08 };  // dawn warm
+    if (hour < 10)      return { color: 0xfde047, alpha: 0.04 };  // morning soft
+    if (hour < 15)      return { color: 0xffffff, alpha: 0.00 };  // bright day
+    if (hour < 17)      return { color: 0xfed7aa, alpha: 0.05 };  // afternoon warmth
+    if (hour < 18.5)    return { color: 0xfb923c, alpha: 0.18 };  // golden hour
+    if (hour < 20)      return { color: 0x7c3aed, alpha: 0.30 };  // dusk purple
+    if (hour < 21)      return { color: 0x312e81, alpha: 0.42 };  // late dusk
+    return { color: 0x0c0a40, alpha: 0.55 };                       // night
+}
+
+function updateDayNightOverlay() {
+    if (!S.dayNightOverlay) return;
+    const hour = S.timeMinutes / 60;
+    const t = getDayNightTint(hour);
+    S.dayNightOverlay.setFillStyle(t.color, t.alpha);
+}
+
 function updateHUD() {
     const hours = Math.floor(S.timeMinutes / 60);
     const minutes = Math.floor(S.timeMinutes % 60);
+    updateDayNightOverlay();
     S.hud.time.setText(`⏰ ${pad(hours)}:${pad(minutes)} ${DAY_SHORT[S.dayOfWeek]} D${S.day}`);
     S.hud.money.setText(`💰 $${Math.floor(S.money).toLocaleString('es-CL')}`);
     S.hud.reputation.setText(`⭐ ${S.reputation}%`);
