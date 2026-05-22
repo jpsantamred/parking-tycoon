@@ -3049,10 +3049,13 @@ function purchaseEntryTotem() {
     if (S.money < CONFIG.entryTotemCost) return;
     S.money -= CONFIG.entryTotemCost;
     S.upgrades.entryTotem = true;
-    flashEvent('🎫 ¡Tótem instalado! Los autos ahora entran solos. Vos cobrá las salidas.');
     SFX.purchase();
-    flagReopenManagement();
-    S.scene.scene.restart();
+    showLevelMilestone({
+        icon: '🎫', color: 0x0891b2,
+        title: 'TÓTEM DE ENTRADA',
+        tagline: 'Nivel 3 final · self-service · cobrador solo cobra salidas',
+        onClose: () => { flagReopenManagement(); S.scene.scene.restart(); }
+    });
 }
 
 function purchaseExitTotem() {
@@ -3064,10 +3067,13 @@ function purchaseExitTotem() {
     if (S.money < CONFIG.exitTotemCost) return;
     S.money -= CONFIG.exitTotemCost;
     S.upgrades.exitTotem = true;
-    flashEvent('💳 ¡Tótem autopago instalado! Salidas se cobran solas vía Redcomercio. Nivel 4.');
     SFX.purchase();
-    flagReopenManagement();
-    S.scene.scene.restart();
+    showLevelMilestone({
+        icon: '💳', color: 0x16a34a,
+        title: 'AUTOPAGO',
+        tagline: 'Nivel 4 · salida self-service · 0 cobrador necesario',
+        onClose: () => { flagReopenManagement(); S.scene.scene.restart(); }
+    });
 }
 
 function purchaseParkingApp() {
@@ -3079,10 +3085,13 @@ function purchaseParkingApp() {
     if (S.money < CONFIG.parkingAppCost) return;
     S.money -= CONFIG.parkingAppCost;
     S.upgrades.parkingApp = true;
-    flashEvent('📱 ¡ParkingApp integrada! +30% clientes premium · +$50/min suscripciones. Nivel 5.');
     SFX.purchase();
-    flagReopenManagement();
-    S.scene.scene.restart();
+    showLevelMilestone({
+        icon: '📱', color: 0x3b82f6,
+        title: 'PARKING APP',
+        tagline: 'Nivel 5 · 30% premium · +$50/min · loyalty +50% patience',
+        onClose: () => { flagReopenManagement(); S.scene.scene.restart(); }
+    });
 }
 
 function purchaseValetAI() {
@@ -3095,10 +3104,13 @@ function purchaseValetAI() {
     S.money -= CONFIG.valetAICost;
     S.upgrades.valetAI = true;
     S.reputation = Math.min(100, S.reputation + CONFIG.valetAIRepBonus);
-    flashEvent('🤖 ¡Valet AI activado! Autos se estacionan solos · +80% tarifa luxury. Nivel 6.');
     SFX.purchase();
-    flagReopenManagement();
-    S.scene.scene.restart();
+    showLevelMilestone({
+        icon: '🤖', color: 0xa855f7,
+        title: 'VALET AI',
+        tagline: 'Nivel 6 · 1.8x tarifa luxury · autos se estacionan solos',
+        onClose: () => { flagReopenManagement(); S.scene.scene.restart(); }
+    });
 }
 
 function purchaseMultiLevel() {
@@ -3110,10 +3122,13 @@ function purchaseMultiLevel() {
     if (S.money < CONFIG.multiLevelCost) return;
     S.money -= CONFIG.multiLevelCost;
     S.upgrades.multiLevel = true;
-    flashEvent('🏢 ¡Parking vertical! +200/min pasivo de pisos ocultos. Nivel 7.');
     SFX.purchase();
-    flagReopenManagement();
-    S.scene.scene.restart();
+    showLevelMilestone({
+        icon: '🏢', color: 0x0284c7,
+        title: 'PARKING VERTICAL',
+        tagline: 'Nivel 7 · +3 pisos · +$200/min pasivo',
+        onClose: () => { flagReopenManagement(); S.scene.scene.restart(); }
+    });
 }
 
 function purchaseDrone() {
@@ -3126,10 +3141,13 @@ function purchaseDrone() {
     S.money -= CONFIG.droneCost;
     S.upgrades.drone = true;
     S.reputation = Math.min(100, S.reputation + CONFIG.droneRepBonus);
-    flashEvent('🚁 ¡Drones operativos! Delivery aéreo + tarifa premium. Nivel 8.');
     SFX.purchase();
-    flagReopenManagement();
-    S.scene.scene.restart();
+    showLevelMilestone({
+        icon: '🚁', color: 0x7c3aed,
+        title: 'DRONES',
+        tagline: 'Nivel 8 · delivery aéreo · +1.3x tarifa · +$350/min',
+        onClose: () => { flagReopenManagement(); S.scene.scene.restart(); }
+    });
 }
 
 function purchaseSpaceport() {
@@ -3145,6 +3163,78 @@ function purchaseSpaceport() {
     flashEvent('🚀 ¡SPACEPORT! Has llegado a las naves espaciales. ¡Ganaste el juego!');
     SFX.purchase();
     showGameWonCelebration();
+}
+
+// Generic mini-cinematic for milestone purchases (N4, N5, N6, N7, N8).
+// Brief overlay with title + tagline + confetti, dismissable with click.
+function showLevelMilestone(opts) {
+    if (!S.scene) return;
+    const scene = S.scene;
+    const W = CONFIG.width, H = CONFIG.height;
+    const ui = [];
+    S.paused = true;
+    scene.tweens.pauseAll();
+
+    // Dim backdrop
+    ui.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.88).setDepth(1500));
+
+    // Big icon ring (radial gradient feel)
+    const halo = scene.add.circle(W/2, H/2 - 30, 70, opts.color || 0xfde047, 0.25).setDepth(1501);
+    scene.tweens.add({ targets: halo, radius: 90, alpha: 0.15, duration: 1200, yoyo: true, repeat: -1 });
+    ui.push(halo);
+
+    // Big emoji in the center
+    const icon = scene.add.text(W/2, H/2 - 30, opts.icon, {
+        font: '64px sans-serif'
+    }).setOrigin(0.5).setScale(0).setDepth(1502);
+    scene.tweens.add({ targets: icon, scale: 1, duration: 500, ease: 'Back.easeOut' });
+    ui.push(icon);
+
+    // Title
+    const title = scene.add.text(W/2, H/2 + 40, opts.title, {
+        font: 'bold 26px monospace', color: '#fff',
+        stroke: '#000', strokeThickness: 4
+    }).setOrigin(0.5).setAlpha(0).setDepth(1502);
+    scene.tweens.add({ targets: title, alpha: 1, duration: 400, delay: 300 });
+    ui.push(title);
+
+    // Tagline
+    const tagline = scene.add.text(W/2, H/2 + 70, opts.tagline, {
+        font: 'italic 14px monospace', color: '#a5f3fc'
+    }).setOrigin(0.5).setAlpha(0).setDepth(1502);
+    scene.tweens.add({ targets: tagline, alpha: 1, duration: 400, delay: 600 });
+    ui.push(tagline);
+
+    // Confetti burst
+    const colors = [0xfde047, 0x10b981, 0xa855f7, 0x3b82f6, 0xef4444, 0x06b6d4];
+    for (let i = 0; i < 20; i++) {
+        const c = scene.add.rectangle(
+            W/2 + (Math.random() - 0.5) * 200,
+            H/2 - 30 + (Math.random() - 0.5) * 100,
+            5, 10,
+            colors[Math.floor(Math.random() * colors.length)]
+        ).setDepth(1502);
+        scene.tweens.add({
+            targets: c, y: c.y + 200 + Math.random() * 100, angle: 360 + Math.random() * 360,
+            alpha: 0, duration: 1500 + Math.random() * 800,
+            delay: Math.random() * 400, ease: 'Sine.easeIn',
+        });
+        ui.push(c);
+    }
+
+    // Continue button
+    const btn = scene.add.text(W/2, H - 60, '▶  ¡SIGUE!', {
+        font: 'bold 18px monospace', color: '#fff',
+        backgroundColor: '#16a34a', padding: { x: 20, y: 10 }
+    }).setOrigin(0.5).setAlpha(0).setDepth(1502).setInteractive({ useHandCursor: true });
+    scene.tweens.add({ targets: btn, alpha: 1, duration: 400, delay: 1200 });
+    btn.on('pointerdown', () => {
+        ui.forEach(o => { try { o.destroy(); } catch(e) {} });
+        S.paused = false;
+        scene.tweens.resumeAll();
+        if (opts.onClose) opts.onClose();
+    });
+    ui.push(btn);
 }
 
 function showGameWonCelebration() {
