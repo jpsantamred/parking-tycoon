@@ -852,6 +852,9 @@ function create() {
     if (S.upgrades.barriers) drawBarriers(this);
     if (S.upgrades.entryTotem) drawEntryTotem(this);
     if (S.upgrades.exitTotem) drawExitTotem(this);
+    if (S.upgrades.multiLevel) drawMultiLevel(this);
+    if (S.upgrades.drone) drawDrones(this);
+    if (S.upgrades.spaceport) drawSpaceport(this);
     // drawPaymentDecal removed — was redundant with booth sticker / SERVICIOS card,
     // and the previous position interfered with road traffic / ad screens.
 
@@ -2468,6 +2471,91 @@ function dispenseExitCharge() {
         duration: CONFIG.exitTotemScanMs, ease: 'Power2',
         onComplete: () => float.destroy()
     });
+}
+
+// ─── NIVEL 7-9 VISUALS ─────────────────────────────────────
+// Parking vertical: badge "+N pisos" en una esquina del lote
+function drawMultiLevel(scene) {
+    const x = L.lotLeft + 60, y = L.lotFenceY + 22;
+    scene.add.rectangle(x, y, 80, 30, 0x0c4a6e).setStrokeStyle(2, 0x38bdf8).setDepth(5);
+    scene.add.text(x, y - 6, '🏢 +3 PISOS', {
+        font: 'bold 9px monospace', color: '#38bdf8'
+    }).setOrigin(0.5).setDepth(5);
+    scene.add.text(x, y + 6, 'N7 · vertical', {
+        font: 'bold 7px monospace', color: '#bae6fd'
+    }).setOrigin(0.5).setDepth(5);
+}
+
+// Drones flotando sobre el lote, ambient delivery
+function drawDrones(scene) {
+    const positions = [
+        { x: 200, y: 100, color: 0xa855f7 },
+        { x: 500, y: 80, color: 0x7c3aed },
+        { x: 800, y: 110, color: 0xa855f7 },
+    ];
+    positions.forEach(d => {
+        // Body — small purple square with 4 propellers
+        const body = scene.add.rectangle(d.x, d.y, 14, 10, d.color).setStrokeStyle(1, 0x2e1065);
+        // 4 propellers (small ellipses at corners)
+        const props = [
+            scene.add.ellipse(d.x - 8, d.y - 5, 6, 2, 0xcbd5e1, 0.7),
+            scene.add.ellipse(d.x + 8, d.y - 5, 6, 2, 0xcbd5e1, 0.7),
+            scene.add.ellipse(d.x - 8, d.y + 5, 6, 2, 0xcbd5e1, 0.7),
+            scene.add.ellipse(d.x + 8, d.y + 5, 6, 2, 0xcbd5e1, 0.7),
+        ];
+        // Red signal light
+        scene.add.circle(d.x, d.y, 1.5, 0xef4444);
+        // Drift left-right slowly
+        scene.tweens.add({
+            targets: [body, ...props], x: { from: d.x - 40, to: d.x + 40 },
+            duration: 4000 + Math.random() * 2000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+        });
+        // Propeller "spin" effect — fast alpha pulse
+        scene.tweens.add({
+            targets: props, alpha: { from: 0.4, to: 0.9 },
+            duration: 80, yoyo: true, repeat: -1
+        });
+    });
+}
+
+// Spaceport — naves espaciales sobre el lote (winner's overlay)
+function drawSpaceport(scene) {
+    // UFO 1 (purple/blue glowing)
+    const ufo1X = 250, ufo1Y = 60;
+    const ufo1Glow = scene.add.ellipse(ufo1X, ufo1Y + 12, 60, 14, 0x38bdf8, 0.3)
+        .setBlendMode(Phaser.BlendModes.SCREEN);
+    scene.tweens.add({ targets: ufo1Glow, alpha: { from: 0.3, to: 0.5 }, duration: 800, yoyo: true, repeat: -1 });
+    const ufo1Base = scene.add.ellipse(ufo1X, ufo1Y, 50, 12, 0x6366f1).setStrokeStyle(2, 0x4338ca);
+    const ufo1Dome = scene.add.ellipse(ufo1X, ufo1Y - 6, 26, 14, 0xa5b4fc).setStrokeStyle(1, 0x6366f1);
+    scene.add.circle(ufo1X - 16, ufo1Y + 3, 2, 0xfde047);
+    scene.add.circle(ufo1X, ufo1Y + 3, 2, 0xef4444);
+    scene.add.circle(ufo1X + 16, ufo1Y + 3, 2, 0xfde047);
+    scene.tweens.add({
+        targets: [ufo1Base, ufo1Dome], y: { from: ufo1Y - 4, to: ufo1Y + 4 },
+        duration: 3000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+    });
+
+    // UFO 2 (red — bigger, hovering more east)
+    const ufo2X = 700, ufo2Y = 50;
+    const ufo2Glow = scene.add.ellipse(ufo2X, ufo2Y + 14, 80, 18, 0xef4444, 0.3)
+        .setBlendMode(Phaser.BlendModes.SCREEN);
+    scene.tweens.add({ targets: ufo2Glow, alpha: { from: 0.3, to: 0.6 }, duration: 700, yoyo: true, repeat: -1 });
+    const ufo2Base = scene.add.ellipse(ufo2X, ufo2Y, 70, 16, 0xdc2626).setStrokeStyle(2, 0x7f1d1d);
+    const ufo2Dome = scene.add.ellipse(ufo2X, ufo2Y - 8, 36, 18, 0xfca5a5).setStrokeStyle(1, 0xdc2626);
+    scene.add.circle(ufo2X - 22, ufo2Y + 4, 2, 0xfde047);
+    scene.add.circle(ufo2X, ufo2Y + 4, 2, 0x10b981);
+    scene.add.circle(ufo2X + 22, ufo2Y + 4, 2, 0xfde047);
+    scene.tweens.add({
+        targets: [ufo2Base, ufo2Dome], y: { from: ufo2Y - 5, to: ufo2Y + 5 },
+        duration: 2500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+    });
+
+    // "SPACEPORT" banner top-center
+    const banner = scene.add.rectangle(CONFIG.width/2, 30, 200, 24, 0x0c4a6e).setStrokeStyle(2, 0xfde047);
+    scene.add.text(CONFIG.width/2, 30, '🚀 SPACEPORT ACTIVO 🚀', {
+        font: 'bold 11px monospace', color: '#fde047'
+    }).setOrigin(0.5);
+    scene.tweens.add({ targets: banner, alpha: { from: 1, to: 0.7 }, duration: 1200, yoyo: true, repeat: -1 });
 }
 
 function processExitViaTotem() {
