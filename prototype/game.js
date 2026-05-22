@@ -238,9 +238,11 @@ const L = {
     entryOpeningX: 420, exitOpeningX: 540, openingW: 50,
     entryVlaneX: 420, exitVlaneX: 540,
 
-    centerLaneY: 345, laneH: 40,
-    row1Y: 245, row2Y: 415,            // moved tighter — leaves room for expansion row
-    spaceW: 50, spaceH: 60,            // shorter so expansion row fits in canvas
+    // Compact layout that fits 3 rows + 2 lanes within lot bounds 200-510
+    centerLaneY: 300, laneH: 35,
+    expansionLaneY: 420, expansionLaneH: 30,    // shown only when expansion purchased
+    row1Y: 240, row2Y: 360, row3Y: 475,         // row3 used only with expansion
+    spaceW: 50, spaceH: 55,
     cols: [70, 155, 240, 325, 590, 675, 760, 845],
 
     // v0.10c — Queue: HEAD inside lot at entry vlane; rest on street going WEST
@@ -531,6 +533,23 @@ function drawBackground(scene) {
     for (let x = L.lotLeft + 15; x < L.lotRight; x += 36) {
         scene.add.rectangle(x, L.centerLaneY, 18, 3, COLORS.roadLine);
     }
+
+    // Second horizontal lane (only when expansion is purchased)
+    if (S.upgrades.expansions > 0) {
+        scene.add.rectangle(lotCX, L.expansionLaneY, lotW - 6, L.expansionLaneH, COLORS.road);
+        for (let x = L.lotLeft + 15; x < L.lotRight; x += 36) {
+            scene.add.rectangle(x, L.expansionLaneY, 18, 3, COLORS.roadLine);
+        }
+        // Extend the entry & exit vlanes south to connect the new lane
+        scene.add.rectangle(L.entryVlaneX, (L.centerLaneY + L.expansionLaneY) / 2,
+                            50, L.expansionLaneY - L.centerLaneY, COLORS.road);
+        scene.add.rectangle(L.exitVlaneX, (L.centerLaneY + L.expansionLaneY) / 2,
+                            50, L.expansionLaneY - L.centerLaneY, COLORS.road);
+        for (let y = L.centerLaneY + 14; y < L.expansionLaneY; y += 28) {
+            scene.add.rectangle(L.entryVlaneX, y, 3, 12, COLORS.roadLine);
+            scene.add.rectangle(L.exitVlaneX, y, 3, 12, COLORS.roadLine);
+        }
+    }
 }
 
 function drawPlaceholder(scene) {
@@ -614,6 +633,25 @@ function drawBooth(scene) {
     }).setOrigin(0.5);
     S.closedSignGroup = [closedBg, closedTxt];
 
+    // POS terminal visible on the counter when purchased
+    if (S.upgrades.pos) {
+        const posCx = cx + 22, posCy = cy + h/2 - 22;
+        // Terminal body
+        sprites.push(scene.add.rectangle(posCx, posCy, 18, 14, 0x1f2937).setStrokeStyle(1, 0x10b981));
+        // Green screen
+        sprites.push(scene.add.rectangle(posCx, posCy - 2, 14, 5, 0x10b981));
+        // Card slot
+        sprites.push(scene.add.rectangle(posCx, posCy + 4, 10, 1, 0x6b7280));
+        // Blinking LED
+        const posLed = scene.add.circle(posCx + 7, posCy - 5, 1.5, 0xef4444);
+        scene.tweens.add({ targets: posLed, alpha: { from: 1, to: 0.2 }, duration: 500, yoyo: true, repeat: -1 });
+        sprites.push(posLed);
+        // "POS" label
+        sprites.push(scene.add.text(posCx + 12, posCy, 'POS', {
+            font: 'bold 8px monospace', color: '#10b981'
+        }).setOrigin(0, 0.5));
+    }
+
     S.boothSprites = sprites;
     S.boothWindowSprite = windowGlass;
     S.boothCobradorSprite = cobrador;
@@ -650,11 +688,14 @@ function createParkingSpaces(scene) {
         addSpace(scene, x, L.row1Y, 'up', c);
         addSpace(scene, x, L.row2Y, 'down', c);
     });
-    // Expansion row (only 1 max — placed right below row 2, fits in canvas)
+    // Expansion row 3 — accessed via a second horizontal lane (expansionLaneY)
     if (S.upgrades.expansions > 0) {
-        const y = L.row2Y + 60;  // ~y=475, spans 445-505 — fits in lot bottom (510)
         for (let c = 0; c < CONFIG.expansionExtraSpaces && c < L.cols.length; c++) {
-            addSpace(scene, L.cols[c], y, 'down', c + 10);
+            // Row 3 cars face UP (into the row from the lane south of row 2 — actually
+            // the lane is between row 2 and row 3, so row 3 cars face DOWN to drive
+            // in from the north). Wait — lane is at y=420, row 3 at y=475 (below).
+            // So cars come from north (lane) into row 3, facing down. facing 'down'.
+            addSpace(scene, L.cols[c], L.row3Y, 'down', c + 10);
         }
     }
 }
@@ -1447,8 +1488,121 @@ function purchasePOS() {
     if (S.money < CONFIG.posCost) return;
     S.money -= CONFIG.posCost;
     S.upgrades.pos = true;
-    flashEvent('💳 ¡POS instalado! Cobro súper rápido (0.3s).');
     closeManagementPanel();
+    showPOSCelebration();
+}
+
+function showPOSCelebration() {
+    const scene = S.scene;
+    const W = CONFIG.width, H = CONFIG.height;
+    const ui = [];
+
+    // Pause game
+    S.paused = true;
+    scene.tweens.pauseAll();
+
+    // Fanfare sound — ascending chord
+    SFX.purchase();
+    setTimeout(() => beep(1047, 0.18, 'square', 0.07), 280);
+    setTimeout(() => beep(1319, 0.25, 'square', 0.08), 460);
+
+    // Dim background
+    ui.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.94));
+
+    // Animated radial glow behind title
+    const glow = scene.add.circle(W/2, 100, 140, 0xfbbf24, 0.15);
+    scene.tweens.add({ targets: glow, radius: 220, alpha: 0.35, duration: 800, yoyo: true, repeat: -1 });
+    ui.push(glow);
+
+    // Confetti
+    const colors = [0xfbbf24, 0x10b981, 0xa855f7, 0x3b82f6, 0xef4444, 0x06b6d4];
+    for (let i = 0; i < 40; i++) {
+        const c = scene.add.rectangle(
+            Math.random() * W, -30 + Math.random() * -100,
+            6, 12,
+            colors[Math.floor(Math.random() * colors.length)]
+        );
+        scene.tweens.add({
+            targets: c, y: H + 40, angle: 360 + Math.random() * 360,
+            duration: 1800 + Math.random() * 1500, delay: Math.random() * 700,
+            ease: 'Sine.easeIn'
+        });
+        ui.push(c);
+    }
+
+    // Title with bounce
+    const title = scene.add.text(W/2, 100, '🎉  ¡POS INSTALADO!  🎉', {
+        font: 'bold 32px monospace', color: '#fbbf24',
+        stroke: '#000', strokeThickness: 5
+    }).setOrigin(0.5).setScale(0);
+    scene.tweens.add({ targets: title, scale: 1, duration: 600, ease: 'Back.easeOut' });
+    ui.push(title);
+
+    const subtitle = scene.add.text(W/2, 138, 'Entrás a la era ParkingApp', {
+        font: 'italic 16px monospace', color: '#a5f3fc'
+    }).setOrigin(0.5).setAlpha(0);
+    scene.tweens.add({ targets: subtitle, alpha: 1, duration: 600, delay: 400 });
+    ui.push(subtitle);
+
+    // Ana portrait
+    const portraitX = 180, portraitY = 270;
+    const halo = scene.add.circle(portraitX, portraitY, 78, 0xfbbf24, 0.3);
+    scene.tweens.add({ targets: halo, radius: 90, alpha: 0.15, duration: 1000, yoyo: true, repeat: -1 });
+    ui.push(halo);
+    const portraitCircle = scene.add.circle(portraitX, portraitY, 65, 0xa855f7).setStrokeStyle(4, 0xfbbf24);
+    const portraitEmoji = scene.add.image(portraitX, portraitY, 'ana_south').setScale(2.2);
+    ui.push(portraitCircle, portraitEmoji);
+    ui.push(scene.add.text(portraitX, portraitY + 90, 'Ana', {
+        font: 'bold 18px monospace', color: '#fbbf24'
+    }).setOrigin(0.5));
+    ui.push(scene.add.text(portraitX, portraitY + 112, 'ParkingApp Sales', {
+        font: 'italic 12px monospace', color: '#a5f3fc'
+    }).setOrigin(0.5));
+
+    // Dialog box
+    const dialogX = 320, dialogY = 200;
+    const dialogBg = scene.add.rectangle(dialogX + 200, dialogY + 70, 420, 220, 0x1e293b, 0.95)
+        .setStrokeStyle(2, 0xa855f7);
+    ui.push(dialogBg);
+
+    const lines = [
+        '«¡Felicitaciones!»',
+        '',
+        '⚡ Cobro papeleta:  1.5s',
+        '⚡ Cobro con POS:    0.3s   (5x)',
+        '',
+        '«Más autos atendidos por hora.',
+        ' Menos clientes se cansan.',
+        ' Tu rep. sube. La plata fluye.»',
+        '',
+        '«Esto es solo el principio.»',
+    ];
+    lines.forEach((line, i) => {
+        const t = scene.add.text(dialogX + 16, dialogY + i * 19 + 10, line, {
+            font: i === 0 ? 'bold 16px monospace' : '14px monospace',
+            color: i === 0 ? '#fbbf24' : (line.includes('⚡') ? '#10b981' : '#fff')
+        }).setAlpha(0);
+        scene.tweens.add({ targets: t, alpha: 1, duration: 300, delay: 600 + i * 80 });
+        ui.push(t);
+    });
+
+    // Continue button (delayed appearance)
+    const btn = scene.add.text(W/2, H - 50, '▶   ¡VAMOS!   ▶', {
+        font: 'bold 22px monospace', color: '#fff',
+        backgroundColor: '#16a34a', padding: { x: 28, y: 14 }
+    }).setOrigin(0.5).setAlpha(0).setInteractive({ useHandCursor: true });
+    scene.tweens.add({ targets: btn, alpha: 1, duration: 400, delay: 2000 });
+    scene.tweens.add({ targets: btn, scale: { from: 1, to: 1.05 },
+        duration: 500, yoyo: true, repeat: -1, delay: 2400 });
+    btn.on('pointerdown', () => {
+        ui.forEach(o => { try { o.destroy(); } catch(e) {} });
+        S.paused = false;
+        scene.tweens.resumeAll();
+        flashEvent('💳 POS operativo. Te paga sus beneficios en una semana.');
+        // Restart so the booth re-renders with the POS terminal
+        S.scene.scene.restart();
+    });
+    ui.push(btn);
 }
 
 function maybeShowParkingAppCinematic() {
@@ -1937,13 +2091,25 @@ function attendEntry(emp) {
             const isLeftOfEntry = space.x < L.entryVlaneX;
             const horizontalAngle = isLeftOfEntry ? 180 : 0;
             const turnIntoSpaceAngle = space.facing === 'up' ? -90 : 90;
-            const wps = [
-                { x: L.entryVlaneX, y: L.centerLaneY, angle: 90, duration: 600 },
-                { angle: horizontalAngle, duration: 200 },
-                { x: space.x, y: L.centerLaneY, duration: 600 },
-                { angle: turnIntoSpaceAngle, duration: 200 },
-                { x: space.x, y: space.y, duration: 450 },
-            ];
+            // If destination is row 3 (expansion), use the south lane (expansionLaneY)
+            const useSouthLane = space.y > L.row2Y + 30;
+            const laneY = useSouthLane ? L.expansionLaneY : L.centerLaneY;
+            const wps = useSouthLane
+                ? [
+                    { x: L.entryVlaneX, y: L.centerLaneY, angle: 90, duration: 500 },
+                    { x: L.entryVlaneX, y: L.expansionLaneY, duration: 400 },
+                    { angle: horizontalAngle, duration: 200 },
+                    { x: space.x, y: L.expansionLaneY, duration: 500 },
+                    { angle: turnIntoSpaceAngle, duration: 200 },
+                    { x: space.x, y: space.y, duration: 350 },
+                  ]
+                : [
+                    { x: L.entryVlaneX, y: L.centerLaneY, angle: 90, duration: 600 },
+                    { angle: horizontalAngle, duration: 200 },
+                    { x: space.x, y: L.centerLaneY, duration: 600 },
+                    { angle: turnIntoSpaceAngle, duration: 200 },
+                    { x: space.x, y: space.y, duration: 450 },
+                  ];
             driveCar(car, wps, () => { car.state = 'parked'; S.parkedCars.push(car); });
 
             if (hasBooth) {
@@ -1994,16 +2160,28 @@ function requestExit(car) {
     S.exitQueue.push(car);
 
     const turnToLaneAngle = space.facing === 'up' ? 90 : -90;
-    // Exit vlane is on the RIGHT (x=540). Drive east or west to reach it.
-    const toExitAngle = space.x < L.exitVlaneX ? 0 : 180;   // east if exit is east of space
-    const wps = [
-        { angle: turnToLaneAngle, duration: 200 },
-        { x: space.x, y: L.centerLaneY, duration: 400 },
-        { angle: toExitAngle, duration: 200 },
-        { x: L.exitVlaneX, y: L.centerLaneY, duration: 700 },
-        { angle: -90, duration: 200 },
-        { x: L.exitWaitX, y: L.exitWaitY + queuePos * L.exitQueueSpacing, duration: 500 },
-    ];
+    const toExitAngle = space.x < L.exitVlaneX ? 0 : 180;
+    // Row 3 (expansion) exits via the south lane (expansionLaneY)
+    const isRow3 = space.y > L.row2Y + 30;
+    const laneY = isRow3 ? L.expansionLaneY : L.centerLaneY;
+    const wps = isRow3
+        ? [
+            { angle: turnToLaneAngle, duration: 200 },
+            { x: space.x, y: L.expansionLaneY, duration: 400 },     // out of space, into south lane
+            { angle: toExitAngle, duration: 200 },
+            { x: L.exitVlaneX, y: L.expansionLaneY, duration: 600 }, // drive on south lane to exit vlane
+            { angle: -90, duration: 200 },
+            { x: L.exitVlaneX, y: L.centerLaneY, duration: 400 },    // up to main lane
+            { x: L.exitWaitX, y: L.exitWaitY + queuePos * L.exitQueueSpacing, duration: 500 },
+          ]
+        : [
+            { angle: turnToLaneAngle, duration: 200 },
+            { x: space.x, y: L.centerLaneY, duration: 400 },
+            { angle: toExitAngle, duration: 200 },
+            { x: L.exitVlaneX, y: L.centerLaneY, duration: 700 },
+            { angle: -90, duration: 200 },
+            { x: L.exitWaitX, y: L.exitWaitY + queuePos * L.exitQueueSpacing, duration: 500 },
+          ];
     driveCar(car, wps, () => {
         car.state = 'exit-waiting';
         flashEvent('🚙 Auto pide salida');
