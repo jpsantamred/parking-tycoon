@@ -2549,15 +2549,22 @@ function drawPaymentDecal(scene) {
 }
 
 function drawAesthetics(scene) {
-    // Lamp posts (luminarias) — now actually illuminate the lot with broad warm pools
+    // Lamp posts (luminarias) — illuminate the DRIVE LANES (where cars actually
+    // move). Two rows of 3 lamps each, evenly spaced along centerLane and
+    // expansionLane (when row 3 is built), well clear of cameras/plants.
     if (S.upgrades.lights) {
+        // Pick row Y just NORTH of the drive lane so light pools illuminate the road
+        const driveLaneY = L.centerLaneY - 14;
+        const expY = L.expansionLaneY ? L.expansionLaneY - 14 : null;
         const lampPositions = [
-            { x: L.lotLeft + 30, y: L.lotFenceY + 30 },
-            { x: L.lotRight - 30, y: L.lotFenceY + 30 },
-            { x: L.lotLeft + 30, y: L.lotBottom - 30 },
-            { x: L.lotRight - 30, y: L.lotBottom - 30 },
-            { x: L.lotLeft + 30, y: (L.lotFenceY + L.lotBottom) / 2 },
-            { x: L.lotRight - 30, y: (L.lotFenceY + L.lotBottom) / 2 },
+            // Drive lane lamps — 3 spaced across the main central road
+            { x: L.lotLeft + 110, y: driveLaneY },
+            { x: (L.lotLeft + L.lotRight) / 2, y: driveLaneY },
+            { x: L.lotRight - 110, y: driveLaneY },
+            // Bottom-edge lamps (front of lot, north sidewalk side)
+            { x: L.lotLeft + 110, y: L.lotBottom - 22 },
+            { x: (L.lotLeft + L.lotRight) / 2, y: L.lotBottom - 22 },
+            { x: L.lotRight - 110, y: L.lotBottom - 22 },
         ];
         lampPositions.forEach(p => {
             // === LIGHT POOL ON GROUND (drawn FIRST so post is on top) ===
@@ -2591,15 +2598,22 @@ function drawAesthetics(scene) {
         });
     }
 
-    // Greenery (plants/trees in corners) — bigger, multi-layered so they read clearly
+    // Greenery (plants/trees) — placed on east/west OUTER walls and along the
+    // central divider strip between rows, so they don't fight with cameras
+    // (which now own the 4 lot corners) or lights (which line the drive lanes).
     if (S.upgrades.greenery) {
+        const midY = (L.lotFenceY + L.lotBottom) / 2;
         const plantSpots = [
-            { x: L.lotLeft + 16, y: L.lotFenceY + 14 },
-            { x: L.lotRight - 16, y: L.lotFenceY + 14 },
-            { x: L.lotLeft + 16, y: L.lotBottom - 14 },
-            { x: L.lotRight - 16, y: L.lotBottom - 14 },
-            { x: (L.lotLeft + L.lotRight) / 2 - 90, y: L.lotBottom - 14 },
-            { x: (L.lotLeft + L.lotRight) / 2 + 90, y: L.lotBottom - 14 },
+            // West outer wall — 2 plants stacked
+            { x: L.lotLeft + 10, y: L.lotFenceY + 60 },
+            { x: L.lotLeft + 10, y: L.lotBottom - 60 },
+            // East outer wall — 2 plants stacked
+            { x: L.lotRight - 10, y: L.lotFenceY + 60 },
+            { x: L.lotRight - 10, y: L.lotBottom - 60 },
+            // Central divider strip (between row 1 and row 2 lanes), away from
+            // the booth/barrier area in the center.
+            { x: L.lotLeft + 200, y: midY },
+            { x: L.lotRight - 200, y: midY },
         ];
         plantSpots.forEach(p => {
             // Trunk (small brown rectangle peeking from under foliage)
@@ -2644,12 +2658,14 @@ function drawAesthetics(scene) {
         }).setOrigin(0.5);
         S.guardAccessories = [cap, capBrim, badge, badgeLabel, label];
 
-        // Patrol path: rectangle around the lot
+        // Patrol path: walks along the central drive lane (where the lights
+        // are now). Visible to cars + away from corner cameras/plants.
+        const driveY = L.centerLaneY + 22;
         const path = [
-            { x: L.lotRight - 30, y: L.lotBottom - 30, duration: 8000 },
-            { x: L.lotRight - 30, y: L.lotFenceY + 30, duration: 5000 },
-            { x: L.lotLeft + 30, y: L.lotFenceY + 30, duration: 8000 },
-            { x: L.lotLeft + 30, y: L.lotBottom - 30, duration: 5000 },
+            { x: L.lotRight - 40, y: driveY, duration: 8000 },
+            { x: L.lotRight - 40, y: L.lotBottom - 40, duration: 4000 },
+            { x: L.lotLeft + 40, y: L.lotBottom - 40, duration: 8000 },
+            { x: L.lotLeft + 40, y: driveY, duration: 4000 },
         ];
         let i = 0;
         const next = () => {
@@ -2675,31 +2691,56 @@ function drawAesthetics(scene) {
 }
 
 function drawSafetyAndServices(scene) {
-    // Security cameras at lot corners — bigger + label so they read clearly
+    // Security cameras — mounted on tall POLES at the 4 lot corners, each
+    // pointing INWARD with a faint vision-cone (so the player can see what
+    // area each camera covers). Distinct from plants (which now live on
+    // east/west walls) and lights (which line the drive lanes).
     if (S.upgrades.cameras) {
+        // dir: which way the lens points (inward toward lot center).
         const corners = [
-            { x: L.lotLeft + 18, y: L.lotFenceY + 18 },
-            { x: L.lotRight - 18, y: L.lotFenceY + 18 },
-            { x: L.lotLeft + 18, y: L.lotBottom - 18 },
-            { x: L.lotRight - 18, y: L.lotBottom - 18 },
+            { x: L.lotLeft + 14,  y: L.lotFenceY + 14, dirX:  1, dirY:  1 },   // TL → looks down-right
+            { x: L.lotRight - 14, y: L.lotFenceY + 14, dirX: -1, dirY:  1 },   // TR → looks down-left
+            { x: L.lotLeft + 14,  y: L.lotBottom - 14, dirX:  1, dirY: -1 },   // BL → looks up-right
+            { x: L.lotRight - 14, y: L.lotBottom - 14, dirX: -1, dirY: -1 },   // BR → looks up-left
         ];
         corners.forEach(p => {
-            // Mounting pole (small bracket down from the corner)
-            scene.add.rectangle(p.x, p.y + 4, 3, 8, 0x52525b);
-            // Camera housing — dome-shaped (black body)
-            scene.add.rectangle(p.x, p.y, 20, 14, 0x111827).setStrokeStyle(2, 0xcbd5e1);
-            // Front lens (the "eye") — bigger red dot
-            scene.add.circle(p.x + 5, p.y, 4, 0x7f1d1d).setStrokeStyle(1, 0xfca5a5);
-            scene.add.circle(p.x + 5, p.y, 2, 0xef4444);
+            // === MOUNTING POLE ===
+            // Anchor base on the lot floor
+            scene.add.rectangle(p.x, p.y + 12, 8, 4, 0x27272a).setStrokeStyle(1, 0x18181b);
+            // Tall vertical pole
+            scene.add.rectangle(p.x, p.y + 2, 3, 18, 0x52525b);
+            // Mounting arm extending into the lot
+            scene.add.rectangle(p.x + p.dirX * 4, p.y - 4, 10, 2, 0x52525b);
+            // === CAMERA HOUSING ===
+            // Body — slightly offset toward inward direction (where lens points)
+            const camX = p.x + p.dirX * 6;
+            const camY = p.y - 6;
+            scene.add.rectangle(camX, camY, 16, 11, 0x111827).setStrokeStyle(2, 0xcbd5e1);
+            // Lens (eye) — red glow at the inward end
+            scene.add.circle(camX + p.dirX * 4, camY, 3, 0x7f1d1d).setStrokeStyle(1, 0xfca5a5);
+            scene.add.circle(camX + p.dirX * 4, camY, 1.5, 0xef4444);
+            // === VISION CONE ===
+            // Faint triangle indicating what the camera sees. Cone extends
+            // ~80px inward at ~60° spread. Drawn FIRST so other elements
+            // (cars, etc.) render on top.
+            const coneLen = 80;
+            const coneSpread = 32;
+            const coneG = scene.add.graphics();
+            coneG.fillStyle(0xfde047, 0.08);
+            coneG.beginPath();
+            coneG.moveTo(camX + p.dirX * 4, camY);
+            coneG.lineTo(camX + p.dirX * (4 + coneLen), camY + p.dirY * coneSpread);
+            coneG.lineTo(camX + p.dirX * (4 + coneLen), camY - p.dirY * coneSpread);
+            coneG.closePath();
+            coneG.fillPath();
+            coneG.setDepth(-1);   // behind everything
+            // Subtle pulse on the cone
+            scene.tweens.add({ targets: coneG, alpha: { from: 0.6, to: 1.0 }, duration: 2000, yoyo: true, repeat: -1 });
             // Recording LED — blinking green
-            const led = scene.add.circle(p.x - 6, p.y - 4, 2, 0x10b981);
+            const led = scene.add.circle(camX - p.dirX * 5, camY - 3, 1.8, 0x10b981);
             scene.tweens.add({ targets: led, alpha: { from: 1, to: 0.2 }, duration: 800, yoyo: true, repeat: -1 });
-            // "REC" mini-label
-            scene.add.text(p.x - 6, p.y + 4, 'REC', {
-                font: 'bold 4px monospace', color: '#fca5a5'
-            }).setOrigin(0.5);
-            // 📹 emoji on top for unmistakable identification
-            scene.add.text(p.x, p.y - 14, '📹', { font: '11px sans-serif' }).setOrigin(0.5);
+            // 📹 emoji label above for instant ID
+            scene.add.text(camX, camY - 13, '📹', { font: '10px sans-serif' }).setOrigin(0.5);
         });
     }
 
