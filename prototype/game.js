@@ -1473,6 +1473,38 @@ function renderUpgradesTab(scene, contentY, panelW) {
     }
     ypos += 38;
 
+    // ── AESTHETIC / REPUTATION UPGRADES ───────────────────
+    S.managementUI.push(scene.add.text(tableX, ypos, '✨ ESTÉTICA & REPUTACIÓN', {
+        font: 'bold 15px monospace', color: '#a5f3fc'
+    }));
+    ypos += 24;
+    const aestheticUpgrades = [
+        { key: 'pavement', cost: CONFIG.pavementCost, bonus: CONFIG.pavementRepBonus, name: '🪨 Pavimentar',      fn: purchasePavement },
+        { key: 'lines',    cost: CONFIG.linesCost,    bonus: CONFIG.linesRepBonus,    name: '🎨 Líneas pintadas',   fn: purchaseLines },
+        { key: 'lights',   cost: CONFIG.lightsCost,   bonus: CONFIG.lightsRepBonus,   name: '💡 Luminarias',        fn: purchaseLights },
+        { key: 'guard',    cost: CONFIG.guardCost,    bonus: CONFIG.guardRepBonus,    name: '👮 Guardia patrulla',  fn: purchaseGuard },
+        { key: 'greenery', cost: CONFIG.greeneryCost, bonus: CONFIG.greeneryRepBonus, name: '🌳 Áreas verdes',      fn: purchaseGreenery },
+    ];
+    aestheticUpgrades.forEach(a => {
+        const active = S.upgrades[a.key];
+        const canAfford = S.money >= a.cost;
+        if (active) {
+            S.managementUI.push(scene.add.text(tableX, ypos, `  ✅  ${a.name}`, {
+                font: 'bold 12px monospace', color: '#10b981'
+            }));
+        } else {
+            const btn = scene.add.text(tableX, ypos, `  ${a.name}  $${a.cost.toLocaleString('es-CL')}  +${a.bonus} rep  `, {
+                font: 'bold 12px monospace', color: canAfford ? '#fff' : '#9ca3af',
+                backgroundColor: canAfford ? '#7c2d12' : '#374151',
+                padding: { x: 10, y: 5 }
+            });
+            if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { a.fn(); }); }
+            S.managementUI.push(btn);
+        }
+        ypos += 24;
+    });
+    ypos += 12;
+
     // ── CONVENIOS ──────────────────────────────────────────
     S.managementUI.push(scene.add.text(45, ypos, '🤝 CONVENIOS', {
         font: 'bold 15px monospace', color: '#a5f3fc'
