@@ -542,7 +542,8 @@ function create() {
     drawSigns(this);
     drawSafetyAndServices(this);
     drawAesthetics(this);
-    drawPaymentDecal(this);
+    // drawPaymentDecal removed — was redundant with booth sticker / SERVICIOS card,
+    // and the previous position interfered with road traffic / ad screens.
 
     if (S.upgrades.booth) drawBooth(this);
     else drawPlaceholder(this);
@@ -1674,24 +1675,29 @@ function drawAdScreens(scene) {
     }
 }
 
-// Floor decal at the lot entrance (post-cinematic) — shows accepted payment networks
+// "Aceptamos:" sign — hung on the sidewalk pole next to the booth window
+// (NOT on the road — cars drove over the old floor decal which made no sense)
 function drawPaymentDecal(scene) {
-    if (!S.cinematicShown) return;
-    // Placed inside the lot, just past the entry opening, on the central drive lane
-    const dx = L.entryVlaneX, dy = L.centerLaneY + 22;
-    // White rounded mat
-    scene.add.rectangle(dx, dy, 70, 14, 0xf3f4f6).setStrokeStyle(1, 0x9ca3af);
-    // "ACEPTA" label
-    scene.add.text(dx - 24, dy, 'ACEPTA:', {
-        font: 'bold 6px monospace', color: '#1f2937'
+    if (!S.cinematicShown || !S.upgrades.booth) return;
+    // Hang the sign on the sidewalk just above the booth, where customers can read it
+    const dx = L.placeholderCx + 60;
+    const dy = L.lotFenceY - 14;
+    // Sign pole
+    scene.add.rectangle(dx, dy + 14, 2, 22, 0x4b5563);
+    // White rounded sign body
+    scene.add.rectangle(dx, dy, 72, 22, 0xf3f4f6).setStrokeStyle(1, 0x6b7280);
+    // Header strip
+    scene.add.rectangle(dx, dy - 7, 72, 6, 0x1e40af);
+    scene.add.text(dx, dy - 7, 'PAGOS ACEPTADOS', {
+        font: 'bold 6px monospace', color: '#dbeafe'
     }).setOrigin(0.5);
     // Mini ParkingApp + Redcomercio side by side
-    drawParkingAppBadge(scene, dx + 4, dy, 0.55);
-    drawRedcomercioBadge(scene, dx + 22, dy, 0.55);
+    drawParkingAppBadge(scene, dx - 14, dy + 4, 0.6);
+    drawRedcomercioBadge(scene, dx + 12, dy + 4, 0.6);
 }
 
 function drawAesthetics(scene) {
-    // Lamp posts (luminarias)
+    // Lamp posts (luminarias) — now actually illuminate the lot with broad warm pools
     if (S.upgrades.lights) {
         const lampPositions = [
             { x: L.lotLeft + 30, y: L.lotFenceY + 30 },
@@ -1702,15 +1708,34 @@ function drawAesthetics(scene) {
             { x: L.lotRight - 30, y: (L.lotFenceY + L.lotBottom) / 2 },
         ];
         lampPositions.forEach(p => {
-            // Pole
-            scene.add.rectangle(p.x, p.y + 6, 2, 18, 0x52525b);
-            // Light fixture (small box)
-            scene.add.rectangle(p.x, p.y - 4, 8, 4, 0x3f3f46);
-            // Glow halo
-            const halo = scene.add.circle(p.x, p.y - 4, 14, 0xfde047, 0.25);
-            scene.tweens.add({ targets: halo, alpha: { from: 0.25, to: 0.4 }, duration: 1500, yoyo: true, repeat: -1 });
-            // Light source
-            scene.add.circle(p.x, p.y - 4, 3, 0xfde047);
+            // === LIGHT POOL ON GROUND (drawn FIRST so post is on top) ===
+            // Big soft outer glow
+            const groundPool = scene.add.ellipse(p.x, p.y + 2, 90, 70, 0xfde047, 0.18)
+                .setBlendMode(Phaser.BlendModes.SCREEN);
+            // Mid pool — warmer
+            const midPool = scene.add.ellipse(p.x, p.y + 2, 60, 46, 0xfacc15, 0.22)
+                .setBlendMode(Phaser.BlendModes.SCREEN);
+            // Inner hot spot — brightest
+            const hotSpot = scene.add.ellipse(p.x, p.y - 2, 32, 24, 0xfef08a, 0.32)
+                .setBlendMode(Phaser.BlendModes.SCREEN);
+            // Subtle breathing animation on the outer pool
+            scene.tweens.add({ targets: groundPool, alpha: { from: 0.18, to: 0.28 }, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+            scene.tweens.add({ targets: hotSpot, alpha: { from: 0.32, to: 0.45 }, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+            // === POLE + FIXTURE (above the light pool) ===
+            // Pole (taller now)
+            scene.add.rectangle(p.x, p.y + 8, 2, 22, 0x52525b);
+            // Arm extending sideways
+            scene.add.rectangle(p.x, p.y - 6, 10, 2, 0x52525b);
+            // Light fixture (lampshade)
+            scene.add.rectangle(p.x, p.y - 8, 12, 5, 0x27272a).setStrokeStyle(1, 0x18181b);
+            // Bulb (small glowing dot at the bottom of the fixture)
+            const bulb = scene.add.circle(p.x, p.y - 6, 2.5, 0xfef9c3);
+            scene.tweens.add({ targets: bulb, alpha: { from: 1, to: 0.7 }, duration: 1500, yoyo: true, repeat: -1 });
+            // Small halo right around the bulb (keeps the fixture itself glowing)
+            const halo = scene.add.circle(p.x, p.y - 6, 8, 0xfde047, 0.5)
+                .setBlendMode(Phaser.BlendModes.SCREEN);
+            scene.tweens.add({ targets: halo, alpha: { from: 0.5, to: 0.7 }, duration: 1500, yoyo: true, repeat: -1 });
         });
     }
 
