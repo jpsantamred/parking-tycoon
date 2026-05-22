@@ -31,6 +31,8 @@ function saveGame() {
             consecutiveNegDays: S.consecutiveNegDays,
             cinematicShown: S.cinematicShown,
             branchLots: S.branchLots,
+            rivalActive: S.rivalActive,
+            rivalUntilDay: S.rivalUntilDay,
             dailyStatsHistory: S.dailyStatsHistory,
         };
         localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -82,6 +84,8 @@ function loadGame() {
         S.consecutiveNegDays = data.consecutiveNegDays || 0;
         S.cinematicShown = !!data.cinematicShown;
         S.branchLots = data.branchLots || [];
+        S.rivalActive = !!data.rivalActive;
+        S.rivalUntilDay = data.rivalUntilDay || 0;
         S.dailyStatsHistory = data.dailyStatsHistory || [];
         return true;
     } catch (e) {
@@ -740,6 +744,29 @@ const EVENTS = [
             S.rushUntilMin = 0;
             S.spawnTimer = -3000;   // delay next spawn 3s real time
             flashEvent('🚧 Protesta corta las calles. Menos autos llegando. ¡La app ParkingApp ayudaría!');
+        }
+    },
+    // ── RIVAL EVENTS — competition heats up after day 5 ──
+    {
+        id: 'rival_open', weight: 6, name: 'Competencia abre',
+        apply: () => {
+            if (S.day < 5) return;   // only after day 5
+            const rivals = ['🅿️ ParkClub', '🅿️ EasyPark', '🅿️ FastLot', '🅿️ MegaPark'];
+            const name = Phaser.Math.RND.pick(rivals);
+            S.rivalActive = true;
+            S.rivalUntilDay = S.day + 3;   // 3-day debuff
+            S.reputation = Math.max(0, S.reputation - 3);
+            flashEvent(`⚔️ ${name} abrió a 2 cuadras. Spawn -25% por 3 días. -3 rep.`);
+        }
+    },
+    {
+        id: 'rival_close', weight: 3, name: 'Competencia cierra',
+        apply: () => {
+            if (!S.rivalActive) return;
+            S.rivalActive = false;
+            S.rivalUntilDay = 0;
+            S.reputation = Math.min(100, S.reputation + 5);
+            flashEvent('🏆 Tu rival cerró (no aguantó). +5 reputación!');
         }
     },
     // ── BRANCH-LOT-SPECIFIC EVENTS — only fire if you OWN the lot ──
@@ -4308,6 +4335,7 @@ function createHUD(scene) {
     S.hud.salary = scene.add.text(320, 36, '', { font: 'bold 14px monospace', color: '#f87171' });
     S.hud.demand = scene.add.text(490, 36, '', { font: 'bold 14px monospace', color: '#fbbf24' });
     S.hud.lossSum = scene.add.text(680, 36, '', { font: 'bold 14px monospace', color: '#fca5a5' });
+    S.hud.rival = scene.add.text(820, 36, '', { font: 'bold 12px monospace', color: '#fb923c' });
 
     scene.add.rectangle(CONFIG.width / 2, CONFIG.height - 18, CONFIG.width, 36, 0x1e293b)
         .setStrokeStyle(2, 0x334155);
@@ -4503,7 +4531,14 @@ function update(time, delta) {
         } else {
             earlyEase = CONFIG.hardModeSpawnFactor;
         }
-        const effective = demand * signBoost * convenioBoost * earlyEase;
+        // Rival lot opened nearby — reduces spawn rate
+        if (S.rivalActive && S.day < (S.rivalUntilDay || 0)) {
+            // small reduction
+        } else if (S.rivalActive) {
+            S.rivalActive = false;
+        }
+        const rivalFactor = (S.rivalActive && S.day < (S.rivalUntilDay || 0)) ? 0.75 : 1;
+        const effective = demand * signBoost * convenioBoost * earlyEase * rivalFactor;
         const base = Phaser.Math.Between(CONFIG.spawnMinMs, CONFIG.spawnMaxMs);
         S.nextSpawnIn = Math.max(500, base / effective);
     }
@@ -5572,6 +5607,14 @@ function updateHUD() {
     if (S.escapedToday > 0) losses.push(`🏃 ${S.escapedToday}`);
     if (S.drivePastToday > 0) losses.push(`💨 ${S.drivePastToday}`);
     S.hud.lossSum.setText(losses.join('  '));
+    if (S.hud.rival) {
+        if (S.rivalActive && S.day < (S.rivalUntilDay || 0)) {
+            const daysLeft = S.rivalUntilDay - S.day;
+            S.hud.rival.setText(`⚔️ RIVAL (-25% ${daysLeft}d)`);
+        } else {
+            S.hud.rival.setText('');
+        }
+    }
 }
 
 // ─── THIEF (ladrón) MECHANIC ───────────────────────────────
