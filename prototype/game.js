@@ -687,6 +687,14 @@ function beep(freq = 440, duration = 0.1, type = 'sine', volume = 0.06) {
 const SFX = {
     cobro: () => { beep(660, 0.05); setTimeout(() => beep(880, 0.06), 60); },
     cashRegister: () => { beep(900, 0.04, 'square'); setTimeout(() => beep(1200, 0.05, 'square'), 50); },
+    // Premium kaching — for app users / valet / spaceport cobros. More
+    // sparkle than regular cashRegister to reward the player for premium revenue.
+    cashPremium: () => {
+        beep(1047, 0.05, 'triangle', 0.08);                  // C6
+        setTimeout(() => beep(1319, 0.05, 'triangle', 0.08), 60);  // E6
+        setTimeout(() => beep(1568, 0.06, 'triangle', 0.09), 120); // G6
+        setTimeout(() => beep(2093, 0.10, 'triangle', 0.10), 200); // C7 — sparkle
+    },
     // Bored: descending "uhhh" sound — customer losing patience
     bored: () => {
         beep(330, 0.12, 'triangle', 0.05);
@@ -1154,6 +1162,19 @@ function applySubscriptionsToSpaces() {
             space.occupied = 'subscription';
             space.sprite.setFillStyle(COLORS.spaceSubscription);
             if (space.label) { space.label.setText('M'); space.label.setColor('#fbcfe8'); }
+            // Subtle pulse so mensualista spots clearly stand out
+            S.scene.tweens.add({
+                targets: space.sprite, alpha: { from: 1, to: 0.7 },
+                duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+            });
+            // Floating badge above the spot
+            const badge = S.scene.add.text(space.x, space.y - 18, '📋', {
+                font: '11px sans-serif'
+            }).setOrigin(0.5).setDepth(3);
+            S.scene.tweens.add({
+                targets: badge, y: space.y - 22,
+                duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+            });
         }
     });
 }
@@ -2594,7 +2615,9 @@ function processExitViaTotem() {
         S.lifetimeRevenue += amount;
         S.carsServedToday++;
         S.lifetimeServed++;
-        SFX.cashRegister();
+        // Premium sparkle sound when revenue tier is high (app user OR valet/+)
+        if (car.isAppUser || S.upgrades.valetAI || S.upgrades.spaceport) SFX.cashPremium();
+        else SFX.cashRegister();
 
         S.exitQueue = S.exitQueue.filter(c => c.id !== car.id);
         operateGate('exit');
@@ -4430,7 +4453,9 @@ function attendExit(emp) {
             S.lifetimeRevenue += car.revenue;
             S.carsServedToday++;
             S.lifetimeServed++;
-            SFX.cashRegister();
+            // Premium sparkle sound for app/valet/spaceport tier
+            if (car.isAppUser || S.upgrades.valetAI || S.upgrades.spaceport) SFX.cashPremium();
+            else SFX.cashRegister();
             // Award XP to the employee who handled the exit cobro
             if (emp && emp.rosterEntry) awardXp(emp.rosterEntry, CONFIG.xpPerExit);
 
@@ -4946,6 +4971,11 @@ function renderEndOfDay() {
     const utility = S.revenueToday - S.salariesPaidToday;
     const subRev = S.subscriptionRevenueToday || 0;
     const adRev = S.adRevenueToday || 0;
+    const appRev = S.appRevenueToday || 0;
+    // Estimate passive revenue from N7/N8/N9 (game ran for 14h × 60 = 840 game min)
+    const mlRev = S.upgrades.multiLevel ? CONFIG.multiLevelPassiveIncomePerMin * 840 : 0;
+    const drnRev = S.upgrades.drone ? CONFIG.droneAmbientRevenuePerMin * 840 : 0;
+    const spRev = S.upgrades.spaceport ? CONFIG.spaceportPassiveIncomePerMin * 840 : 0;
     const profit = utility >= 0;
 
     // Solid backdrop — fully opaque AND with depth 1000 so all canvas elements stay underneath
@@ -4981,12 +5011,16 @@ function renderEndOfDay() {
         }));
     });
 
-    // Column 2 — Money flow
+    // Column 2 — Money flow (full breakdown including passive sources)
     const col2 = [
         { label: '💰 Flujo', color: '#a5f3fc', bold: true },
         { label: `Revenue:`,   val: `+$${Math.floor(S.revenueToday).toLocaleString('es-CL')}`, color: '#fbbf24' },
         subRev > 0 ? { label: `  Mensualistas:`, val: `+$${Math.floor(subRev).toLocaleString('es-CL')}`, color: '#cbd5e1' } : null,
         S.upgrades.adScreens > 0 ? { label: `  Pantallas:`, val: `+$${Math.floor(adRev).toLocaleString('es-CL')}`, color: '#cbd5e1' } : null,
+        S.upgrades.parkingApp ? { label: `  App subs:`, val: `+$${Math.floor(appRev).toLocaleString('es-CL')}`, color: '#bfdbfe' } : null,
+        S.upgrades.multiLevel ? { label: `  Vertical N7:`, val: `+$${Math.floor(mlRev).toLocaleString('es-CL')}`, color: '#bae6fd' } : null,
+        S.upgrades.drone ? { label: `  Drones N8:`, val: `+$${Math.floor(drnRev).toLocaleString('es-CL')}`, color: '#ddd6fe' } : null,
+        S.upgrades.spaceport ? { label: `  Spaceport N9:`, val: `+$${Math.floor(spRev).toLocaleString('es-CL')}`, color: '#fef08a' } : null,
         { label: `Sueldos:`,    val: `-$${Math.floor(S.salariesPaidToday).toLocaleString('es-CL')}`, color: '#f87171' },
         { label: `Utilidad:`,   val: `$${Math.floor(utility).toLocaleString('es-CL')}`, color: profit ? '#10b981' : '#ef4444', bold: true },
     ].filter(x => x);
