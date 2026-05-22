@@ -385,6 +385,19 @@
     </style>
 </head>
 <body>
+    <!-- ── ONBOARDING TIP (Día 1) ──────────────────────── -->
+    <div id="onboarding" style="display:none; position:fixed; left:50%; bottom:80px; transform:translateX(-50%); background:#0f172aee; border:2px solid #fbbf24; border-radius:10px; padding:18px 24px; max-width:560px; z-index:1000; box-shadow:0 8px 30px rgba(0,0,0,0.5); font-family:monospace;">
+        <div style="font-size:16px; font-weight:bold; color:#fbbf24; margin-bottom:10px;">💡 Día 1 — Cómo jugar</div>
+        <div style="font-size:13px; color:#cbd5e1; line-height:1.7;">
+            • <kbd style="background:#1e293b; padding:2px 6px; border-radius:3px; color:#fde047;">Espacio</kbd> o <kbd style="background:#1e293b; padding:2px 6px; border-radius:3px; color:#fde047;">click</kbd> en el cobrador para atender el primer auto.<br>
+            • Los autos en cola pierden paciencia rápido — atendelos antes de que se aburran.<br>
+            • Cobras al SALIR: $30/min × tiempo en el lote. Quedate atento a la <strong>cola roja</strong> de exit (🅿️→).<br>
+            • Abrí <kbd style="background:#1e293b; padding:2px 6px; border-radius:3px; color:#fde047;">G</kbd> Gestión para comprar caseta, contratar más gente y mejorar.<br>
+            • <kbd style="background:#1e293b; padding:2px 6px; border-radius:3px; color:#fde047;">P</kbd> pausa el juego cuando lo necesites.
+        </div>
+        <button id="onboarding-close" style="margin-top:14px; background:#16a34a; color:#fff; border:none; padding:8px 18px; border-radius:6px; font-family:monospace; font-weight:bold; cursor:pointer; font-size:13px;">▶ Entendido</button>
+    </div>
+
     <!-- ── SPLASH SCREEN ──────────────────────────────── -->
     <div id="splash">
         <div class="splash-content">
@@ -400,7 +413,7 @@
             </div>
 
             <button id="splash-start" class="splash-button">▶  EMPEZAR</button>
-            <div class="splash-version">v0.25 · prototype</div>
+            <div class="splash-version">v0.27 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -409,7 +422,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.25 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.27 prototype | el dolor antes de ParkingApp</div>
     <div id="game"></div>
     <div class="hint-row">
         <div><kbd>Click</kbd> en cobrador / tarjeta para atender</div>
@@ -462,7 +475,18 @@
         document.getElementById('splash-start').addEventListener('click', () => {
             const splash = document.getElementById('splash');
             splash.classList.add('closing');
-            setTimeout(() => { splash.style.display = 'none'; }, 600);
+            setTimeout(() => {
+                splash.style.display = 'none';
+                // Show onboarding only the first time (no localStorage flag yet,
+                // so use a session flag — every page reload re-shows it).
+                if (!window.__onboardingShown) {
+                    document.getElementById('onboarding').style.display = 'block';
+                    window.__onboardingShown = true;
+                }
+            }, 600);
+        });
+        document.getElementById('onboarding-close').addEventListener('click', () => {
+            document.getElementById('onboarding').style.display = 'none';
         });
     </script>
 </body>

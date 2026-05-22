@@ -17,7 +17,7 @@ const CONFIG = {
 
     // Ad screens (passive income + patience bonus)
     adScreenCost: 40000,
-    adScreenIncomePerGameMin: 25,
+    adScreenIncomePerGameMin: 10,    // toned down from 25 — was too dominant
     adScreenPatienceBonusPct: 10,
     adScreenMax: 3,
 
@@ -80,8 +80,8 @@ const CONFIG = {
     passingCarMinMs: 4000, passingCarMaxMs: 9000,
 
     spawnMinMs: 3500, spawnMaxMs: 6500,  // slower spawn to prevent overlap
-    patienceMs: 22000, repenaltyAngry: 5,
-    exitPatienceMs: 16000, repenaltyEscape: 10,
+    patienceMs: 22000, repenaltyAngry: 3,        // softer (was 5) — first days were brutal
+    exitPatienceMs: 16000, repenaltyEscape: 7,   // softer (was 10) — easier to recover rep
     stayMinMin: 30, stayMaxMin: 180,
     employeeSalary: 8000,
     employeeHoursPerShift: 8,
@@ -657,13 +657,9 @@ function drawBackground(scene) {
 }
 
 function drawPlaceholder(scene) {
-    // Subtle post marker (a chalk circle on the floor where the cobrador stands).
-    // Avoids the ugly "CASETA (upgrade)" empty box look — just a faint footprint.
-    const post = scene.add.circle(L.placeholderCx, L.placeholderCy + 12, 14, 0xffffff, 0.10)
-        .setStrokeStyle(1, 0xffffff, 0.25);
-    // No labels — keep the lot looking like a real working spot, not a placeholder.
-
-    // Without booth, show a CERRADO sign at the lot entrance when no operators
+    // No chalk circle, no placeholder text — just leave the spot blank.
+    // The cobrador walks the lot and the CERRADO sign at the entrance signals
+    // the missing booth when there's no one on shift.
     const sign = scene.add.text(L.entryOpeningX, L.lotFenceY - 20,
         '🚫 CERRADO', {
         font: 'bold 14px monospace', color: '#fff',
@@ -2661,7 +2657,13 @@ function update(time, delta) {
         const demand = Math.max(0.2, getDemandMultiplier(hourNow));
         const signBoost = 1 + (S.upgrades.signs * CONFIG.signSpawnBoostPct / 100);
         const convenioBoost = getConvenioSpawnBoost();
-        const effective = demand * signBoost * convenioBoost;
+        // Easier first 3 days — give the player time to learn the loop.
+        // Day 1 = 50% slower, Day 2 = 30% slower, Day 3 = 15% slower.
+        let earlyEase = 1;
+        if (S.day === 1) earlyEase = 0.5;
+        else if (S.day === 2) earlyEase = 0.7;
+        else if (S.day === 3) earlyEase = 0.85;
+        const effective = demand * signBoost * convenioBoost * earlyEase;
         const base = Phaser.Math.Between(CONFIG.spawnMinMs, CONFIG.spawnMaxMs);
         S.nextSpawnIn = Math.max(500, base / effective);
     }
@@ -3434,8 +3436,10 @@ function updateInfoBoard() {
     const title = $('page-title');
     if (title) {
         let levelText = 'Nivel 1: Papeleta';
-        if (S.upgrades.barriers) levelText = 'Nivel 3: Barreras';
+        if (S.upgrades.entryTotem) levelText = 'Nivel 3 final: Tótem auto-ticket';
+        else if (S.upgrades.barriers) levelText = 'Nivel 3: Barreras';
         else if (S.upgrades.pos) levelText = 'Nivel 2: POS Digital';
+        else if (S.upgrades.booth) levelText = 'Nivel 1: Caseta';
         title.textContent = `🅿️ Parking Tycoon — ${levelText}`;
     }
 
