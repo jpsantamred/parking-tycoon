@@ -409,6 +409,29 @@ function checkAchievements() {
     if (changed) setUnlockedAchievements(unlocked);
 }
 
+function showDayIntroBanner() {
+    if (!S.scene) return;
+    const scene = S.scene;
+    const x = CONFIG.width / 2;
+    const y = CONFIG.height / 2 - 40;
+    const dayLabel = `DÍA ${S.day} — ${DAY_LONG[S.dayOfWeek].toUpperCase()}`;
+    const text = scene.add.text(x, y, dayLabel, {
+        font: 'bold 36px monospace', color: '#fde047',
+        stroke: '#000', strokeThickness: 5
+    }).setOrigin(0.5).setAlpha(0).setScale(0.7).setDepth(1500);
+    scene.tweens.add({
+        targets: text, alpha: { from: 0, to: 1 }, scale: { from: 0.7, to: 1.05 },
+        duration: 400, ease: 'Back.easeOut'
+    });
+    scene.tweens.add({
+        targets: text, alpha: 0, scale: 1.15, y: y - 30,
+        duration: 800, delay: 1400, ease: 'Power2',
+        onComplete: () => text.destroy()
+    });
+    // Subtle ding
+    if (SFX.beep) SFX.beep(880, 0.06, 'triangle', 0.06);
+}
+
 function showAchievementToast(achievement) {
     if (!S.scene) return;
     const scene = S.scene;
@@ -1086,11 +1109,15 @@ CAR_COLOR_NAMES.forEach(color => {
 
 // Chilean first names pool for randomly-hired employees
 const EMPLOYEE_NAMES = [
+    // Chilean names — expanded pool
     'Camila', 'Javier', 'Sofía', 'Matías', 'Valentina', 'Diego', 'Antonia', 'Felipe',
     'Constanza', 'Benjamín', 'Florencia', 'Vicente', 'Isidora', 'Joaquín', 'Martina', 'Cristóbal',
     'Catalina', 'Sebastián', 'Emilia', 'Maximiliano', 'Fernanda', 'Agustín', 'Trinidad', 'Lucas',
-    'Renata', 'Nicolás', 'Amanda', 'Ignacio', 'Pascale', 'Vicente', 'Magdalena', 'Rodrigo',
-    'Paloma', 'Andrés', 'Bárbara', 'Pablo', 'Macarena', 'Carlos', 'Daniela', 'Gonzalo',
+    'Renata', 'Nicolás', 'Amanda', 'Ignacio', 'Pascale', 'Magdalena', 'Rodrigo', 'Paloma',
+    'Andrés', 'Bárbara', 'Pablo', 'Macarena', 'Carlos', 'Daniela', 'Gonzalo', 'Antonella',
+    'Diego', 'Esperanza', 'Bastián', 'Romina', 'Cristian', 'Valeria', 'Damián', 'Marcela',
+    'Manuel', 'Loreto', 'Esteban', 'Carolina', 'Hernán', 'Jimena', 'Tomás', 'Verónica',
+    'Pedro', 'Solange', 'Mauricio', 'Karen', 'Felipe', 'Karla', 'Roberto', 'Vanessa',
 ];
 
 function pickRandomEmployeeName() {
@@ -1333,6 +1360,12 @@ function create() {
     this.input.keyboard.on('keydown-ESC', () => { if (S.managementOpen) closeManagementPanel(); });
 
     logEvent(`Día ${S.day} (${DAY_LONG[S.dayOfWeek]}) — ${S.upgrades.booth ? 'caseta operativa' : 'a pie nomás'}`);
+
+    // Day intro banner — brief overlay welcoming the new day. Skip on restart
+    // (when scene reloads due to upgrade purchase — flagged by shouldReopenManagement).
+    if (!S.shouldReopenManagement && S.day > 1) {
+        showDayIntroBanner();
+    }
 
     // If a purchase triggered a scene restart, re-open the management panel
     // on the same tab so the player can keep buying. (Better UX than having
