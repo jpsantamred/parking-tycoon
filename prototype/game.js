@@ -321,7 +321,7 @@ const L = {
     exitWaitX: 540,                 // == exitVlaneX
     exitWaitY: 245, exitQueueSpacing: 40,
 
-    placeholderCx: 480, placeholderCy: 278, placeholderW: 80, placeholderH: 70,
+    placeholderCx: 480, placeholderCy: 255, placeholderW: 80, placeholderH: 70,
 
     // No-booth: employees as sprites on sidewalk
     employeeNoBoothStartX: 200, employeeNoBoothSpacing: 90, employeeNoBoothY: 178,
@@ -769,6 +769,11 @@ function drawBooth(scene) {
     S.boothSprites = sprites;
     S.boothWindowSprite = windowGlass;
     S.boothCobradorSprite = cobrador;
+    // Booth depth: cars (default depth 0) render under the booth.
+    // Setting depth on every booth sprite so the entire structure stays on top.
+    sprites.forEach(s => { try { s.setDepth(15); } catch(e) {} });
+    if (windowGlass) windowGlass.setDepth(15);
+    if (cobrador) cobrador.setDepth(16);
     updateBoothCobrador();
 }
 
@@ -1944,26 +1949,59 @@ function drawAesthetics(scene) {
         });
     }
 
-    // Greenery (plants in corners)
+    // Greenery (plants/trees in corners) — bigger, multi-layered so they read clearly
     if (S.upgrades.greenery) {
         const plantSpots = [
-            { x: L.lotLeft + 14, y: L.lotFenceY + 10 },
-            { x: L.lotRight - 14, y: L.lotFenceY + 10 },
-            { x: L.lotLeft + 14, y: L.lotBottom - 10 },
-            { x: L.lotRight - 14, y: L.lotBottom - 10 },
+            { x: L.lotLeft + 16, y: L.lotFenceY + 14 },
+            { x: L.lotRight - 16, y: L.lotFenceY + 14 },
+            { x: L.lotLeft + 16, y: L.lotBottom - 14 },
+            { x: L.lotRight - 16, y: L.lotBottom - 14 },
+            { x: (L.lotLeft + L.lotRight) / 2 - 90, y: L.lotBottom - 14 },
+            { x: (L.lotLeft + L.lotRight) / 2 + 90, y: L.lotBottom - 14 },
         ];
         plantSpots.forEach(p => {
-            scene.add.circle(p.x, p.y, 5, 0x166534);
-            scene.add.circle(p.x - 3, p.y - 2, 3, 0x22c55e);
-            scene.add.circle(p.x + 3, p.y - 2, 3, 0x22c55e);
-            scene.add.circle(p.x, p.y - 4, 3, 0x4ade80);
+            // Trunk (small brown rectangle peeking from under foliage)
+            scene.add.rectangle(p.x, p.y + 6, 3, 6, 0x78350f);
+            // Soil patch underneath
+            scene.add.ellipse(p.x, p.y + 9, 18, 5, 0x422006);
+            // Dark base foliage — large outer crown
+            scene.add.circle(p.x, p.y, 11, 0x14532d);
+            scene.add.circle(p.x - 6, p.y + 2, 8, 0x14532d);
+            scene.add.circle(p.x + 6, p.y + 2, 8, 0x14532d);
+            // Mid-green leaves
+            scene.add.circle(p.x - 4, p.y - 2, 7, 0x16a34a);
+            scene.add.circle(p.x + 4, p.y - 2, 7, 0x16a34a);
+            scene.add.circle(p.x, p.y - 4, 8, 0x22c55e);
+            // Highlight
+            scene.add.circle(p.x - 2, p.y - 6, 4, 0x86efac);
+            // Tiny flowers / spots on some
+            if (Math.random() < 0.5) {
+                scene.add.circle(p.x + 3, p.y - 1, 1.5, 0xfef08a);
+                scene.add.circle(p.x - 3, p.y + 2, 1.5, 0xf9a8d4);
+            }
         });
     }
 
-    // Guard patrol (animated sprite walking the perimeter)
+    // Guard patrol — bright yellow vest + dark cap, clearly distinguishable from thief
     if (S.upgrades.guard) {
-        const guard = scene.add.image(L.lotLeft + 30, L.lotBottom - 30, 'tomas_east').setScale(0.7);
-        guard.setTint(0x1e40af);  // blue uniform tint
+        const guard = scene.add.image(L.lotLeft + 30, L.lotBottom - 30, 'tomas_east').setScale(0.75);
+        guard.setTint(0xfde047);   // bright yellow safety vest
+        S.guardSprite = guard;
+        // Dark cap (police-style) — small dark ellipse on top of head
+        const cap = scene.add.ellipse(guard.x, guard.y - 11, 12, 5, 0x1e293b).setStrokeStyle(1, 0x0f172a);
+        const capBrim = scene.add.rectangle(guard.x, guard.y - 8, 13, 2, 0x0f172a);
+        // SECURITY badge on chest (small white square with text)
+        const badge = scene.add.rectangle(guard.x, guard.y, 8, 4, 0xf8fafc).setStrokeStyle(1, 0x1e40af);
+        const badgeLabel = scene.add.text(guard.x, guard.y, 'SEC', {
+            font: 'bold 3px monospace', color: '#1e40af'
+        }).setOrigin(0.5);
+        // Floating label above so the player can identify it instantly
+        const label = scene.add.text(guard.x, guard.y - 18, '👮 GUARDIA', {
+            font: 'bold 8px monospace', color: '#fff',
+            backgroundColor: '#1e40af', padding: { x: 3, y: 1 }
+        }).setOrigin(0.5);
+        S.guardAccessories = [cap, capBrim, badge, badgeLabel, label];
+
         // Patrol path: rectangle around the lot
         const path = [
             { x: L.lotRight - 30, y: L.lotBottom - 30, duration: 8000 },
@@ -1976,12 +2014,21 @@ function drawAesthetics(scene) {
             const wp = path[i % path.length];
             i++;
             scene.tweens.add({
-                targets: guard, x: wp.x, y: wp.y, duration: wp.duration, ease: 'Linear',
-                onComplete: next
+                targets: [guard, cap, capBrim, badge, badgeLabel, label],
+                x: wp.x, y: wp.y,
+                duration: wp.duration, ease: 'Linear',
+                onComplete: next,
+                onUpdate: () => {
+                    // Keep accessories aligned with the guard sprite
+                    cap.x = guard.x; cap.y = guard.y - 11;
+                    capBrim.x = guard.x; capBrim.y = guard.y - 8;
+                    badge.x = guard.x; badge.y = guard.y;
+                    badgeLabel.x = guard.x; badgeLabel.y = guard.y;
+                    label.x = guard.x; label.y = guard.y - 18;
+                }
             });
         };
         next();
-        S.guardSprite = guard;
     }
 }
 
