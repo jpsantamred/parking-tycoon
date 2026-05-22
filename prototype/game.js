@@ -2062,9 +2062,14 @@ function drawBarriers(scene) {
         //            screen-right side anyway, this just keeps it visible).
         const onRight = (kind === 'entry');
         const postX = onRight ? x + 22 : x - 22;
-        // User feedback: barriers should be at the height of the booth's
-        // "$ CASETA $" sign, not at the top of the lot. Place at booth bottom.
-        const postY = L.placeholderCy + L.placeholderH/2 - 8;
+        // ENTRY barrier sits at booth-sign level (cars stop at the totem,
+        //   driver gets ticket, then this gate opens). EXIT barrier sits at
+        //   the lot fence (where cars physically cross out of the lot —
+        //   the exit wait queue forms SOUTH of this barrier, so it has to
+        //   be at the fence line for cars to be blocked correctly).
+        const postY = (kind === 'entry')
+            ? L.placeholderCy + L.placeholderH/2 - 8   // booth sign level
+            : L.lotFenceY;                              // lot fence (top)
         const sprites = [];
 
         // === POST (housing the scanner) ===
