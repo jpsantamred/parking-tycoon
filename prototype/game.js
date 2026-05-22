@@ -1315,7 +1315,8 @@ function renderUpgradesTab(scene, contentY, panelW) {
     const W = CONFIG.width;
     const colLX = W/2 - panelW/2 + 24;
     const colRX = colLX + 410;
-    const rowH = 30;
+    // Each row: button ~22px (font 12 + padding 5*2) + desc ~12px + gap = ~36-40px
+    const rowH = 36;
 
     // Helper to render a single upgrade row (compact, fits column width ~390)
     const renderRow = (x, y, cfg) => {
@@ -1337,7 +1338,8 @@ function renderUpgradesTab(scene, contentY, panelW) {
         }
         S.managementUI.push(btn);
         if (cfg.desc) {
-            S.managementUI.push(scene.add.text(x, y + 18, '  ' + cfg.desc,
+            // y + 24 = below the button bottom (button height ~22 with padding)
+            S.managementUI.push(scene.add.text(x, y + 24, '  ' + cfg.desc,
                 { font: '10px monospace', color: '#94a3b8' }));
         }
     };
