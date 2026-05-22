@@ -1740,8 +1740,12 @@ function drawBarriers(scene) {
     S.barriers = { entry: null, exit: null };
 
     const makeGate = (x, kind) => {
-        // The arm "hinges" from the post (which sits on the west side of the opening)
-        const postX = x - 22;
+        // For ENTRY: post on the RIGHT side (so the totem can sit on the LEFT,
+        //            accessible from the driver-side window of cars going south).
+        // For EXIT:  post on the LEFT (driver-side for cars going north is the
+        //            screen-right side anyway, this just keeps it visible).
+        const onRight = (kind === 'entry');
+        const postX = onRight ? x + 22 : x - 22;
         const postY = L.lotFenceY;
         const sprites = [];
 
@@ -1759,30 +1763,34 @@ function drawBarriers(scene) {
         // Small ParkingApp badge on the post (branded)
         drawParkingAppBadge(scene, postX, postY - 2, 0.5).forEach(s => sprites.push(s));
 
-        // === ARM (rotates around its left endpoint = postX) ===
-        // Container holds the striped bar so we can rotate as a unit.
+        // === ARM (rotates around the post = local origin 0,0) ===
         const arm = scene.add.container(postX, postY - 18);
         const armLength = 40;
-        // Background bar
-        const bar = scene.add.rectangle(armLength/2, 0, armLength, 6, 0xfde047).setStrokeStyle(1, 0x713f12);
+        // armDir: +1 = arm extends right (post on left), -1 = arm extends left (post on right)
+        const armDir = onRight ? -1 : 1;
+        // Background bar — centered at armLength/2 in the direction it extends
+        const bar = scene.add.rectangle(armDir * armLength/2, 0, armLength, 6, 0xfde047).setStrokeStyle(1, 0x713f12);
         arm.add(bar);
-        // Diagonal black stripes
+        // Diagonal black stripes — placed inside the bar in the extension direction
         for (let i = 0; i < 4; i++) {
-            const stripe = scene.add.rectangle(i * 10 + 4, 0, 5, 6, 0x1f1408);
-            stripe.setAngle(-30);   // diagonal stripe inside the bar
+            const stripe = scene.add.rectangle(armDir * (i * 10 + 4), 0, 5, 6, 0x1f1408);
+            stripe.setAngle(-30);
             arm.add(stripe);
         }
-        // Tip (red light at the far end)
-        const tipLed = scene.add.circle(armLength, 0, 1.8, 0xef4444);
+        // Tip light at the far end
+        const tipLed = scene.add.circle(armDir * armLength, 0, 1.8, 0xef4444);
         scene.tweens.add({ targets: tipLed, alpha: { from: 1, to: 0.2 }, duration: 500, yoyo: true, repeat: -1 });
         arm.add(tipLed);
         sprites.push(arm);
 
-        // Gate starts in DOWN (closed) position. angle 0 = horizontal (pointing east).
+        // Gate starts CLOSED — arm horizontal. We use the container's angle.
+        // For right-extending (exit): closed=0, open=-90
+        // For left-extending  (entry): closed=0 also (the bar is already mirrored),
+        //                              open=+90 (rotate up the other way).
         arm.angle = 0;
 
         // Save references for animation
-        S.barriers[kind] = { arm, led, sprites, isOpen: false, x, postX, postY };
+        S.barriers[kind] = { arm, led, sprites, isOpen: false, x, postX, postY, armDir };
     };
 
     makeGate(L.entryOpeningX, 'entry');
@@ -1800,8 +1808,12 @@ function operateGate(kind, onOpen, onClosed) {
     gate.led.setFillStyle(0xef4444);
     SFX.beep && SFX.beep(800, 80, 0.2);
 
+    // Rotate the arm UP (out of the way). The direction depends on which side
+    // the post is on: right-extending arm rotates -90 (counter-clockwise, up),
+    // left-extending arm rotates +90 (clockwise, up).
+    const openAngle = (gate.armDir < 0) ? 90 : -90;
     S.scene.tweens.add({
-        targets: gate.arm, angle: -90,
+        targets: gate.arm, angle: openAngle,
         duration: CONFIG.barrierScanMs, ease: 'Power2',
         onComplete: () => {
             if (onOpen) onOpen();
@@ -1825,23 +1837,29 @@ function operateGate(kind, onOpen, onClosed) {
 // Self-service ticket dispenser at the entry. Car arrives → ticket pops
 // out → barrier opens → car drives in. No cobrador needed for entries.
 // The cobrador now only handles exits (where the actual cobro happens).
+//
+// Position: on the LEFT side of the car (driver-side, accessible from the
+// driver's window). Cars going SOUTH have their driver on the LEFT side
+// (smaller x). The totem sits at lotFenceY - 35 so the slot/screen is at
+// driver-window height when the car stops at the totem stop position.
+const TOTEM_X_OFFSET = -20;   // LEFT of entry opening center (driver-side)
+function getTotemStopY() { return L.lotFenceY - 35; }   // car's center y when at totem
 function drawEntryTotem(scene) {
-    // Place just east of the entry barrier post (driver-side reachable)
-    const x = L.entryOpeningX + 22;
-    const y = L.lotFenceY - 14;
+    const x = L.entryOpeningX + TOTEM_X_OFFSET;   // LEFT side of opening
+    const y = L.lotFenceY - 35;                    // height of driver window when at stop
     S.entryTotemSprites = [];
     // Concrete base
     S.entryTotemSprites.push(scene.add.rectangle(x, y + 18, 14, 6, 0x52525b));
-    // Main body (red/orange — branded for ParkingApp)
+    // Main body (dark slate — branded for ParkingApp)
     S.entryTotemSprites.push(scene.add.rectangle(x, y + 4, 12, 28, 0x1e293b).setStrokeStyle(1, 0x0f172a));
     // ParkingApp badge on top
     drawParkingAppBadge(scene, x, y - 5, 0.55).forEach(s => S.entryTotemSprites.push(s));
-    // Screen (small green LCD)
+    // Screen (small green LCD) — at driver-eye level
     S.entryTotemSprites.push(scene.add.rectangle(x, y + 4, 9, 6, 0x10b981).setStrokeStyle(1, 0x064e3b));
     S.entryTotemSprites.push(scene.add.text(x, y + 4, 'TKT', {
         font: 'bold 4px monospace', color: '#0f172a'
     }).setOrigin(0.5));
-    // Ticket dispense slot (thin horizontal line)
+    // Ticket dispense slot (thin horizontal line) — driver-window height
     S.entryTotemSprites.push(scene.add.rectangle(x, y + 12, 8, 1.5, 0x9ca3af));
     // Blinking LED (yellow when ready)
     const led = scene.add.circle(x + 4, y - 2, 1.2, 0xfde047);
@@ -1852,8 +1870,8 @@ function drawEntryTotem(scene) {
 // Animate a "ticket popping out" at the totem when a car is processed
 function dispenseTicket() {
     if (!S.upgrades.entryTotem) return;
-    const x = L.entryOpeningX + 22;
-    const y = L.lotFenceY - 14 + 12;
+    const x = L.entryOpeningX + TOTEM_X_OFFSET;
+    const y = L.lotFenceY - 35 + 12;
     const ticket = S.scene.add.rectangle(x, y, 5, 3, 0xf3f4f6).setStrokeStyle(1, 0x6b7280);
     S.scene.tweens.add({
         targets: ticket, y: y + 8, alpha: { from: 1, to: 0 },
@@ -2957,48 +2975,59 @@ function processEntryViaTotem() {
     }
     if (car.evBadge) { car.evBadge.destroy(); car.evBadge = null; }
 
-    flashEvent(`🎫 Tótem dispensa ticket → abre barrera...`);
-    dispenseTicket();
-    SFX.beep && SFX.beep(900, 60, 0.2);
+    // Step 1: Drive the car forward from queue to the totem stop position.
+    //         The car stops next to the totem (driver-side window aligned).
+    flashEvent(`🚗 Auto llega al tótem...`);
+    const stopY = getTotemStopY();
+    acquireLane('entryV', 2200, () => {
+        driveCar(car, [
+            { x: L.entryVlaneX, y: stopY, angle: 90, duration: 600 },
+        ], () => {
+            // Step 2: Ticket pops out of the totem (driver-side, LEFT of car)
+            flashEvent(`🎫 Tótem dispensa ticket...`);
+            dispenseTicket();
+            SFX.beep && SFX.beep(900, 60, 0.2);
 
-    S.scene.time.delayedCall(CONFIG.entryTotemDispenseMs, () => {
-        operateGate('entry');
+            S.scene.time.delayedCall(CONFIG.entryTotemDispenseMs, () => {
+                // Step 3: Barrier opens (it's south of the car at lotFenceY)
+                operateGate('entry');
+                flashEvent(`⬆️ Barrera abierta · pasa`);
 
-        car.entryTimeMinutes = S.timeMinutes;
-        car.space = space;
-        space.occupied = car;
-        space.sprite.setFillStyle(COLORS.spaceOccupied);
+                car.entryTimeMinutes = S.timeMinutes;
+                car.space = space;
+                space.occupied = car;
+                space.sprite.setFillStyle(COLORS.spaceOccupied);
 
-        const isLeftOfEntry = space.x < L.entryVlaneX;
-        const horizontalAngle = isLeftOfEntry ? 180 : 0;
-        const turnIntoSpaceAngle = space.facing === 'up' ? -90 : 90;
-        const useSouthLane = space.y > L.row2Y + 30;
-        const wps = useSouthLane
-            ? [
-                { x: L.entryVlaneX, y: L.centerLaneY, angle: 90, duration: 500 },
-                { x: L.entryVlaneX, y: L.expansionLaneY, duration: 400 },
-                { angle: horizontalAngle, duration: 200 },
-                { x: space.x, y: L.expansionLaneY, duration: 500 },
-                { angle: turnIntoSpaceAngle, duration: 200 },
-                { x: space.x, y: space.y, duration: 350 },
-              ]
-            : [
-                { x: L.entryVlaneX, y: L.centerLaneY, angle: 90, duration: 600 },
-                { angle: horizontalAngle, duration: 200 },
-                { x: space.x, y: L.centerLaneY, duration: 600 },
-                { angle: turnIntoSpaceAngle, duration: 200 },
-                { x: space.x, y: space.y, duration: 450 },
-              ];
-        const entryLockMs = useSouthLane ? 1100 : 800;
-        S.scene.time.delayedCall(CONFIG.barrierScanMs, () => {
-            acquireLane('entryV', entryLockMs, () => {
-                driveCar(car, wps, () => {
-                    car.state = 'parked';
-                    S.parkedCars.push(car);
-                    if (S.upgrades.carwash && !car.washed) {
-                        car.sprite.setInteractive({ useHandCursor: true });
-                        car.sprite.on('pointerdown', () => triggerWash(car));
-                    }
+                const isLeftOfEntry = space.x < L.entryVlaneX;
+                const horizontalAngle = isLeftOfEntry ? 180 : 0;
+                const turnIntoSpaceAngle = space.facing === 'up' ? -90 : 90;
+                const useSouthLane = space.y > L.row2Y + 30;
+                // Step 4: Drive through the open barrier into the lot
+                const wps = useSouthLane
+                    ? [
+                        { x: L.entryVlaneX, y: L.centerLaneY, duration: 500 },
+                        { x: L.entryVlaneX, y: L.expansionLaneY, duration: 400 },
+                        { angle: horizontalAngle, duration: 200 },
+                        { x: space.x, y: L.expansionLaneY, duration: 500 },
+                        { angle: turnIntoSpaceAngle, duration: 200 },
+                        { x: space.x, y: space.y, duration: 350 },
+                      ]
+                    : [
+                        { x: L.entryVlaneX, y: L.centerLaneY, duration: 500 },
+                        { angle: horizontalAngle, duration: 200 },
+                        { x: space.x, y: L.centerLaneY, duration: 600 },
+                        { angle: turnIntoSpaceAngle, duration: 200 },
+                        { x: space.x, y: space.y, duration: 450 },
+                      ];
+                S.scene.time.delayedCall(CONFIG.barrierScanMs, () => {
+                    driveCar(car, wps, () => {
+                        car.state = 'parked';
+                        S.parkedCars.push(car);
+                        if (S.upgrades.carwash && !car.washed) {
+                            car.sprite.setInteractive({ useHandCursor: true });
+                            car.sprite.on('pointerdown', () => triggerWash(car));
+                        }
+                    });
                 });
                 repositionQueue();
             });
