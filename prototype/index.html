@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Parking Tycoon — Nivel 1: Papeleta</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0f172a;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 16px;
+        }
+        h1 { font-size: 22px; margin-bottom: 4px; color: #fbbf24; }
+        .subtitle { color: #94a3b8; margin-bottom: 14px; font-size: 13px; }
+        #game {
+            border: 3px solid #4a5568;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            background: #2d3e50;
+        }
+        .hint-row {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 960px;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        .hint-row kbd {
+            background: #475569;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+            color: #fbbf24;
+            font-size: 11px;
+        }
+
+        /* ── Employee Cards Strip ────────────────────────── */
+        #employee-strip-wrapper {
+            width: 960px;
+            margin: 14px auto 0;
+        }
+        #employee-strip-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            color: #cbd5e1;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        #employee-strip-title .count-pill {
+            background: #334155;
+            border-radius: 12px;
+            padding: 3px 10px;
+            font-size: 12px;
+            color: #a5f3fc;
+        }
+        #employee-strip {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .emp-card {
+            width: 226px;
+            background: #1e293b;
+            border: 2px solid #475569;
+            border-radius: 8px;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: border-color 0.15s, transform 0.1s, opacity 0.15s;
+            color: #cbd5e1;
+            user-select: none;
+        }
+        .emp-card:hover {
+            border-color: #60a5fa;
+            transform: translateY(-2px);
+        }
+        .emp-card.on-shift {
+            border-color: #10b981;
+        }
+        .emp-card.busy {
+            border-color: #ea580c;
+            background: #1c1410;
+            animation: pulse 0.9s ease infinite alternate;
+        }
+        .emp-card.off-shift {
+            opacity: 0.5;
+        }
+        @keyframes pulse {
+            from { box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.5); }
+            to   { box-shadow: 0 0 12px 4px rgba(234, 88, 12, 0); }
+        }
+        .emp-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .emp-name {
+            font-weight: bold;
+            color: #fff;
+            font-size: 14px;
+        }
+        .emp-status {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            background: #334155;
+            color: #94a3b8;
+        }
+        .emp-card.on-shift .emp-status {
+            background: #064e3b;
+            color: #6ee7b7;
+        }
+        .emp-card.busy .emp-status {
+            background: #7c2d12;
+            color: #fdba74;
+        }
+        .emp-shift {
+            color: #cbd5e1;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+        .emp-days {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 8px;
+        }
+        .day-pill {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            line-height: 22px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 4px;
+            background: #1f2937;
+            color: #475569;
+        }
+        .day-pill.works {
+            background: #3b82f6;
+            color: #fff;
+        }
+        /* "today" but NOT works → subtle outline only (does NOT change to yellow) */
+        .day-pill.today {
+            box-shadow: 0 0 0 2px #fbbf24;
+        }
+        /* today AND works → yellow + black text (highlighted) */
+        .day-pill.works.today {
+            background: #fbbf24;
+            color: #000;
+            box-shadow: 0 0 0 2px #fbbf24;
+        }
+        .emp-meta {
+            font-size: 10px;
+            color: #94a3b8;
+            border-top: 1px solid #334155;
+            padding-top: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .emp-meta .meta-item { font-size: 10px; }
+        .emp-stat-line {
+            font-size: 11px;
+            color: #cbd5e1;
+            margin-bottom: 4px;
+        }
+        .emp-stat-line .label { color: #94a3b8; }
+        .emp-stat-line .val { color: #fff; font-weight: bold; }
+
+        .emp-card-empty {
+            width: 226px;
+            border: 2px dashed #475569;
+            border-radius: 8px;
+            padding: 28px 12px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .emp-card-empty:hover {
+            border-color: #16a34a;
+            color: #4ade80;
+        }
+    </style>
+</head>
+<body>
+    <h1>🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
+    <div class="subtitle">v0.9 prototype | el dolor antes de ParkingApp</div>
+    <div id="game"></div>
+    <div class="hint-row">
+        <div><kbd>Click</kbd> en cobrador / tarjeta para atender</div>
+        <div><kbd>Espacio</kbd> usa el primero disponible</div>
+        <div><kbd>G</kbd> Gestión</div>
+        <div><kbd>H</kbd> Contratar</div>
+        <div><kbd>P</kbd> Pausa</div>
+    </div>
+
+    <div id="employee-strip-wrapper">
+        <div id="employee-strip-title">
+            <span>👥 EQUIPO</span>
+            <span class="count-pill" id="emp-count-pill">0/0</span>
+        </div>
+        <div id="employee-strip"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
