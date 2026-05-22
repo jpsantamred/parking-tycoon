@@ -2618,6 +2618,8 @@ function processExitViaTotem() {
         // Premium sparkle sound when revenue tier is high (app user OR valet/+)
         if (car.isAppUser || S.upgrades.valetAI || S.upgrades.spaceport) SFX.cashPremium();
         else SFX.cashRegister();
+        // Floating $ amount above the car — visual juice
+        showMoneyFloat(car.sprite.x, car.sprite.y, Math.floor(amount), car.isAppUser);
 
         S.exitQueue = S.exitQueue.filter(c => c.id !== car.id);
         operateGate('exit');
@@ -3802,6 +3804,23 @@ function update(time, delta) {
 }
 
 // ─── DRIVE HELPER ──────────────────────────────────────────
+// ─── MONEY FLOAT — visual juice when a car pays ────────────
+// Shows the charged amount as a floating "+$X" above the car for ~1.2s.
+// Premium customers get a special gold color and bigger font.
+function showMoneyFloat(x, y, amount, isPremium) {
+    if (!S.scene) return;
+    const txt = '+$' + amount.toLocaleString('es-CL');
+    const style = isPremium
+        ? { font: 'bold 16px monospace', color: '#fde047', stroke: '#7c2d12', strokeThickness: 3 }
+        : { font: 'bold 14px monospace', color: '#86efac', stroke: '#064e3b', strokeThickness: 2 };
+    const float = S.scene.add.text(x, y - 18, txt, style).setOrigin(0.5).setDepth(50);
+    S.scene.tweens.add({
+        targets: float, y: y - 50, alpha: { from: 1, to: 0 }, scale: { from: 1, to: 1.3 },
+        duration: 1300, ease: 'Power2',
+        onComplete: () => float.destroy()
+    });
+}
+
 // ─── CAR HOVER TOOLTIPS ────────────────────────────────────
 // Mouse over a car shows a small info popup (state, patience, est. revenue).
 function attachCarTooltip(car) {
@@ -4456,6 +4475,7 @@ function attendExit(emp) {
             // Premium sparkle sound for app/valet/spaceport tier
             if (car.isAppUser || S.upgrades.valetAI || S.upgrades.spaceport) SFX.cashPremium();
             else SFX.cashRegister();
+            showMoneyFloat(car.sprite.x, car.sprite.y, Math.floor(amount), car.isAppUser);
             // Award XP to the employee who handled the exit cobro
             if (emp && emp.rosterEntry) awardXp(emp.rosterEntry, CONFIG.xpPerExit);
 
