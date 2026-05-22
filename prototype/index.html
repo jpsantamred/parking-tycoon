@@ -385,6 +385,9 @@
     </style>
 </head>
 <body>
+    <!-- ── CAR HOVER TOOLTIP ─────────────────────────── -->
+    <div id="car-tooltip" style="display:none; position:absolute; background:#0f172aee; border:1px solid #fbbf24; color:#fff; font-family:monospace; font-size:11px; padding:6px 10px; border-radius:6px; pointer-events:none; z-index:60; box-shadow:0 4px 12px rgba(0,0,0,0.4); white-space:nowrap;"></div>
+
     <!-- ── ONBOARDING TIP (Día 1) ──────────────────────── -->
     <div id="onboarding" style="display:none; position:fixed; left:50%; bottom:80px; transform:translateX(-50%); background:#0f172aee; border:2px solid #fbbf24; border-radius:10px; padding:18px 24px; max-width:560px; z-index:1000; box-shadow:0 8px 30px rgba(0,0,0,0.5); font-family:monospace;">
         <div style="font-size:16px; font-weight:bold; color:#fbbf24; margin-bottom:10px;">💡 Día 1 — Cómo jugar</div>
@@ -417,7 +420,7 @@
             <div id="splash-clear-save" style="display:none; margin-top:8px; font-size:11px; color:#94a3b8; cursor:pointer; text-decoration:underline;">
                 ↻ Borrar partida guardada y empezar de cero
             </div>
-            <div class="splash-version">v0.28 · prototype</div>
+            <div class="splash-version">v0.33 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -426,7 +429,8 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.28 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.33 prototype | el dolor antes de ParkingApp</div>
+    <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
         <div><kbd>Click</kbd> en cobrador / tarjeta para atender</div>
@@ -485,6 +489,8 @@
                     document.getElementById('onboarding').style.display = 'block';
                     window.__onboardingShown = true;
                 }
+                // Kick off ambient music (must happen after a user gesture)
+                if (typeof startAmbientMusic === 'function') startAmbientMusic();
             }, 600);
         }
 

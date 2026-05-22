@@ -20,7 +20,7 @@ function saveGame() {
             day: S.day,
             dayOfWeek: S.dayOfWeek,
             reputation: S.reputation,
-            upgrades: S.upgrades,
+            upgrades: S.upgrades,   // includes booth/pos/barriers/entryTotem/exitTotem/etc
             employeeRoster: S.employeeRoster,
             subscriptions: S.subscriptions,
             lifetimeServed: S.lifetimeServed,
@@ -65,7 +65,7 @@ function loadGame() {
         S.reputation = data.reputation;
         // Merge upgrades carefully — newer schema fields default false/0 if missing
         S.upgrades = Object.assign({
-            booth: false, pos: false, barriers: false, entryTotem: false,
+            booth: false, pos: false, barriers: false, entryTotem: false, exitTotem: false,
             adScreens: 0, signs: 0, expansions: 0, convenios: [],
             cameras: false, carwash: false, evCharger: false,
             pavement: false, lines: false, lights: false, guard: false, greenery: false,
@@ -179,6 +179,11 @@ const CONFIG = {
     entryTotemCost: 120000,          // moderate capex
     entryTotemTickMs: 1100,          // how often the totem dispenses a ticket (per car)
     entryTotemDispenseMs: 600,       // ticket dispensing animation time
+
+    // Exit autopay totem (Nivel 4) — self-service exit, no cobrador needed
+    exitTotemCost: 280000,           // major capex
+    exitTotemTickMs: 1300,           // how often it processes the next exit
+    exitTotemScanMs: 700,            // QR/LPR scan + charge animation time
 
     // NEW — Cameras prevent robberies
     cameraCost: 35000,
@@ -462,7 +467,7 @@ const L = {
     exitWaitX: 540,                 // == exitVlaneX
     exitWaitY: 245, exitQueueSpacing: 40,
 
-    placeholderCx: 480, placeholderCy: 255, placeholderW: 80, placeholderH: 70,
+    placeholderCx: 480, placeholderCy: 255, placeholderW: 70, placeholderH: 70,
 
     // No-booth: employees as sprites on sidewalk
     employeeNoBoothStartX: 200, employeeNoBoothSpacing: 90, employeeNoBoothY: 178,
@@ -507,6 +512,7 @@ const S = {
         pos: false,
         barriers: false,                    // Nivel 3 — automatic gate scanner
         entryTotem: false,                  // Nivel 3 end — self-service ticket totem
+        exitTotem: false,                   // Nivel 4 — self-service autopay totem at exit
         adScreens: 0,
         signs: 0,
         expansions: 0,
@@ -645,12 +651,99 @@ function beep(freq = 440, duration = 0.1, type = 'sine', volume = 0.06) {
 const SFX = {
     cobro: () => { beep(660, 0.05); setTimeout(() => beep(880, 0.06), 60); },
     cashRegister: () => { beep(900, 0.04, 'square'); setTimeout(() => beep(1200, 0.05, 'square'), 50); },
-    bored: () => { beep(180, 0.15, 'sawtooth', 0.04); },
-    escape: () => { beep(150, 0.08, 'sawtooth'); setTimeout(() => beep(90, 0.15, 'sawtooth'), 70); },
+    // Bored: descending "uhhh" sound — customer losing patience
+    bored: () => {
+        beep(330, 0.12, 'triangle', 0.05);
+        setTimeout(() => beep(260, 0.18, 'triangle', 0.05), 90);
+    },
+    // Escape: car peeling out — loud descending whoosh
+    escape: () => {
+        beep(220, 0.1, 'sawtooth', 0.07);
+        setTimeout(() => beep(140, 0.15, 'sawtooth', 0.07), 80);
+        setTimeout(() => beep(80, 0.2, 'sawtooth', 0.06), 180);
+    },
+    // Angry: short alarm-style chirp
+    angry: () => {
+        beep(440, 0.06, 'square', 0.06);
+        setTimeout(() => beep(523, 0.06, 'square', 0.06), 70);
+        setTimeout(() => beep(440, 0.06, 'square', 0.06), 140);
+    },
     purchase: () => { beep(523, 0.08); setTimeout(() => beep(659, 0.08), 80); setTimeout(() => beep(784, 0.12), 160); },
     dayEnd: () => { beep(440, 0.1); setTimeout(() => beep(550, 0.1), 110); setTimeout(() => beep(660, 0.15), 220); },
     gameOver: () => { beep(440, 0.2, 'sawtooth'); setTimeout(() => beep(330, 0.25, 'sawtooth'), 220); setTimeout(() => beep(220, 0.4, 'sawtooth'), 480); },
 };
+
+// ─── AMBIENT MUSIC ─────────────────────────────────────────
+// Very subtle drone pad + arpeggiated chord pattern that loops.
+// Volume kept low (0.015) so it sits under SFX and doesn't fatigue.
+// Toggleable via window.__musicMuted (set true to silence).
+let __ambientState = { started: false, oscs: [], gain: null, timer: null };
+function startAmbientMusic() {
+    if (__ambientState.started) return;
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    __ambientState.started = true;
+
+    // Master gain (low volume)
+    const master = ctx.createGain();
+    master.gain.value = 0.0;
+    master.connect(ctx.destination);
+    __ambientState.gain = master;
+
+    // Two slowly-detuned sine oscillators (sub-octave drone)
+    const a = ctx.createOscillator();
+    a.type = 'sine'; a.frequency.value = 110;   // A2
+    a.connect(master);
+    const b = ctx.createOscillator();
+    b.type = 'sine'; b.frequency.value = 110.4; // slight detune for movement
+    b.connect(master);
+    a.start(); b.start();
+    __ambientState.oscs.push(a, b);
+
+    // Slow chord arpeggio overlay — Am, F, C, G (4s per chord)
+    const chords = [
+        [220, 261.63, 329.63], // A C E
+        [174.61, 220, 261.63], // F A C
+        [261.63, 329.63, 392.0], // C E G
+        [196.0, 246.94, 293.66], // G B D
+    ];
+    let chordIdx = 0;
+    const playArp = () => {
+        if (window.__musicMuted || S.dayEnded) return;
+        const chord = chords[chordIdx % chords.length];
+        chordIdx++;
+        chord.forEach((freq, i) => {
+            setTimeout(() => {
+                if (window.__musicMuted) return;
+                const osc = ctx.createOscillator();
+                osc.type = 'triangle';
+                osc.frequency.value = freq * 2;   // up one octave for sparkle
+                const g = ctx.createGain();
+                g.gain.value = 0;
+                g.gain.linearRampToValueAtTime(0.012, ctx.currentTime + 0.15);
+                g.gain.linearRampToValueAtTime(0.0, ctx.currentTime + 1.2);
+                osc.connect(g); g.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 1.3);
+            }, i * 350);
+        });
+    };
+    __ambientState.timer = setInterval(playArp, 4000);
+
+    // Fade in over 3s
+    master.gain.linearRampToValueAtTime(0.015, ctx.currentTime + 3);
+}
+
+function stopAmbientMusic() {
+    if (!__ambientState.started) return;
+    try {
+        __ambientState.oscs.forEach(o => o.stop());
+    } catch(e) {}
+    if (__ambientState.timer) clearInterval(__ambientState.timer);
+    __ambientState.started = false;
+    __ambientState.oscs = [];
+    __ambientState.timer = null;
+}
 
 function resetTransientState() {
     S.cars = []; S.queue = []; S.parkedCars = []; S.exitQueue = [];
@@ -706,6 +799,7 @@ function create() {
     drawAesthetics(this);
     if (S.upgrades.barriers) drawBarriers(this);
     if (S.upgrades.entryTotem) drawEntryTotem(this);
+    if (S.upgrades.exitTotem) drawExitTotem(this);
     // drawPaymentDecal removed — was redundant with booth sticker / SERVICIOS card,
     // and the previous position interfered with road traffic / ad screens.
 
@@ -865,10 +959,10 @@ function drawBooth(scene) {
     // Counter / cobro slot at bottom of window
     sprites.push(scene.add.rectangle(cx, cy - h/2 + 40, w - 20, 4, 0x1f1408));
 
-    // Sign at bottom: "$ CASETA $"
-    sprites.push(scene.add.rectangle(cx, cy + h/2 - 8, w - 14, 16, 0xfbbf24).setStrokeStyle(1, 0x713f12));
-    sprites.push(scene.add.text(cx, cy + h/2 - 8, '$ CASETA $', {
-        font: 'bold 10px monospace', color: '#1f1408'
+    // Sign at bottom: "CASETA" — narrower booth fits with shorter sign
+    sprites.push(scene.add.rectangle(cx, cy + h/2 - 8, w - 10, 14, 0xfbbf24).setStrokeStyle(1, 0x713f12));
+    sprites.push(scene.add.text(cx, cy + h/2 - 8, 'CASETA', {
+        font: 'bold 9px monospace', color: '#1f1408'
     }).setOrigin(0.5));
 
     // CERRADO sign overlay (shown when no operators)
@@ -1676,6 +1770,25 @@ function renderUpgradesTab(scene, contentY, panelW) {
     }
     yL += rowH + 6;
 
+    // Tótem AUTOPAGO de salida (Nivel 4) — requires entryTotem
+    if (S.upgrades.entryTotem && !S.upgrades.exitTotem) {
+        renderRow(colLX, yL, {
+            done: false,
+            cost: CONFIG.exitTotemCost,
+            label: `💳 AUTOPAGO  $${CONFIG.exitTotemCost.toLocaleString('es-CL')}`,
+            color: '#16a34a',
+            desc: 'Nivel 4 · salida self-service · 0 cobrador',
+            onClick: () => { purchaseExitTotem(); renderManagementPanel(); },
+        });
+    } else if (S.upgrades.exitTotem) {
+        renderRow(colLX, yL, { done: true, doneLabel: 'Autopago (Nivel 4)' });
+    } else {
+        S.managementUI.push(scene.add.text(colLX, yL,
+            '  💳  AUTOPAGO  — bloqueado (necesita Tótem entrada)',
+            { font: 'italic 11px monospace', color: '#64748b' }));
+    }
+    yL += rowH + 6;
+
     // ── RIGHT COLUMN: SERVICIOS & ESTÉTICA ──────────────────
     let yR = contentY;
     S.managementUI.push(scene.add.text(colRX, yR, '🛡️ SERVICIOS', {
@@ -2067,12 +2180,96 @@ function drawEntryTotem(scene) {
 function dispenseTicket() {
     if (!S.upgrades.entryTotem) return;
     const x = L.entryOpeningX + TOTEM_X_OFFSET;
-    const y = L.lotFenceY - 35 + 12;
+    const y = L.placeholderCy + L.placeholderH/2 - 35 + 12;
     const ticket = S.scene.add.rectangle(x, y, 5, 3, 0xf3f4f6).setStrokeStyle(1, 0x6b7280);
     S.scene.tweens.add({
         targets: ticket, y: y + 8, alpha: { from: 1, to: 0 },
         duration: CONFIG.entryTotemDispenseMs, ease: 'Power2',
         onComplete: () => ticket.destroy()
+    });
+}
+
+// ─── EXIT AUTOPAY TOTEM (Nivel 4) ──────────────────────────
+// Self-service exit. Car arrives at exit barrier, totem reads ticket
+// (LPR or ParkingApp QR), charges via Redcomercio, gate opens. No cobrador
+// needed for exits — the operator can be 0 employees if entry also automated.
+const EXIT_TOTEM_X_OFFSET = 20;
+function drawExitTotem(scene) {
+    const x = L.exitOpeningX + EXIT_TOTEM_X_OFFSET;
+    const y = L.placeholderCy + L.placeholderH/2 - 35;
+    S.exitTotemSprites = [];
+    scene.add.rectangle(x, y + 18, 14, 6, 0x52525b);
+    scene.add.rectangle(x, y + 4, 12, 28, 0x064e3b).setStrokeStyle(1, 0x022c1f);
+    drawRedcomercioBadge(scene, x, y - 5, 0.5);
+    scene.add.rectangle(x, y + 4, 9, 6, 0x10b981).setStrokeStyle(1, 0x064e3b);
+    scene.add.text(x, y + 4, '$$$', { font: 'bold 4px monospace', color: '#0f172a' }).setOrigin(0.5);
+    scene.add.rectangle(x, y + 12, 8, 1.5, 0xfbbf24);
+    const led = scene.add.circle(x - 4, y - 2, 1.2, 0x10b981);
+    scene.tweens.add({ targets: led, alpha: { from: 1, to: 0.4 }, duration: 800, yoyo: true, repeat: -1 });
+}
+
+function dispenseExitCharge() {
+    if (!S.upgrades.exitTotem) return;
+    const x = L.exitOpeningX + EXIT_TOTEM_X_OFFSET;
+    const y = L.placeholderCy + L.placeholderH/2 - 35;
+    const float = S.scene.add.text(x, y - 10, '💳', { font: '12px sans-serif' }).setOrigin(0.5);
+    S.scene.tweens.add({
+        targets: float, y: y - 30, alpha: { from: 1, to: 0 },
+        duration: CONFIG.exitTotemScanMs, ease: 'Power2',
+        onComplete: () => float.destroy()
+    });
+}
+
+function processExitViaTotem() {
+    if (S.dayEnded || S.paused) return;
+    const car = S.exitQueue.find(c => c.state === 'exit-waiting');
+    if (!car) return;
+    if (car.escapeHint) {
+        S.scene.tweens.killTweensOf([car.sprite, car.windows]);
+        car.sprite.setAngle(-90); car.windows.setAngle(-90);
+        car.sprite.clearTint();
+        if (car.angryEmoji) { car.angryEmoji.destroy(); car.angryEmoji = null; }
+    }
+    car.state = 'exit-attending';
+    flashEvent(`💳 Tótem cobra automático vía Redcomercio...`);
+    dispenseExitCharge();
+
+    S.scene.time.delayedCall(CONFIG.exitTotemScanMs, () => {
+        const stayedMin = Math.max(1, Math.ceil(S.timeMinutes - (car.entryTimeMinutes ?? S.timeMinutes)));
+        let amount = stayedMin * CONFIG.pricePerMinute * getConvenioRevenueCut();
+        if (car.isEV) amount *= CONFIG.evMultiplier;
+        if (car.washed) { amount += CONFIG.washPrice; flashEvent(`🚿 +$${CONFIG.washPrice.toLocaleString('es-CL')} lavado!`); }
+        if (S.nextCarMultiplier > 1) {
+            amount *= S.nextCarMultiplier;
+            S.nextCarMultiplier = 1;
+            flashEvent(`💎 VIP +$${Math.floor(amount).toLocaleString('es-CL')}`);
+        } else {
+            flashEvent(`💵 Cobrado +$${Math.floor(amount).toLocaleString('es-CL')} (${stayedMin} min)`);
+        }
+        car.revenue = amount;
+        S.money += amount;
+        S.revenueToday += amount;
+        S.lifetimeRevenue += amount;
+        S.carsServedToday++;
+        S.lifetimeServed++;
+        SFX.cashRegister();
+
+        S.exitQueue = S.exitQueue.filter(c => c.id !== car.id);
+        operateGate('exit');
+        S.scene.time.delayedCall(CONFIG.barrierScanMs, () => {
+            acquireLane('exitV', 1400, () => {
+                driveCar(car, [
+                    { x: L.exitVlaneX, y: L.exitWaitY - 20, duration: 300 },
+                    { x: L.exitVlaneX, y: L.entryLaneY, duration: 500 },
+                    { angle: 0, duration: 200 },
+                    { x: L.exitOffscreenX, y: L.entryLaneY, duration: 900 },
+                ], () => {
+                    car.sprite.destroy(); car.windows.destroy();
+                    S.cars = S.cars.filter(c => c.id !== car.id);
+                });
+            });
+        });
+        repositionExitQueue();
     });
 }
 
@@ -2444,7 +2641,22 @@ function purchaseEntryTotem() {
     closeManagementPanel();
     flashEvent('🎫 ¡Tótem instalado! Los autos ahora entran solos. Vos cobrá las salidas.');
     SFX.purchase();
-    S.scene.scene.restart();   // re-render so totem appears
+    S.scene.scene.restart();
+}
+
+function purchaseExitTotem() {
+    if (S.upgrades.exitTotem) return;
+    if (!S.upgrades.entryTotem) {
+        flashEvent('⚠️ Necesitas Tótem de entrada (Nivel 3 final) antes del autopago.');
+        return;
+    }
+    if (S.money < CONFIG.exitTotemCost) return;
+    S.money -= CONFIG.exitTotemCost;
+    S.upgrades.exitTotem = true;
+    closeManagementPanel();
+    flashEvent('💳 ¡Tótem autopago instalado! Salidas se cobran solas vía Redcomercio. Nivel 4.');
+    SFX.purchase();
+    S.scene.scene.restart();
 }
 
 function showBarriersCelebration() {
@@ -2859,6 +3071,20 @@ function update(time, delta) {
         }
     }
 
+    // Nivel 4: Tótem autopago en salida. Procesa exits sin necesidad de
+    // cobrador. Cobrador puede ser 0 empleados (lot sigue "abierto" para
+    // recepción ya que entryTotem se ocupa). Si no hay employee shifts, exit
+    // totem sigue funcionando 24/7.
+    if (S.upgrades.exitTotem) {
+        S.exitTotemTimer = (S.exitTotemTimer || 0) + delta;
+        if (S.exitTotemTimer >= CONFIG.exitTotemTickMs) {
+            S.exitTotemTimer = 0;
+            if (S.exitQueue.some(c => c.state === 'exit-waiting')) {
+                processExitViaTotem();
+            }
+        }
+    }
+
     // Employee AUTONOMY tick: level 3+ employees auto-attend cars without
     // requiring a player click. Probability scales with level. Gives the
     // player breathing room when running multiple shifts.
@@ -2922,6 +3148,7 @@ function update(time, delta) {
         if (car.patience <= 0) { boredLeave(car); continue; }
         if (car.patience < CONFIG.patienceMs * 0.4 && !car.angryHint) {
             car.angryHint = true;
+            SFX.angry();
             // Angry emoji above car + light red tint
             car.angryEmoji = S.scene.add.text(car.sprite.x, car.sprite.y - 30, '😡', {
                 font: '22px sans-serif'
@@ -2978,6 +3205,58 @@ function update(time, delta) {
 }
 
 // ─── DRIVE HELPER ──────────────────────────────────────────
+// ─── CAR HOVER TOOLTIPS ────────────────────────────────────
+// Mouse over a car shows a small info popup (state, patience, est. revenue).
+function attachCarTooltip(car) {
+    if (!car.sprite) return;
+    car.sprite.setInteractive({ useHandCursor: false });
+    car.sprite.on('pointerover', () => showCarTooltip(car));
+    car.sprite.on('pointermove', () => showCarTooltip(car));
+    car.sprite.on('pointerout', () => hideCarTooltip());
+}
+
+function showCarTooltip(car) {
+    const tip = document.getElementById('car-tooltip');
+    if (!tip || !car) return;
+    let html = '';
+    if (car.state === 'queueing' || car.state === 'arriving') {
+        const patiencePct = Math.max(0, Math.round((car.patience / (CONFIG.patienceMs * 1.4)) * 100));
+        const evTag = car.isEV ? '<br>⚡ <span style="color:#86efac">EV (+150% tarifa)</span>' : '';
+        html = `🚗 En cola<br>⏳ Paciencia: <span style="color:${patiencePct < 40 ? '#f87171' : '#fde047'}">${patiencePct}%</span>${evTag}`;
+    } else if (car.state === 'parked') {
+        const stayedMin = Math.max(0, Math.ceil(S.timeMinutes - (car.entryTimeMinutes || S.timeMinutes)));
+        let estCharge = stayedMin * CONFIG.pricePerMinute * getConvenioRevenueCut();
+        if (car.isEV) estCharge *= CONFIG.evMultiplier;
+        const washTag = car.washed ? '<br>🚿 +$' + CONFIG.washPrice.toLocaleString('es-CL') + ' lavado' : '';
+        html = `🅿️ Estacionado<br>⏱️ ${stayedMin} min<br>💵 Estimado al salir: $${Math.floor(estCharge).toLocaleString('es-CL')}${washTag}`;
+        if (S.upgrades.carwash && !car.washed) html += '<br><span style="color:#5eead4">Click para lavar (+$5.000)</span>';
+    } else if (car.state === 'exit-waiting' || car.state === 'exit-attending') {
+        const stayedMin = Math.max(1, Math.ceil(S.timeMinutes - (car.entryTimeMinutes || S.timeMinutes)));
+        let charge = stayedMin * CONFIG.pricePerMinute * getConvenioRevenueCut();
+        if (car.isEV) charge *= CONFIG.evMultiplier;
+        if (car.washed) charge += CONFIG.washPrice;
+        html = `🚙 Pidiendo salida<br>⏱️ ${stayedMin} min en lote<br>💵 A cobrar: <span style="color:#fde047">$${Math.floor(charge).toLocaleString('es-CL')}</span>`;
+    } else {
+        html = `🚘 ${car.state}`;
+    }
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    // Position near the car sprite via canvas pixel → page coords
+    const canvas = document.querySelector('canvas');
+    if (canvas && car.sprite) {
+        const rect = canvas.getBoundingClientRect();
+        const sx = rect.width / CONFIG.width;
+        const sy = rect.height / CONFIG.height;
+        tip.style.left = (rect.left + car.sprite.x * sx + 20) + 'px';
+        tip.style.top  = (rect.top  + car.sprite.y * sy - 10) + 'px';
+    }
+}
+
+function hideCarTooltip() {
+    const tip = document.getElementById('car-tooltip');
+    if (tip) tip.style.display = 'none';
+}
+
 function driveCar(car, waypoints, onDone) {
     let i = 0;
     const step = () => {
@@ -3085,6 +3364,7 @@ function spawnQueueCar() {
     S.cars.push(car);
     S.queue.push(car);
     if (isEV) makeEVBadge(scene, car);
+    attachCarTooltip(car);
 
     // Head (idx==0) drives INTO the lot. Others stop on the street.
     const queueIdx = S.queue.length - 1;
@@ -3208,12 +3488,17 @@ function attemptCobroBy(emp) {
     if (!isOnShift(emp, S.timeMinutes / 60)) {
         flashEvent(`💤 ${emp.name} fuera de turno (${emp.shift.label}).`); return;
     }
-    if (S.exitQueue.some(c => c.state === 'exit-waiting')) { attendExit(emp); return; }
-    // With entry totem installed, entries are self-service — cobrador stays
-    // focused on exits and shouldn't handle entry queue manually.
+    // Nivel 4: exit totem auto-charges. Cobrador can't intercept.
+    if (!S.upgrades.exitTotem && S.exitQueue.some(c => c.state === 'exit-waiting')) {
+        attendExit(emp); return;
+    }
+    if (S.upgrades.exitTotem && S.exitQueue.some(c => c.state === 'exit-waiting')) {
+        flashEvent('💳 El tótem cobra las salidas automáticamente.');
+        return;
+    }
     if (!S.upgrades.entryTotem && S.queue.length > 0) { attendEntry(emp); return; }
     if (S.upgrades.entryTotem && S.queue.length > 0) {
-        flashEvent('🎫 El tótem se encarga de las entradas. Vos cobrá las salidas.');
+        flashEvent('🎫 El tótem se encarga de las entradas.');
         return;
     }
     flashEvent('💭 Nada en cola.');
@@ -3678,7 +3963,8 @@ function updateInfoBoard() {
     const title = $('page-title');
     if (title) {
         let levelText = 'Nivel 1: Papeleta';
-        if (S.upgrades.entryTotem) levelText = 'Nivel 3 final: Tótem auto-ticket';
+        if (S.upgrades.exitTotem) levelText = 'Nivel 4: Autopago';
+        else if (S.upgrades.entryTotem) levelText = 'Nivel 3 final: Tótem auto-ticket';
         else if (S.upgrades.barriers) levelText = 'Nivel 3: Barreras';
         else if (S.upgrades.pos) levelText = 'Nivel 2: POS Digital';
         else if (S.upgrades.booth) levelText = 'Nivel 1: Caseta';
@@ -3709,6 +3995,7 @@ function updateInfoBoard() {
     if (S.upgrades.pos) services.push({ label: '💳 POS', active: true });
     if (S.upgrades.barriers) services.push({ label: '🚧 Barreras', active: true });
     if (S.upgrades.entryTotem) services.push({ label: '🎫 Tótem entrada', active: true });
+    if (S.upgrades.exitTotem) services.push({ label: '💳 Autopago', active: true });
     // ParkingApp + Redcomercio shown as a "tech stack" badge once integrated
     if (S.cinematicShown) services.push({ label: '🅿️ ParkingApp', active: true });
     if (S.upgrades.pos) services.push({ label: '💳 Redcomercio', active: true });
@@ -4005,7 +4292,7 @@ function hardReset() {
     S.dayOfWeek = 0;
     S.reputation = 100;
     S.upgrades = {
-        booth: false, pos: false, barriers: false, entryTotem: false,
+        booth: false, pos: false, barriers: false, entryTotem: false, exitTotem: false,
         adScreens: 0, signs: 0, expansions: 0,
         convenios: [],
         cameras: false, carwash: false, evCharger: false,
