@@ -152,6 +152,57 @@
             font-size: 11px;
         }
 
+        /* ── Info Board ──────────────────────────────────── */
+        #info-board {
+            width: 100%;
+            max-width: 960px;
+            margin: 12px auto 0;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .info-section {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 10px 12px;
+        }
+        .info-section h3 {
+            color: #fbbf24;
+            font-size: 12px;
+            margin-bottom: 6px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #cbd5e1;
+            line-height: 1.6;
+        }
+        .info-row .val { color: #fbbf24; font-weight: bold; }
+        .info-row .val.negative { color: #f87171; }
+        #info-services {
+            font-size: 11px;
+            color: #cbd5e1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .service-badge {
+            background: #334155;
+            color: #a5f3fc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .service-badge.active { background: #14532d; color: #86efac; }
+        @media (max-width: 800px) {
+            #info-board { grid-template-columns: repeat(2, 1fr); }
+        }
+
         /* ── Employee Cards Strip ────────────────────────── */
         #employee-strip-wrapper {
             width: 100%;
@@ -360,6 +411,34 @@
         <div><kbd>G</kbd> Gestión</div>
         <div><kbd>H</kbd> Contratar</div>
         <div><kbd>P</kbd> Pausa</div>
+    </div>
+
+    <!-- ── INFO BOARD (tarifario + horarios + servicios + hoy) ─── -->
+    <div id="info-board">
+        <div class="info-section">
+            <h3>⏰ HORARIOS</h3>
+            <div class="info-row"><span>Lun-Vie:</span><span id="info-weekday-hours">08-22 (depende del personal)</span></div>
+            <div class="info-row"><span>Sáb-Dom:</span><span id="info-weekend-hours">depende del personal</span></div>
+            <div class="info-row"><span>Hoy:</span><span id="info-today-status">—</span></div>
+        </div>
+        <div class="info-section">
+            <h3>💵 TARIFAS</h3>
+            <div class="info-row"><span>Regular:</span><span class="val">$30 / min</span></div>
+            <div class="info-row"><span>Vehículo EV ⚡:</span><span class="val" id="info-ev-tariff">$30 / min</span></div>
+            <div class="info-row"><span>Mensualista:</span><span class="val">$7.500 / día × 14d</span></div>
+            <div class="info-row"><span>Lavado:</span><span class="val">$5.000 / auto (click)</span></div>
+        </div>
+        <div class="info-section">
+            <h3>🛠️ SERVICIOS</h3>
+            <div id="info-services">—</div>
+        </div>
+        <div class="info-section">
+            <h3>📊 HOY</h3>
+            <div class="info-row"><span>Revenue:</span><span class="val" id="info-revenue-today">$0</span></div>
+            <div class="info-row"><span>Sueldos:</span><span class="val negative" id="info-salary-today">-$0</span></div>
+            <div class="info-row"><span>Utilidad:</span><span class="val" id="info-profit-today">$0</span></div>
+            <div class="info-row"><span>Atendidos:</span><span class="val" id="info-served-today">0</span></div>
+        </div>
     </div>
 
     <div id="employee-strip-wrapper">

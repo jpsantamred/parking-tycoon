@@ -2064,6 +2064,7 @@ function update(time, delta) {
         }
         // Keep emoji glued above the car each frame
         if (car.angryEmoji) car.angryEmoji.x = car.sprite.x;
+        if (car.evBadge) { car.evBadge.x = car.sprite.x; car.evBadge.y = car.sprite.y - 28; }
     }
 
     for (const car of [...S.parkedCars]) {
@@ -2095,6 +2096,7 @@ function update(time, delta) {
     updateClosedSign();
     updateHUD();
     updateEmployeeCardsHTML();
+    updateInfoBoard();
 }
 
 // ─── DRIVE HELPER ──────────────────────────────────────────
@@ -2130,6 +2132,19 @@ function spawnCar() {
     spawnQueueCar();
 }
 
+function makeEVBadge(scene, car) {
+    // Floating ⚡ badge above EV cars in queue
+    const badge = scene.add.text(car.sprite.x, car.sprite.y - 28, '⚡EV', {
+        font: 'bold 12px monospace', color: '#000',
+        backgroundColor: '#4ade80', padding: { x: 4, y: 1 }
+    }).setOrigin(0.5);
+    scene.tweens.add({
+        targets: badge, scale: { from: 1, to: 1.15 },
+        duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+    });
+    car.evBadge = badge;
+}
+
 function spawnQueueCar() {
     const scene = S.scene;
     // EV customers prefer green colors and pay more
@@ -2140,7 +2155,14 @@ function spawnQueueCar() {
     const stayMin = Phaser.Math.Between(CONFIG.stayMinMin, CONFIG.stayMaxMin);
 
     const sprite = scene.add.image(L.spawnX, L.entryLaneY, textureKey).setScale(1.6);
-    if (isEV) sprite.setTint(0xb6f5d4);  // subtle green-cyan tint to mark EVs
+    if (isEV) {
+        // EV cars get a strong green tint AND a glow effect — easy to spot
+        sprite.setTint(0x4ade80);
+        scene.tweens.add({
+            targets: sprite, alpha: { from: 1, to: 0.85 },
+            duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+        });
+    }
     const windows = scene.add.rectangle(L.spawnX, L.entryLaneY, 1, 1, 0).setAlpha(0);
 
     // Ad screens give patience bonus
@@ -2158,6 +2180,7 @@ function spawnQueueCar() {
     };
     S.cars.push(car);
     S.queue.push(car);
+    if (isEV) makeEVBadge(scene, car);
 
     // Head (idx==0) drives INTO the lot. Others stop on the street.
     const queueIdx = S.queue.length - 1;
@@ -2293,6 +2316,7 @@ function attendEntry(emp) {
         car.sprite.clearTint();
         if (car.angryEmoji) { car.angryEmoji.destroy(); car.angryEmoji = null; }
     }
+    if (car.evBadge) { car.evBadge.destroy(); car.evBadge = null; }
     emp.busy = true;
     updateEmployeeAppearance(emp);
     updateEmployeeCardsHTML();
@@ -2577,6 +2601,61 @@ function boredLeave(car) {
 }
 
 // ─── HUD UPDATE ────────────────────────────────────────────
+function updateInfoBoard() {
+    const $ = id => document.getElementById(id);
+    if (!$('info-board')) return;
+
+    // Hours / status
+    const onShiftCount = S.employees.filter(e => isOnShift(e, S.timeMinutes / 60)).length;
+    const isOpenNow = onShiftCount > 0;
+    const t = `${pad(Math.floor(S.timeMinutes/60))}:${pad(Math.floor(S.timeMinutes%60))}`;
+    $('info-today-status').textContent = isOpenNow
+        ? `🟢 ABIERTO (${t} · ${DAY_LONG[S.dayOfWeek]})`
+        : `🔴 CERRADO (${t} · ${DAY_LONG[S.dayOfWeek]})`;
+    $('info-today-status').style.color = isOpenNow ? '#10b981' : '#ef4444';
+
+    // EV tariff
+    if (S.upgrades.evCharger) {
+        $('info-ev-tariff').textContent = `$${(CONFIG.pricePerMinute * CONFIG.evMultiplier).toFixed(0)} / min  (2.5x)`;
+        $('info-ev-tariff').style.color = '#4ade80';
+    } else {
+        $('info-ev-tariff').textContent = '(necesitas cargador 🔌)';
+        $('info-ev-tariff').style.color = '#6b7280';
+    }
+
+    // Services
+    const services = [];
+    if (S.upgrades.booth) services.push({ label: '🛂 Caseta', active: true });
+    if (S.upgrades.pos) services.push({ label: '💳 POS', active: true });
+    if (S.upgrades.adScreens > 0) services.push({ label: `📺 ${S.upgrades.adScreens} pantallas`, active: true });
+    if (S.upgrades.signs > 0) services.push({ label: `📣 ${S.upgrades.signs} carteles`, active: true });
+    if (S.upgrades.expansions > 0) services.push({ label: `🏗️ ${S.upgrades.expansions} expansión`, active: true });
+    if (S.upgrades.cameras) services.push({ label: '📹 Cámaras', active: true });
+    if (S.upgrades.carwash) services.push({ label: '🚿 Lavado', active: true });
+    if (S.upgrades.evCharger) services.push({ label: '🔌 EV', active: true });
+    if (S.subscriptions.length > 0) services.push({ label: `📋 ${S.subscriptions.length} mensualistas`, active: true });
+    (S.upgrades.convenios || []).forEach(id => {
+        const c = CONVENIOS[id];
+        if (c) services.push({ label: `🤝 ${c.name.split(' ')[0]}`, active: true });
+    });
+    const servEl = $('info-services');
+    if (services.length === 0) {
+        servEl.innerHTML = '<span style="color:#6b7280;font-style:italic">Sin upgrades aún. Abrí Gestión (G) para comprar.</span>';
+    } else {
+        servEl.innerHTML = services.map(s => `<span class="service-badge active">${s.label}</span>`).join('');
+    }
+
+    // Daily stats
+    const utility = S.revenueToday - S.salariesPaidToday;
+    $('info-revenue-today').textContent = `$${Math.floor(S.revenueToday).toLocaleString('es-CL')}`;
+    $('info-salary-today').textContent = `-$${Math.floor(S.salariesPaidToday).toLocaleString('es-CL')}`;
+    const profitEl = $('info-profit-today');
+    profitEl.textContent = `$${Math.floor(utility).toLocaleString('es-CL')}`;
+    profitEl.classList.toggle('negative', utility < 0);
+    profitEl.style.color = utility >= 0 ? '#10b981' : '#f87171';
+    $('info-served-today').textContent = String(S.carsServedToday);
+}
+
 function updateHUD() {
     const hours = Math.floor(S.timeMinutes / 60);
     const minutes = Math.floor(S.timeMinutes % 60);
