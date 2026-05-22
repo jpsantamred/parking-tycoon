@@ -2728,84 +2728,139 @@ function renderEndOfDay() {
     S.endDayUI = [];
     SFX.dayEnd();
 
-    // Record stats for this day
+    // Hide canvas event log so it doesn't poke through the overlay
+    if (S.hud && S.hud.events) S.hud.events.setVisible(false);
+
+    // Record stats
     S.dailyStatsHistory.push({
-        day: S.day,
-        dow: S.dayOfWeek,
-        revenue: S.revenueToday,
-        salaries: S.salariesPaidToday,
-        served: S.carsServedToday,
-        angry: S.angryToday,
-        escaped: S.escapedToday,
-        drivePast: S.drivePastToday,
-        endMoney: S.money,
-        reputation: S.reputation,
+        day: S.day, dow: S.dayOfWeek,
+        revenue: S.revenueToday, salaries: S.salariesPaidToday,
+        served: S.carsServedToday, angry: S.angryToday,
+        escaped: S.escapedToday, drivePast: S.drivePastToday,
+        endMoney: S.money, reputation: S.reputation,
     });
     if (S.dailyStatsHistory.length > 30) S.dailyStatsHistory.shift();
 
     const scene = S.scene;
     const W = CONFIG.width, H = CONFIG.height;
-
-    S.endDayUI.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.88));
-    S.endDayUI.push(scene.add.text(W/2, 50, `FIN DEL DÍA ${S.day} — ${DAY_LONG[S.dayOfWeek]}`, {
-        font: 'bold 28px monospace', color: '#fbbf24'
-    }).setOrigin(0.5));
-
     const utility = S.revenueToday - S.salariesPaidToday;
     const subRev = S.subscriptionRevenueToday || 0;
-    const adRev = (S.upgrades.adScreens * CONFIG.adScreenIncomePerGameMin * 14 * 60) || 0; // approx
-    const lines = [
-        `Autos atendidos (con cobro):   ${S.carsServedToday}`,
-        `Se aburrieron en cola:         ${S.angryToday}`,
-        `Escaparon sin pagar:           ${S.escapedToday}`,
-        `Pasaron de largo (cerrado):    ${S.drivePastToday}`,
-        ``,
-        `Revenue total del día:         +$${Math.floor(S.revenueToday).toLocaleString('es-CL')}`,
-        subRev > 0 ? `  ↳ Mensualistas:             +$${Math.floor(subRev).toLocaleString('es-CL')}` : null,
-        S.upgrades.adScreens > 0 ? `  ↳ Pantallas (estimado):     +$${Math.floor(adRev).toLocaleString('es-CL')}` : null,
-        `Sueldos pagados:               -$${Math.floor(S.salariesPaidToday).toLocaleString('es-CL')}`,
-        `──────────────────────────────────────`,
-        `Utilidad neta:                 $${Math.floor(utility).toLocaleString('es-CL')}`,
-        `Dinero total:                  $${Math.floor(S.money).toLocaleString('es-CL')}`,
-        `Reputación:                    ${S.reputation}%`,
-        ``,
-        `── LIFETIME ──`,
-        `Atendidos: ${S.lifetimeServed}  ·  Revenue: $${Math.floor(S.lifetimeRevenue).toLocaleString('es-CL')}`,
-    ].filter(x => x !== null);
-    lines.forEach((line, i) => {
-        S.endDayUI.push(scene.add.text(W/2, 100 + i * 24, line, {
-            font: 'bold 15px monospace', color: '#fff'
-        }).setOrigin(0.5));
+    const adRev = (S.upgrades.adScreens * CONFIG.adScreenIncomePerGameMin * 14 * 60) || 0;
+    const profit = utility >= 0;
+
+    // Solid backdrop — fully opaque so nothing leaks through
+    S.endDayUI.push(scene.add.rectangle(W/2, H/2, W, H, 0x0f172a, 1));
+    // Decorative top accent line
+    S.endDayUI.push(scene.add.rectangle(W/2, 18, W - 40, 2, profit ? 0x10b981 : 0xef4444));
+
+    // Title (smaller)
+    S.endDayUI.push(scene.add.text(W/2, 36, `FIN DEL DÍA ${S.day} — ${DAY_LONG[S.dayOfWeek]}`, {
+        font: 'bold 22px monospace', color: '#fbbf24'
+    }).setOrigin(0.5));
+
+    // 3 columns of stats — compact
+    const colX = [W/2 - 280, W/2 - 30, W/2 + 220];
+    const startY = 75;
+
+    // Column 1 — Customers
+    const col1 = [
+        { label: '👥 Clientes', color: '#a5f3fc', bold: true },
+        { label: `Atendidos:`, val: S.carsServedToday, color: '#86efac' },
+        { label: `Aburridos:`, val: S.angryToday, color: '#fca5a5' },
+        { label: `Escaparon:`, val: S.escapedToday, color: '#fca5a5' },
+        { label: `Pasaron largo:`, val: S.drivePastToday, color: '#fca5a5' },
+    ];
+    col1.forEach((line, i) => {
+        const txt = line.bold
+            ? line.label
+            : line.label.padEnd(14, ' ') + String(line.val);
+        S.endDayUI.push(scene.add.text(colX[0], startY + i * 19, txt, {
+            font: line.bold ? 'bold 14px monospace' : '13px monospace',
+            color: line.color
+        }));
     });
 
-    // Show NEXT DAY name + bankruptcy warning
+    // Column 2 — Money flow
+    const col2 = [
+        { label: '💰 Flujo', color: '#a5f3fc', bold: true },
+        { label: `Revenue:`,   val: `+$${Math.floor(S.revenueToday).toLocaleString('es-CL')}`, color: '#fbbf24' },
+        subRev > 0 ? { label: `  Mensualistas:`, val: `+$${Math.floor(subRev).toLocaleString('es-CL')}`, color: '#cbd5e1' } : null,
+        S.upgrades.adScreens > 0 ? { label: `  Pantallas:`, val: `+$${Math.floor(adRev).toLocaleString('es-CL')}`, color: '#cbd5e1' } : null,
+        { label: `Sueldos:`,    val: `-$${Math.floor(S.salariesPaidToday).toLocaleString('es-CL')}`, color: '#f87171' },
+        { label: `Utilidad:`,   val: `$${Math.floor(utility).toLocaleString('es-CL')}`, color: profit ? '#10b981' : '#ef4444', bold: true },
+    ].filter(x => x);
+    col2.forEach((line, i) => {
+        const txt = line.bold && !line.val ? line.label : (line.val ? line.label.padEnd(14, ' ') + line.val : line.label);
+        S.endDayUI.push(scene.add.text(colX[1], startY + i * 19, txt, {
+            font: line.bold ? 'bold 14px monospace' : '13px monospace',
+            color: line.color
+        }));
+    });
+
+    // Column 3 — Status
+    const col3 = [
+        { label: '📊 Estado', color: '#a5f3fc', bold: true },
+        { label: `Saldo:`, val: `$${Math.floor(S.money).toLocaleString('es-CL')}`, color: '#fbbf24' },
+        { label: `Reputación:`, val: `${S.reputation}%`, color: '#10b981' },
+        { label: `Día:`, val: `${S.day}`, color: '#cbd5e1' },
+        { label: `Lifetime:`, val: `${S.lifetimeServed} autos`, color: '#cbd5e1' },
+    ];
+    col3.forEach((line, i) => {
+        const txt = line.bold ? line.label : line.label.padEnd(12, ' ') + line.val;
+        S.endDayUI.push(scene.add.text(colX[2], startY + i * 19, txt, {
+            font: line.bold ? 'bold 14px monospace' : '13px monospace',
+            color: line.color
+        }));
+    });
+
+    // Separator
+    S.endDayUI.push(scene.add.rectangle(W/2, 200, W - 80, 1, 0x334155));
+
+    // Next day banner + bankruptcy warning
     const nextDow = (S.dayOfWeek + 1) % 7;
-    S.endDayUI.push(scene.add.text(W/2, H - 100, `→  Próximo: ${DAY_LONG[nextDow]}`, {
-        font: 'italic 14px monospace', color: '#a5f3fc'
+    S.endDayUI.push(scene.add.text(W/2, 220, `→  Próximo día: ${DAY_LONG[nextDow]}`, {
+        font: 'bold 16px monospace', color: '#a5f3fc'
     }).setOrigin(0.5));
 
     if (S.consecutiveNegDays > 0) {
         const remaining = MAX_NEG_DAYS - S.consecutiveNegDays;
-        S.endDayUI.push(scene.add.text(W/2, H - 78,
-            `⚠️  ${S.consecutiveNegDays} día(s) en rojo. Quiebra a los ${MAX_NEG_DAYS} (te quedan ${remaining}).`,
+        S.endDayUI.push(scene.add.text(W/2, 250,
+            `⚠️  ${S.consecutiveNegDays}/${MAX_NEG_DAYS} días en rojo  ·  ${remaining} más y QUIEBRA`,
             { font: 'bold 14px monospace', color: '#ef4444' }
         ).setOrigin(0.5));
     }
 
-    const gestBtn = scene.add.text(W/2 - 130, H - 55, '🏗️  GESTIÓN', {
+    // Random Tip / advice
+    const tips = [
+        '💡 Contratá un cobrador para el turno tarde si te perdés clientes en la noche',
+        '💡 Las pantallas publicitarias dan $25/min pasivo 24/7',
+        '💡 Comprá cámaras antes de que te empiecen a robar',
+        '💡 Los EVs pagan 2.5x la tarifa — instalá el cargador',
+        '💡 Lavado: click en autos estacionados para +$5k por auto',
+        '💡 Mensualistas pagan upfront pero ocupan 1 espacio fijo',
+        '💡 Cinemática POS se activa Día 3+ con caseta',
+    ];
+    const tip = tips[Math.floor(Math.random() * tips.length)];
+    S.endDayUI.push(scene.add.text(W/2, 290, tip, {
+        font: 'italic 12px monospace', color: '#94a3b8'
+    }).setOrigin(0.5));
+
+    // Buttons (centered, large)
+    const gestBtn = scene.add.text(W/2 - 140, H - 60, '🏗️  GESTIÓN', {
         font: 'bold 18px monospace', color: '#fff',
-        backgroundColor: '#7c3aed', padding: { x: 18, y: 12 }
+        backgroundColor: '#7c3aed', padding: { x: 22, y: 14 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     gestBtn.on('pointerdown', () => { openManagementPanel(); });
     S.endDayUI.push(gestBtn);
 
-    const nextBtn = scene.add.text(W/2 + 130, H - 55, '▶  DÍA SIGUIENTE', {
+    const nextBtn = scene.add.text(W/2 + 140, H - 60, '▶  DÍA SIGUIENTE', {
         font: 'bold 18px monospace', color: '#fff',
-        backgroundColor: '#3b82f6', padding: { x: 18, y: 12 }
+        backgroundColor: '#3b82f6', padding: { x: 22, y: 14 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     nextBtn.on('pointerdown', () => {
         S.endDayUI.forEach(o => { try { o.destroy(); } catch(e) {} });
         S.endDayUI = [];
+        if (S.hud && S.hud.events) S.hud.events.setVisible(true);
         S.day++;
         S.dayOfWeek = (S.dayOfWeek + 1) % 7;
         S.scene.scene.restart();
@@ -2813,7 +2868,7 @@ function renderEndOfDay() {
     S.endDayUI.push(nextBtn);
 
     S.endDayUI.push(scene.add.text(W/2, H - 20,
-        '💡 Aprovecha el cambio de día para contratar, despedir o comprar upgrades.',
-        { font: 'italic 13px monospace', color: '#cbd5e1' }
+        '⏯  Aprovecha el cambio para contratar, despedir o comprar upgrades',
+        { font: 'italic 11px monospace', color: '#64748b' }
     ).setOrigin(0.5));
 }
