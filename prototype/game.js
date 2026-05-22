@@ -3059,7 +3059,9 @@ function endDay() {
     }
     S.dayEnded = true;
     S.paused = true;
-    S.scene.tweens.pauseAll();
+    // NOTE: defer pauseAll() until AFTER the fade tween is created+started.
+    // If we pauseAll first, Phaser pauses the tween system as a whole in
+    // some versions and the new fade tween never fires its onComplete.
 
     // Corrupt-employee check (random per day, slim chance)
     runCorruptEmployeeCheck();
@@ -3068,10 +3070,21 @@ function endDay() {
     const scene = S.scene;
     const fader = scene.add.rectangle(CONFIG.width/2, CONFIG.height/2, CONFIG.width, CONFIG.height, 0x000000, 0)
         .setDepth(999);
+
+    // Safety net: if onComplete doesn't fire (e.g. Phaser tween paused),
+    // render the summary anyway after 1.5s.
+    const fadeSafety = setTimeout(() => {
+        if (S.endDayUI && S.endDayUI.length > 0) return;
+        try { fader.destroy(); } catch(e) {}
+        renderEndOfDay();
+    }, 1500);
+
     scene.tweens.add({
         targets: fader, alpha: 1, duration: 900, ease: 'Power2',
         onComplete: () => {
-            fader.destroy();
+            clearTimeout(fadeSafety);
+            try { fader.destroy(); } catch(e) {}
+            scene.tweens.pauseAll();   // pause background tweens AFTER fade
             renderEndOfDay();
         }
     });
