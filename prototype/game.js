@@ -971,6 +971,22 @@ function hireEmployee(shift = null) {
     updateHUD();
 }
 
+function cycleEmployeeShift(rosterId) {
+    const entry = S.employeeRoster.find(e => e.id === rosterId);
+    if (!entry) return;
+    const currentIdx = SHIFT_LIST.findIndex(s => s.id === entry.shift.id);
+    const nextShift = SHIFT_LIST[(currentIdx + 1) % SHIFT_LIST.length];
+    entry.shift = nextShift;
+    // Update live employee
+    const live = S.employees.find(e => e.id === rosterId);
+    if (live) {
+        live.shift = nextShift;
+        if (live.tag) live.tag.setText(`${entry.name}\n${nextShift.label}`);
+    }
+    flashEvent(`🔄 ${entry.name} ahora en turno ${nextShift.label} (${nextShift.start}-${nextShift.end})`);
+    updateEmployeeCardsHTML();
+}
+
 function fireEmployee(rosterId) {
     const rIdx = S.employeeRoster.findIndex(e => e.id === rosterId);
     if (rIdx < 0) return;
@@ -1526,7 +1542,7 @@ function drawAdScreens(scene) {
 }
 
 function drawSafetyAndServices(scene) {
-    // Security cameras: small black blobs at the 4 corners of the lot
+    // Security cameras at lot corners
     if (S.upgrades.cameras) {
         const corners = [
             { x: L.lotLeft + 12, y: L.lotFenceY + 12 },
@@ -1542,21 +1558,25 @@ function drawSafetyAndServices(scene) {
         });
     }
 
-    // Car wash station: at far right side of lot (occupies a chunk of empty space)
-    if (S.upgrades.carwash) {
-        const wx = L.lotRight - 60, wy = L.sidewalkY;
-        // Wash hut
-        scene.add.rectangle(wx, wy, 70, 32, 0x0f766e).setStrokeStyle(2, 0x14b8a6);
-        scene.add.text(wx, wy - 5, '🚿 LAVADO', { font: 'bold 11px monospace', color: '#5eead4' }).setOrigin(0.5);
-        scene.add.text(wx, wy + 8, '★ EXPRESS ★', { font: 'bold 9px monospace', color: '#fde047' }).setOrigin(0.5);
+    // EV charger station — placed INSIDE the lot at the south of row 3 area (when expansion exists)
+    // or below the lot bottom-left (visible on sidewalk far left)
+    if (S.upgrades.evCharger) {
+        const ex = L.lotLeft + 100, ey = L.sidewalkY;
+        scene.add.rectangle(ex, ey, 90, 26, 0x166534).setStrokeStyle(2, 0x22c55e);
+        scene.add.text(ex - 14, ey, '🔌', { font: '14px sans-serif' }).setOrigin(0.5);
+        scene.add.text(ex + 12, ey - 4, 'EV', { font: 'bold 11px monospace', color: '#86efac' }).setOrigin(0.5);
+        scene.add.text(ex + 12, ey + 7, 'premium', { font: '8px monospace', color: '#fde047' }).setOrigin(0.5);
     }
 
-    // EV charger station: at far left side of lot
-    if (S.upgrades.evCharger) {
-        const ex = L.lotLeft + 50, ey = L.sidewalkY;
-        scene.add.rectangle(ex, ey, 70, 32, 0x166534).setStrokeStyle(2, 0x22c55e);
-        scene.add.text(ex, ey - 5, '🔌 CARGA EV', { font: 'bold 11px monospace', color: '#86efac' }).setOrigin(0.5);
-        scene.add.text(ex, ey + 8, '★ PREMIUM ★', { font: 'bold 9px monospace', color: '#fde047' }).setOrigin(0.5);
+    // Car wash station — to the right, but smaller and clickable
+    if (S.upgrades.carwash) {
+        const wx = L.lotRight - 100, wy = L.sidewalkY;
+        const washBg = scene.add.rectangle(wx, wy, 90, 26, 0x0f766e).setStrokeStyle(2, 0x14b8a6);
+        scene.add.text(wx - 14, wy, '🚿', { font: '14px sans-serif' }).setOrigin(0.5);
+        scene.add.text(wx + 12, wy - 4, 'LAVAR', { font: 'bold 11px monospace', color: '#5eead4' }).setOrigin(0.5);
+        scene.add.text(wx + 12, wy + 7, 'click auto', { font: '8px monospace', color: '#fde047' }).setOrigin(0.5);
+        // Make station "pulse" to draw attention
+        scene.tweens.add({ targets: washBg, alpha: { from: 1, to: 0.7 }, duration: 1200, yoyo: true, repeat: -1 });
     }
 }
 
@@ -1638,8 +1658,26 @@ function purchaseCarwash() {
     if (S.money < CONFIG.washCost) return;
     S.money -= CONFIG.washCost;
     S.upgrades.carwash = true;
-    flashEvent(`🚿 Servicio de lavado activo. ${CONFIG.washPctChance}% de los autos pagan extra $${CONFIG.washPrice.toLocaleString('es-CL')}`);
+    flashEvent(`🚿 Lavado disponible. Click en autos estacionados para lavar (+$${CONFIG.washPrice.toLocaleString('es-CL')})`);
     S.scene.scene.restart();
+}
+
+function triggerWash(car) {
+    if (!S.upgrades.carwash || car.washed || car.state !== 'parked') return;
+    car.washed = true;
+    car.sprite.disableInteractive();
+    // Visual: water droplets on the car
+    const drops = S.scene.add.text(car.sprite.x, car.sprite.y - 24, '💦', {
+        font: '24px sans-serif'
+    }).setOrigin(0.5);
+    S.scene.tweens.add({
+        targets: drops, alpha: 0, y: drops.y - 14,
+        duration: 800, ease: 'Power2',
+        onComplete: () => drops.destroy()
+    });
+    car.sprite.setTint(0xa5f3fc);  // light cyan tint = clean
+    flashEvent(`🚿 Auto lavado. +$${CONFIG.washPrice.toLocaleString('es-CL')} al salir.`);
+    SFX.cobro();
 }
 
 function purchaseEVCharger() {
@@ -2282,7 +2320,15 @@ function attendEntry(emp) {
                     { angle: turnIntoSpaceAngle, duration: 200 },
                     { x: space.x, y: space.y, duration: 450 },
                   ];
-            driveCar(car, wps, () => { car.state = 'parked'; S.parkedCars.push(car); });
+            driveCar(car, wps, () => {
+                car.state = 'parked';
+                S.parkedCars.push(car);
+                // If carwash station purchased, make this car clickable to add a wash
+                if (S.upgrades.carwash && !car.washed) {
+                    car.sprite.setInteractive({ useHandCursor: true });
+                    car.sprite.on('pointerdown', () => triggerWash(car));
+                }
+            });
 
             if (hasBooth) {
                 emp.busy = false;
@@ -2389,10 +2435,10 @@ function attendExit(emp) {
             const stayedMin = Math.max(1, Math.ceil(S.timeMinutes - (car.entryTimeMinutes ?? S.timeMinutes)));
             let amount = stayedMin * CONFIG.pricePerMinute * getConvenioRevenueCut();
             if (car.isEV) amount *= CONFIG.evMultiplier;
-            // Random car-wash upsell
-            if (S.upgrades.carwash && Math.random() * 100 < CONFIG.washPctChance) {
+            // Car wash is now MANUAL — applied per car when player clicked it
+            if (car.washed) {
                 amount += CONFIG.washPrice;
-                flashEvent(`🚿 +$${CONFIG.washPrice.toLocaleString('es-CL')} de lavado extra!`);
+                flashEvent(`🚿 +$${CONFIG.washPrice.toLocaleString('es-CL')} de lavado!`);
             }
             if (S.nextCarMultiplier > 1) {
                 amount *= S.nextCarMultiplier;

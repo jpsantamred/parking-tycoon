@@ -5,6 +5,110 @@
     <title>Parking Tycoon — Nivel 1: Papeleta</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* ── SPLASH SCREEN ─────────────────────────────── */
+        #splash {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse at center, #1e293b 0%, #0f172a 80%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            font-family: 'Courier New', monospace;
+            color: #fff;
+            animation: splashFadeIn 0.5s ease;
+        }
+        @keyframes splashFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes splashFadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; transform: scale(1.05); }
+        }
+        #splash.closing {
+            animation: splashFadeOut 0.6s ease forwards;
+        }
+        .splash-content {
+            text-align: center;
+            max-width: 600px;
+            padding: 30px;
+        }
+        .splash-logo {
+            font-size: 72px;
+            margin-bottom: 12px;
+            filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.5));
+            animation: splashBounce 2s ease-in-out infinite;
+        }
+        @keyframes splashBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .splash-title {
+            font-size: 44px;
+            color: #fbbf24;
+            text-shadow: 4px 4px 0 #78350f, 0 0 20px rgba(251, 191, 36, 0.4);
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .splash-tagline {
+            font-size: 16px;
+            color: #a5f3fc;
+            font-style: italic;
+            margin-bottom: 32px;
+        }
+        .splash-story {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 22px;
+            margin: 0 auto 28px;
+            font-size: 15px;
+            line-height: 1.7;
+            color: #cbd5e1;
+            text-align: left;
+            max-width: 480px;
+        }
+        .splash-story p { margin-bottom: 6px; }
+        .splash-story strong { color: #a5f3fc; }
+        .splash-story em { color: #fbbf24; }
+        .splash-button {
+            background: linear-gradient(180deg, #16a34a, #15803d);
+            color: #fff;
+            border: 2px solid #22c55e;
+            padding: 16px 48px;
+            font-size: 22px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            border-radius: 6px;
+            box-shadow: 0 6px 0 #14532d, 0 0 16px rgba(34, 197, 94, 0.5);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .splash-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 0 #14532d, 0 0 24px rgba(34, 197, 94, 0.7);
+        }
+        .splash-button:active {
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 #14532d;
+        }
+        .splash-version {
+            margin-top: 24px;
+            font-size: 11px;
+            color: #64748b;
+        }
+        .splash-credits {
+            margin-top: 8px;
+            font-size: 10px;
+            color: #475569;
+            line-height: 1.6;
+        }
+        .splash-credits a { color: #64748b; text-decoration: none; }
+        .splash-credits a:hover { color: #a5f3fc; }
+
         body {
             background: #0f172a;
             color: #fff;
@@ -73,7 +177,29 @@
         #employee-strip {
             display: flex;
             gap: 10px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 8px;
+            scrollbar-width: thin;
+            scrollbar-color: #475569 #1e293b;
+        }
+        #employee-strip::-webkit-scrollbar {
+            height: 8px;
+        }
+        #employee-strip::-webkit-scrollbar-track {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        #employee-strip::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        #employee-strip::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        .emp-card {
+            flex-shrink: 0;
         }
         .emp-card {
             width: 226px;
@@ -202,8 +328,31 @@
     </style>
 </head>
 <body>
+    <!-- ── SPLASH SCREEN ──────────────────────────────── -->
+    <div id="splash">
+        <div class="splash-content">
+            <div class="splash-logo">🅿️</div>
+            <h1 class="splash-title">PARKING TYCOON</h1>
+            <div class="splash-tagline">De la papeleta a las naves espaciales</div>
+
+            <div class="splash-story">
+                <p>Heredaste el estacionamiento de tu padrino.</p>
+                <p>20 espacios, una caseta destartalada y un block de papeletas.</p>
+                <p>Hay que hacerlo rentable. Algún día… <em>quizás</em>…</p>
+                <p>conozcas a la gente de <strong>ParkingApp</strong>.</p>
+            </div>
+
+            <button id="splash-start" class="splash-button">▶  EMPEZAR</button>
+            <div class="splash-version">v0.13 · prototype</div>
+            <div class="splash-credits">
+                Hecho con Phaser 3 + sprites de PixelLab AI<br>
+                <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
+            </div>
+        </div>
+    </div>
+
     <h1>🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.9 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.13 prototype | el dolor antes de ParkingApp</div>
     <div id="game"></div>
     <div class="hint-row">
         <div><kbd>Click</kbd> en cobrador / tarjeta para atender</div>
@@ -223,5 +372,13 @@
 
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
     <script src="game.js"></script>
+    <script>
+        // Splash screen dismissal
+        document.getElementById('splash-start').addEventListener('click', () => {
+            const splash = document.getElementById('splash');
+            splash.classList.add('closing');
+            setTimeout(() => { splash.style.display = 'none'; }, 600);
+        });
+    </script>
 </body>
 </html>
