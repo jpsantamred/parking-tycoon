@@ -317,7 +317,9 @@ const COLORS = {
     bgOutside: 0x1f2937,
     road: 0x4b5563, roadLine: 0xfde047, laneDivider: 0xfbbf24,
     sidewalk: 0x52525b, sidewalkLine: 0x3f3f46,
-    lotFloor: 0x374151, lotBorder: 0x60a5fa, fenceBar: 0x9ca3af,
+    lotFloorDirt: 0x6b5a3a,   // brown dirt — starting state
+    lotFloorPaved: 0x374151,  // gray asphalt — after pavement upgrade
+    lotBorder: 0x60a5fa, fenceBar: 0x9ca3af,
     spaceEmpty: 0x4b5563, spaceOccupied: 0xdc2626, spaceBorder: 0x9ca3af,
     spaceSubscription: 0x9333ea,
     employeeOnShift: 0x60a5fa, employeeOffShift: 0x4b5563, employeeBusy: 0xea580c,
@@ -346,9 +348,15 @@ const S = {
         signs: 0,
         expansions: 0,
         convenios: [],
-        cameras: false,                // safety — blocks robberies
-        carwash: false,                // generates extra revenue
-        evCharger: false,              // premium EV customers
+        cameras: false,
+        carwash: false,
+        evCharger: false,
+        // Aesthetic / reputation upgrades
+        pavement: false,
+        lines: false,
+        lights: false,
+        guard: false,
+        greenery: false,
     },
     cinematicShown: false,             // ParkingApp intro
     dailyStatsHistory: [],             // last 30 days for trends
@@ -484,6 +492,7 @@ function resetTransientState() {
     S.cars = []; S.queue = []; S.parkedCars = []; S.exitQueue = [];
     S.spaces = []; S.employees = [];
     S.spawnTimer = 0; S.nextSpawnIn = 3000;
+    S.passingTimer = 0; S.nextPassingIn = 3000;
     S.dayEnded = false; S.paused = false;
     S.hud = {};
     S.timeMinutes = CONFIG.startHour * 60;
@@ -522,6 +531,7 @@ function create() {
     drawAdScreens(this);
     drawSigns(this);
     drawSafetyAndServices(this);
+    drawAesthetics(this);
 
     if (S.upgrades.booth) drawBooth(this);
     else drawPlaceholder(this);
@@ -563,8 +573,17 @@ function drawBackground(scene) {
     const lotCY = (L.lotFenceY + L.lotBottom) / 2;
     const lotW = L.lotRight - L.lotLeft;
     const lotH = L.lotBottom - L.lotFenceY;
-    scene.add.rectangle(lotCX, lotCY, lotW, lotH, COLORS.lotFloor)
+    const lotColor = S.upgrades.pavement ? COLORS.lotFloorPaved : COLORS.lotFloorDirt;
+    scene.add.rectangle(lotCX, lotCY, lotW, lotH, lotColor)
         .setStrokeStyle(3, COLORS.lotBorder);
+    // Dirt texture: random tiny darker dots when not paved
+    if (!S.upgrades.pavement) {
+        for (let i = 0; i < 90; i++) {
+            const dx = L.lotLeft + 10 + Math.random() * (lotW - 20);
+            const dy = L.lotFenceY + 10 + Math.random() * (lotH - 20);
+            scene.add.circle(dx, dy, 1, 0x4a3e28);
+        }
+    }
 
     drawTopFence(scene);
 
@@ -756,11 +775,13 @@ function createParkingSpaces(scene) {
 
 function addSpace(scene, x, y, facing, col, isEV) {
     const fillColor = isEV ? 0x14532d : COLORS.spaceEmpty;
-    const borderColor = isEV ? 0x22c55e : COLORS.spaceBorder;
+    // Lines & border: bright white if "lines" upgrade purchased, else muted
+    const borderColor = isEV ? 0x22c55e : (S.upgrades.lines ? 0xfafafa : COLORS.spaceBorder);
+    const borderWidth = S.upgrades.lines ? 2 : 2;
     const rect = scene.add.rectangle(x, y, L.spaceW, L.spaceH, fillColor)
-        .setStrokeStyle(2, borderColor);
+        .setStrokeStyle(borderWidth, borderColor);
     const labelText = isEV ? '🔌' : 'P';
-    const labelColor = isEV ? '#86efac' : '#9ca3af';
+    const labelColor = isEV ? '#86efac' : (S.upgrades.lines ? '#fafafa' : '#9ca3af');
     const label = scene.add.text(x, y, labelText, {
         font: 'bold 16px monospace',
         color: labelColor
@@ -1550,6 +1571,71 @@ function drawAdScreens(scene) {
     }
 }
 
+function drawAesthetics(scene) {
+    // Lamp posts (luminarias)
+    if (S.upgrades.lights) {
+        const lampPositions = [
+            { x: L.lotLeft + 30, y: L.lotFenceY + 30 },
+            { x: L.lotRight - 30, y: L.lotFenceY + 30 },
+            { x: L.lotLeft + 30, y: L.lotBottom - 30 },
+            { x: L.lotRight - 30, y: L.lotBottom - 30 },
+            { x: L.lotLeft + 30, y: (L.lotFenceY + L.lotBottom) / 2 },
+            { x: L.lotRight - 30, y: (L.lotFenceY + L.lotBottom) / 2 },
+        ];
+        lampPositions.forEach(p => {
+            // Pole
+            scene.add.rectangle(p.x, p.y + 6, 2, 18, 0x52525b);
+            // Light fixture (small box)
+            scene.add.rectangle(p.x, p.y - 4, 8, 4, 0x3f3f46);
+            // Glow halo
+            const halo = scene.add.circle(p.x, p.y - 4, 14, 0xfde047, 0.25);
+            scene.tweens.add({ targets: halo, alpha: { from: 0.25, to: 0.4 }, duration: 1500, yoyo: true, repeat: -1 });
+            // Light source
+            scene.add.circle(p.x, p.y - 4, 3, 0xfde047);
+        });
+    }
+
+    // Greenery (plants in corners)
+    if (S.upgrades.greenery) {
+        const plantSpots = [
+            { x: L.lotLeft + 14, y: L.lotFenceY + 10 },
+            { x: L.lotRight - 14, y: L.lotFenceY + 10 },
+            { x: L.lotLeft + 14, y: L.lotBottom - 10 },
+            { x: L.lotRight - 14, y: L.lotBottom - 10 },
+        ];
+        plantSpots.forEach(p => {
+            scene.add.circle(p.x, p.y, 5, 0x166534);
+            scene.add.circle(p.x - 3, p.y - 2, 3, 0x22c55e);
+            scene.add.circle(p.x + 3, p.y - 2, 3, 0x22c55e);
+            scene.add.circle(p.x, p.y - 4, 3, 0x4ade80);
+        });
+    }
+
+    // Guard patrol (animated sprite walking the perimeter)
+    if (S.upgrades.guard) {
+        const guard = scene.add.image(L.lotLeft + 30, L.lotBottom - 30, 'tomas_east').setScale(0.7);
+        guard.setTint(0x1e40af);  // blue uniform tint
+        // Patrol path: rectangle around the lot
+        const path = [
+            { x: L.lotRight - 30, y: L.lotBottom - 30, duration: 8000 },
+            { x: L.lotRight - 30, y: L.lotFenceY + 30, duration: 5000 },
+            { x: L.lotLeft + 30, y: L.lotFenceY + 30, duration: 8000 },
+            { x: L.lotLeft + 30, y: L.lotBottom - 30, duration: 5000 },
+        ];
+        let i = 0;
+        const next = () => {
+            const wp = path[i % path.length];
+            i++;
+            scene.tweens.add({
+                targets: guard, x: wp.x, y: wp.y, duration: wp.duration, ease: 'Linear',
+                onComplete: next
+            });
+        };
+        next();
+        S.guardSprite = guard;
+    }
+}
+
 function drawSafetyAndServices(scene) {
     // Security cameras at lot corners
     if (S.upgrades.cameras) {
@@ -1688,6 +1774,26 @@ function triggerWash(car) {
     flashEvent(`🚿 Auto lavado. +$${CONFIG.washPrice.toLocaleString('es-CL')} al salir.`);
     SFX.cobro();
 }
+
+function purchaseAesthetic(key, costKey, repBonusKey, name) {
+    if (S.upgrades[key]) return;
+    const cost = CONFIG[costKey];
+    if (S.money < cost) return;
+    S.money -= cost;
+    S.upgrades[key] = true;
+    const bonus = CONFIG[repBonusKey];
+    S.reputation = Math.min(100, S.reputation + bonus);
+    flashEvent(`✨ ${name} instalado! +${bonus} reputación.`);
+    SFX.purchase();
+    closeManagementPanel();
+    S.scene.scene.restart();
+}
+
+function purchasePavement() { purchaseAesthetic('pavement', 'pavementCost', 'pavementRepBonus', 'Pavimentación'); }
+function purchaseLines()    { purchaseAesthetic('lines',    'linesCost',    'linesRepBonus',    'Líneas pintadas'); }
+function purchaseLights()   { purchaseAesthetic('lights',   'lightsCost',   'lightsRepBonus',   'Luminarias'); }
+function purchaseGuard()    { purchaseAesthetic('guard',    'guardCost',    'guardRepBonus',    'Guardia'); }
+function purchaseGreenery() { purchaseAesthetic('greenery', 'greeneryCost', 'greeneryRepBonus', 'Áreas verdes'); }
 
 function purchaseEVCharger() {
     if (S.upgrades.evCharger) return;
@@ -2030,6 +2136,14 @@ function update(time, delta) {
         S.nextSpawnIn = Math.max(500, base / effective);
     }
 
+    // Passing-by cars (street ambience — just drive through, never enter)
+    S.passingTimer = (S.passingTimer || 0) + delta;
+    if (S.passingTimer >= (S.nextPassingIn || 3000)) {
+        S.passingTimer = 0;
+        S.nextPassingIn = Phaser.Math.Between(CONFIG.passingCarMinMs, CONFIG.passingCarMaxMs);
+        spawnPassingCar();
+    }
+
     // Random event ticker
     S.eventTimer += delta;
     if (S.eventTimer >= S.nextEventIn) {
@@ -2198,6 +2312,23 @@ function spawnQueueCar() {
             { x: targetX, y: L.entryLaneY, angle: 0, duration: 1100 },
         ], () => { car.state = 'queueing'; });
     }
+}
+
+function spawnPassingCar() {
+    // Ambient car driving through on bypass lane (top) — doesn't enter the lot
+    const scene = S.scene;
+    const textureKey = Phaser.Math.RND.pick(CAR_TEXTURES);
+    const direction = Math.random() > 0.5 ? 'east' : 'west';
+    const startX = direction === 'east' ? -50 : CONFIG.width + 50;
+    const endX = direction === 'east' ? CONFIG.width + 50 : -50;
+    const sprite = scene.add.image(startX, L.bypassLaneY, textureKey).setScale(1.4).setAlpha(0.65);
+    if (direction === 'west') sprite.setAngle(180);
+    scene.tweens.add({
+        targets: sprite, x: endX,
+        duration: 3500 + Math.random() * 2000,
+        ease: 'Linear',
+        onComplete: () => sprite.destroy()
+    });
 }
 
 function spawnDrivePast() {
