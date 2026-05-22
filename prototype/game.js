@@ -2966,13 +2966,21 @@ function spawnQueueCar() {
 }
 
 function spawnPassingCar() {
-    // Ambient car driving through on bypass lane (top) — doesn't enter the lot
+    // Ambient car driving through. Two-lane convention (right-side driving):
+    //   - Top lane (bypassLaneY) = WEST-bound (cars going right-to-left, angle 180)
+    //   - Bottom lane (entryLaneY) = EAST-bound (cars going left-to-right, angle 0)
+    // Queue + exits use the bottom lane going east, so the bottom lane is
+    // sometimes "busy" — when that happens we don't spawn a passing car
+    // there (would collide with queued/exiting cars).
     const scene = S.scene;
     const textureKey = Phaser.Math.RND.pick(CAR_TEXTURES);
     const direction = Math.random() > 0.5 ? 'east' : 'west';
+    const laneY = direction === 'east' ? L.entryLaneY : L.bypassLaneY;
+    // Don't spawn an east-bound passing car if our queue is using the bottom lane
+    if (direction === 'east' && S.queue.length > 0) return;
     const startX = direction === 'east' ? -50 : CONFIG.width + 50;
     const endX = direction === 'east' ? CONFIG.width + 50 : -50;
-    const sprite = scene.add.image(startX, L.bypassLaneY, textureKey).setScale(1.4).setAlpha(0.65);
+    const sprite = scene.add.image(startX, laneY, textureKey).setScale(1.4).setAlpha(0.65);
     if (direction === 'west') sprite.setAngle(180);
     scene.tweens.add({
         targets: sprite, x: endX,
@@ -2990,19 +2998,12 @@ function spawnDrivePast() {
 
     S.drivePastToday++;
 
+    // Car drives east on the east-bound lane (entryLaneY) and exits off-screen.
+    // No lane switch — stays in its lane to respect traffic direction.
     scene.tweens.add({
-        targets: [sprite, windows], x: 380, duration: 1000, ease: 'Power2',
-        onComplete: () => {
-            scene.tweens.add({
-                targets: [sprite, windows], y: L.bypassLaneY, duration: 600, ease: 'Power3',
-                onComplete: () => {
-                    scene.tweens.add({
-                        targets: [sprite, windows], x: L.exitOffscreenX, duration: 1100,
-                        onComplete: () => { sprite.destroy(); windows.destroy(); }
-                    });
-                }
-            });
-        }
+        targets: [sprite, windows], x: L.exitOffscreenX,
+        duration: 2200, ease: 'Linear',
+        onComplete: () => { sprite.destroy(); windows.destroy(); }
     });
 }
 
@@ -3248,10 +3249,14 @@ function attendEntry(emp) {
             // With barriers active, hold the car for ~400ms so the gate visibly
             // opens before the car drives through.
             const driveDelay = hasBarriers ? CONFIG.barrierScanMs : 0;
-            // Entry vlane is in use while the car descends the entry vlane and turns
-            // (first 2 waypoints ~= 700-900ms). Hold the lock that long so the next
-            // car waits at its queue position before starting its descent.
-            const entryLockMs = useSouthLane ? 1100 : 800;
+            // Hold the entry lock for the FULL drive duration (vlane descent +
+            // horizontal central-lane segment + parking). This ensures the next
+            // car doesn't overlap on the central lane — a frequent source of
+            // visual "cars passing through each other".
+            // Non-row-3: 600 + 200 + 600 + 200 + 450 = ~2050ms → 1600 covers
+            //   descent + horizontal segment (leaves parking move for next).
+            // Row-3:     500 + 400 + 200 + 500 + 200 + 350 = ~2150ms → 1900.
+            const entryLockMs = useSouthLane ? 1900 : 1600;
             S.scene.time.delayedCall(driveDelay, () => {
                 acquireLane('entryV', entryLockMs, () => {
                     driveCar(car, wps, () => {
@@ -3336,10 +3341,10 @@ function requestExit(car) {
             { angle: -90, duration: 200 },
             { x: L.exitWaitX, y: L.exitWaitY + queuePos * L.exitQueueSpacing, duration: 500 },
           ];
-    // The full route to the exit wait spot covers ~1900-2400ms; the exit vlane
-    // (vertical segment going up to centerLane → wait area) is busy roughly
-    // through the last 3 waypoints.
-    const exitLockMs = isRow3 ? 1100 : 1200;
+    // Lock the exit path for the FULL drive — cars going from a parked space
+    // out across the central lane and up to the exit wait. Prevents collisions
+    // with other parked-car exits and with new entries on the central lane.
+    const exitLockMs = isRow3 ? 1900 : 1800;
     acquireLane('exitV', exitLockMs, () => {
         driveCar(car, wps, () => {
             car.state = 'exit-waiting';
@@ -3407,12 +3412,14 @@ function attendExit(emp) {
             // Acquire the exit vlane — the car drives north out (300+600 = 900ms
             // in the vlane), then turns east on bypass.
             S.scene.time.delayedCall(driveDelay, () => {
-                acquireLane('exitV', 1100, () => {
+                acquireLane('exitV', 1400, () => {
+                    // Exit goes up to the EAST-bound lane (entryLaneY) — bypassLaneY is
+                    // for west-bound passing cars only.
                     driveCar(car, [
                         { x: L.exitVlaneX, y: L.exitWaitY - 20, duration: 300 },
-                        { x: L.exitVlaneX, y: L.bypassLaneY, duration: 600 },
+                        { x: L.exitVlaneX, y: L.entryLaneY, duration: 500 },
                         { angle: 0, duration: 200 },
-                        { x: L.exitOffscreenX, y: L.bypassLaneY, duration: 900 },
+                        { x: L.exitOffscreenX, y: L.entryLaneY, duration: 900 },
                     ], () => {
                         car.sprite.destroy(); car.windows.destroy();
                         S.cars = S.cars.filter(c => c.id !== car.id);
@@ -3468,9 +3475,9 @@ function escapeWithoutPaying(car) {
 
     if (car.angryEmoji) { car.angryEmoji.destroy(); car.angryEmoji = null; }
     driveCar(car, [
-        { x: L.exitVlaneX, y: L.bypassLaneY, duration: 600, ease: 'Power3' },
+        { x: L.exitVlaneX, y: L.entryLaneY, duration: 500, ease: 'Power3' },
         { angle: 0, duration: 200 },
-        { x: L.exitOffscreenX, y: L.bypassLaneY, duration: 800 },
+        { x: L.exitOffscreenX, y: L.entryLaneY, duration: 800 },
     ], () => {
         car.sprite.destroy(); car.windows.destroy();
         S.cars = S.cars.filter(c => c.id !== car.id);
