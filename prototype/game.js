@@ -188,17 +188,15 @@ const EVENTS = [
     },
     // NEW EVENTS — appear later in the game
     {
-        id: 'robbery', weight: 8, name: 'Robo a vehículo',
+        id: 'robbery', weight: 8, name: 'Ladrón',
         apply: () => {
+            // If cameras exist, blocked silently
             if (S.upgrades.cameras) {
-                flashEvent('📹 Cámaras detectaron intento de robo. Atajado a tiempo!');
-                S.reputation = Math.min(100, S.reputation + 2);
+                flashEvent('📹 Cámaras detectaron intento de robo. Bloqueado!');
                 return;
             }
-            S.money -= CONFIG.robberyPenalty;
-            S.reputation = Math.max(0, S.reputation - CONFIG.robberyRepLoss);
-            flashEvent(`🚨 ¡ROBO a un auto! Indemnización: -$${CONFIG.robberyPenalty.toLocaleString('es-CL')} -${CONFIG.robberyRepLoss} rep`);
-            SFX.escape();
+            // Spawn an interactive thief — player can click to scare them away
+            spawnThief();
         }
     },
     {
@@ -415,6 +413,12 @@ function preload() {
     this.load.image('ana_east',  'assets/ana_east.png');
     this.load.image('ana_north', 'assets/ana_north.png');
     this.load.image('ana_west',  'assets/ana_west.png');
+
+    // Ladrón (thief) — random event sprite
+    this.load.image('ladron_south', 'assets/ladron_south.png');
+    this.load.image('ladron_east',  'assets/ladron_east.png');
+    this.load.image('ladron_north', 'assets/ladron_north.png');
+    this.load.image('ladron_west',  'assets/ladron_west.png');
 }
 
 // Build the texture pool: 24 (color, design) combos
@@ -737,26 +741,30 @@ function drawExitGateMarker(scene) {
 // ─── SPACES ────────────────────────────────────────────────
 function createParkingSpaces(scene) {
     L.cols.forEach((x, c) => {
-        addSpace(scene, x, L.row1Y, 'up', c);
+        // First 2 cols of row 1 become EV-only when EV charger is purchased
+        const isEVSpace = S.upgrades.evCharger && c < 2;
+        addSpace(scene, x, L.row1Y, 'up', c, isEVSpace);
         addSpace(scene, x, L.row2Y, 'down', c);
     });
-    // Expansion row 3 — accessed via a second horizontal lane (expansionLaneY)
     if (S.upgrades.expansions > 0) {
         for (let c = 0; c < CONFIG.expansionExtraSpaces && c < L.cols.length; c++) {
-            // Row 3 cars face UP (into the row from the lane south of row 2 — actually
-            // the lane is between row 2 and row 3, so row 3 cars face DOWN to drive
-            // in from the north). Wait — lane is at y=420, row 3 at y=475 (below).
-            // So cars come from north (lane) into row 3, facing down. facing 'down'.
             addSpace(scene, L.cols[c], L.row3Y, 'down', c + 10);
         }
     }
 }
 
-function addSpace(scene, x, y, facing, col) {
-    const rect = scene.add.rectangle(x, y, L.spaceW, L.spaceH, COLORS.spaceEmpty)
-        .setStrokeStyle(2, COLORS.spaceBorder);
-    const label = scene.add.text(x, y, 'P', { font: 'bold 16px monospace', color: '#9ca3af' }).setOrigin(0.5);
-    S.spaces.push({ x, y, sprite: rect, label, occupied: null, facing, col });
+function addSpace(scene, x, y, facing, col, isEV) {
+    const fillColor = isEV ? 0x14532d : COLORS.spaceEmpty;
+    const borderColor = isEV ? 0x22c55e : COLORS.spaceBorder;
+    const rect = scene.add.rectangle(x, y, L.spaceW, L.spaceH, fillColor)
+        .setStrokeStyle(2, borderColor);
+    const labelText = isEV ? '🔌' : 'P';
+    const labelColor = isEV ? '#86efac' : '#9ca3af';
+    const label = scene.add.text(x, y, labelText, {
+        font: 'bold 16px monospace',
+        color: labelColor
+    }).setOrigin(0.5);
+    S.spaces.push({ x, y, sprite: rect, label, occupied: null, facing, col, isEV: !!isEV });
 }
 
 function applySubscriptionsToSpaces() {
@@ -2262,7 +2270,15 @@ function attemptCobroBy(emp) {
 // ─── ENTRY COBRO ───────────────────────────────────────────
 function attendEntry(emp) {
     if (S.queue.length === 0) return;
-    const space = S.spaces.find(s => !s.occupied);
+    // EV-priority space allocation: EV cars take EV spaces first; non-EVs avoid them
+    const carIsEV = S.queue.find(c => c.state === 'queueing')?.isEV;
+    let space;
+    if (carIsEV) {
+        space = S.spaces.find(s => !s.occupied && s.isEV);
+        if (!space) space = S.spaces.find(s => !s.occupied && !s.isEV);
+    } else {
+        space = S.spaces.find(s => !s.occupied && !s.isEV);
+    }
     if (!space) { flashEvent('🅿️ ¡No hay espacios libres!'); return; }
 
     // Pick the FIRST car that is actually in queueing state (not still arriving)
@@ -2590,6 +2606,74 @@ function updateHUD() {
     S.hud.lossSum.setText(losses.join('  '));
 }
 
+// ─── THIEF (ladrón) MECHANIC ───────────────────────────────
+function spawnThief() {
+    if (!S.scene || S.parkedCars.length === 0) {
+        // No parked cars to rob, just notify
+        flashEvent('🚨 Un ladrón pasó pero no había qué robar.');
+        return;
+    }
+    const scene = S.scene;
+    // Target a random parked car
+    const targetCar = Phaser.Math.RND.pick(S.parkedCars);
+    // Thief spawns at far edge and walks toward target
+    const startX = Math.random() > 0.5 ? -30 : CONFIG.width + 30;
+    const startY = L.lotBottom + 20;
+    const thief = scene.add.image(startX, startY, 'ladron_east').setScale(0.9);
+    thief.setDepth(50);
+    // "!" warning emoji above thief
+    const warn = scene.add.text(thief.x, thief.y - 26, '⚠️', { font: '20px sans-serif' }).setOrigin(0.5);
+    warn.setDepth(51);
+    scene.tweens.add({ targets: warn, y: thief.y - 32, duration: 400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    flashEvent('🚨 ¡LADRÓN! Click rápido para espantarlo antes que rompa un auto!');
+    SFX.escape();
+
+    let saved = false;
+
+    // Walk toward target car (2-3 seconds)
+    scene.tweens.add({
+        targets: thief, x: targetCar.sprite.x, y: targetCar.sprite.y + 18,
+        duration: 2500, ease: 'Linear',
+        onComplete: () => {
+            if (saved) return;
+            // Made it — robbery happens
+            S.money -= CONFIG.robberyPenalty;
+            S.reputation = Math.max(0, S.reputation - CONFIG.robberyRepLoss);
+            flashEvent(`🚨 ¡ROBO consumado! -$${CONFIG.robberyPenalty.toLocaleString('es-CL')} -${CONFIG.robberyRepLoss} rep`);
+            SFX.gameOver();
+            // Thief flees off-canvas
+            scene.tweens.add({
+                targets: thief, x: thief.x > CONFIG.width/2 ? CONFIG.width + 60 : -60,
+                duration: 1500,
+                onComplete: () => { thief.destroy(); warn.destroy(); }
+            });
+        }
+    });
+
+    // Make thief clickable to scare away
+    thief.setInteractive({ useHandCursor: true });
+    thief.on('pointerdown', () => {
+        if (saved) return;
+        saved = true;
+        scene.tweens.killTweensOf(thief);
+        scene.tweens.killTweensOf(warn);
+        warn.setText('💨');
+        // Reward player slightly
+        const reward = 500 + Math.floor(Math.random() * 1500);
+        S.money += reward;
+        flashEvent(`✋ ¡Espantaste al ladrón! Bono: +$${reward.toLocaleString('es-CL')}`);
+        SFX.cobro();
+        // Thief flees in panic
+        scene.tweens.add({
+            targets: thief, x: thief.x > CONFIG.width/2 ? CONFIG.width + 60 : -60,
+            y: thief.y + 40, alpha: 0.5,
+            duration: 1000,
+            onComplete: () => { thief.destroy(); warn.destroy(); }
+        });
+    });
+}
+
 function pad(n) { return n.toString().padStart(2, '0'); }
 function flashEvent(text) { if (S.hud.events) S.hud.events.setText('📋 ' + text); }
 function logEvent(text) { flashEvent(text); }
@@ -2707,19 +2791,29 @@ function renderGameOver() {
 }
 
 function hardReset() {
-    // Full reset including PERSISTENT state
+    // Full reset including ALL persistent state — used by Game Over → "Empezar de nuevo"
     S.money = CONFIG.startMoney;
     S.day = 1;
     S.dayOfWeek = 0;
     S.reputation = 100;
-    S.upgrades = { booth: false };
+    S.upgrades = {
+        booth: false, pos: false,
+        adScreens: 0, signs: 0, expansions: 0,
+        convenios: [],
+        cameras: false, carwash: false, evCharger: false,
+    };
     S.employeeRoster = [];
+    S.subscriptions = [];
     S.lifetimeServed = 0; S.lifetimeRevenue = 0; S.lifetimeSalaries = 0;
     S.lifetimeAngry = 0; S.lifetimeEscaped = 0;
     S.consecutiveNegDays = 0;
     S.gameOver = false;
+    S.cinematicShown = false;
+    S.dailyStatsHistory = [];
+    S.subscriptionRevenueToday = 0;
     S.endDayUI.forEach(o => { try { o.destroy(); } catch(e) {} });
     S.endDayUI = [];
+    if (S.hud && S.hud.events) S.hud.events.setVisible(true);
     S.scene.scene.restart();
 }
 
@@ -2728,8 +2822,11 @@ function renderEndOfDay() {
     S.endDayUI = [];
     SFX.dayEnd();
 
-    // Hide canvas event log so it doesn't poke through the overlay
+    // Hide canvas event log + clean up any floating emojis on cars
     if (S.hud && S.hud.events) S.hud.events.setVisible(false);
+    S.cars.forEach(c => {
+        if (c.angryEmoji) { try { c.angryEmoji.destroy(); } catch(e) {} c.angryEmoji = null; }
+    });
 
     // Record stats
     S.dailyStatsHistory.push({
@@ -2748,8 +2845,9 @@ function renderEndOfDay() {
     const adRev = (S.upgrades.adScreens * CONFIG.adScreenIncomePerGameMin * 14 * 60) || 0;
     const profit = utility >= 0;
 
-    // Solid backdrop — fully opaque so nothing leaks through
-    S.endDayUI.push(scene.add.rectangle(W/2, H/2, W, H, 0x0f172a, 1));
+    // Solid backdrop — fully opaque AND with depth 1000 so all canvas elements stay underneath
+    const backdrop = scene.add.rectangle(W/2, H/2, W, H, 0x0f172a, 1).setDepth(1000);
+    S.endDayUI.push(backdrop);
     // Decorative top accent line
     S.endDayUI.push(scene.add.rectangle(W/2, 18, W - 40, 2, profit ? 0x10b981 : 0xef4444));
 
@@ -2871,4 +2969,8 @@ function renderEndOfDay() {
         '⏯  Aprovecha el cambio para contratar, despedir o comprar upgrades',
         { font: 'italic 11px monospace', color: '#64748b' }
     ).setOrigin(0.5));
+
+    // Lift all endDayUI elements above the canvas so cars/emojis stay underneath
+    S.endDayUI.forEach(o => { try { o.setDepth(1001); } catch(e) {} });
+    backdrop.setDepth(1000);  // backdrop just below content
 }
