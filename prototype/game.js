@@ -3136,6 +3136,15 @@ function updateInfoBoard() {
     const $ = id => document.getElementById(id);
     if (!$('info-board')) return;
 
+    // Update the page title to reflect the current "nivel"
+    const title = $('page-title');
+    if (title) {
+        let levelText = 'Nivel 1: Papeleta';
+        if (S.upgrades.barriers) levelText = 'Nivel 3: Barreras automáticas';
+        else if (S.upgrades.pos) levelText = 'Nivel 2: POS Digital';
+        title.textContent = `🅿️ Parking Tycoon — ${levelText}`;
+    }
+
     // Hours / status
     const onShiftCount = S.employees.filter(e => isOnShift(e, S.timeMinutes / 60)).length;
     const isOpenNow = onShiftCount > 0;
