@@ -66,7 +66,7 @@ function loadGame() {
         // Merge upgrades carefully — newer schema fields default false/0 if missing
         S.upgrades = Object.assign({
             booth: false, pos: false, barriers: false, entryTotem: false, exitTotem: false,
-            parkingApp: false,
+            parkingApp: false, valetAI: false,
             adScreens: 0, signs: 0, expansions: 0, convenios: [],
             cameras: false, carwash: false, evCharger: false,
             pavement: false, lines: false, lights: false, guard: false, greenery: false,
@@ -192,6 +192,12 @@ const CONFIG = {
     parkingAppTariffMultiplier: 1.5, // app users pay 1.5x rate
     parkingAppPatienceBonusPct: 50,  // app users have +50% patience (loyalty)
     parkingAppSubscriptionIncomePerGameMin: 50,  // passive subscription revenue
+
+    // Valet AI autónomo (Nivel 6) — cars self-park
+    valetAICost: 600000,             // ultra-tier
+    valetAIDriveSpeed: 2.0,          // 2x faster lot maneuvers (frictionless)
+    valetAITariffMultiplier: 1.8,    // luxury tarifa premium (encima del app)
+    valetAIRepBonus: 8,              // +8 reputación al comprar (luxury hub)
 
     // NEW — Cameras prevent robberies
     cameraCost: 35000,
@@ -522,6 +528,7 @@ const S = {
         entryTotem: false,                  // Nivel 3 end — self-service ticket totem
         exitTotem: false,                   // Nivel 4 — self-service autopay totem at exit
         parkingApp: false,                  // Nivel 5 — ParkingApp integration
+        valetAI: false,                     // Nivel 6 — autonomous self-parking
         adScreens: 0,
         signs: 0,
         expansions: 0,
@@ -846,6 +853,7 @@ function create() {
 
     this.input.keyboard.on('keydown-SPACE', () => attemptCobroAnyone());
     this.input.keyboard.on('keydown-P', () => togglePause());
+    this.input.keyboard.on('keydown-T', () => cycleSpeed());   // T = Time speed
     this.input.keyboard.on('keydown-H', () => hireEmployee());
     this.input.keyboard.on('keydown-G', () => toggleManagementPanel());
     this.input.keyboard.on('keydown-ESC', () => { if (S.managementOpen) closeManagementPanel(); });
@@ -1833,6 +1841,25 @@ function renderUpgradesTab(scene, contentY, panelW) {
     }
     yL += rowH + 6;
 
+    // Valet AI (Nivel 6) — requires parkingApp
+    if (S.upgrades.parkingApp && !S.upgrades.valetAI) {
+        renderRow(colLX, yL, {
+            done: false,
+            cost: CONFIG.valetAICost,
+            label: `🤖 VALET AI  $${CONFIG.valetAICost.toLocaleString('es-CL')}`,
+            color: '#a855f7',
+            desc: 'Nivel 6 · 1.8x tarifa luxury · self-park',
+            onClick: () => { purchaseValetAI(); renderManagementPanel(); },
+        });
+    } else if (S.upgrades.valetAI) {
+        renderRow(colLX, yL, { done: true, doneLabel: 'Valet AI (Nivel 6)' });
+    } else {
+        S.managementUI.push(scene.add.text(colLX, yL,
+            '  🤖  VALET AI  — bloqueado (necesita ParkingApp)',
+            { font: 'italic 11px monospace', color: '#64748b' }));
+    }
+    yL += rowH + 6;
+
     // ── RIGHT COLUMN: SERVICIOS & ESTÉTICA ──────────────────
     let yR = contentY;
     S.managementUI.push(scene.add.text(colRX, yR, '🛡️ SERVICIOS', {
@@ -1957,10 +1984,66 @@ function renderStatsTab(scene, contentY, panelW) {
     }
 
     let ypos = contentY;
-    S.managementUI.push(scene.add.text(tableX, ypos, '📊 ÚLTIMOS DÍAS', {
-        font: 'bold 15px monospace', color: '#a5f3fc'
+    S.managementUI.push(scene.add.text(tableX, ypos, '📊 GRÁFICO — Revenue / Sueldos / Utilidad por día', {
+        font: 'bold 12px monospace', color: '#a5f3fc'
     }));
-    ypos += 26;
+    ypos += 18;
+
+    // ── Mini-chart (last 10 days) ──────────────────────
+    const chartH = 70;
+    const chartW = panelW - 60;
+    const recent = S.dailyStatsHistory.slice(-10);
+    // background
+    S.managementUI.push(scene.add.rectangle(tableX + chartW/2, ypos + chartH/2,
+        chartW, chartH, 0x0f172a).setStrokeStyle(1, 0x334155));
+    // Find max for scaling
+    const allValues = recent.flatMap(s => [s.revenue, s.salaries, Math.abs(s.revenue - s.salaries)]);
+    const maxVal = Math.max(...allValues, 1);
+    // 3 series: revenue (green), salaries (red), utility (yellow)
+    const series = [
+        { key: 'revenue',  color: 0x10b981, label: 'Revenue', labelColor: '#10b981' },
+        { key: 'salaries', color: 0xef4444, label: 'Sueldos', labelColor: '#ef4444' },
+        { key: 'utility',  color: 0xfbbf24, label: 'Utilidad', labelColor: '#fbbf24' },
+    ];
+    const stepX = recent.length > 1 ? chartW / (recent.length - 1) : chartW;
+    series.forEach(s => {
+        for (let i = 0; i < recent.length - 1; i++) {
+            const v1 = s.key === 'utility' ? recent[i].revenue - recent[i].salaries : recent[i][s.key];
+            const v2 = s.key === 'utility' ? recent[i+1].revenue - recent[i+1].salaries : recent[i+1][s.key];
+            const y1 = ypos + chartH - Math.max(2, Math.min(chartH-4, (v1 / maxVal) * (chartH-8)));
+            const y2 = ypos + chartH - Math.max(2, Math.min(chartH-4, (v2 / maxVal) * (chartH-8)));
+            const x1 = tableX + i * stepX;
+            const x2 = tableX + (i + 1) * stepX;
+            // Draw line as a thin rotated rectangle
+            const dx = x2 - x1, dy = y2 - y1;
+            const len = Math.sqrt(dx*dx + dy*dy);
+            const ang = Math.atan2(dy, dx) * 180 / Math.PI;
+            const line = scene.add.rectangle((x1+x2)/2, (y1+y2)/2, len, 2, s.color);
+            line.setAngle(ang);
+            S.managementUI.push(line);
+        }
+        // Dots at each data point
+        recent.forEach((stat, i) => {
+            const v = s.key === 'utility' ? stat.revenue - stat.salaries : stat[s.key];
+            const y = ypos + chartH - Math.max(2, Math.min(chartH-4, (v / maxVal) * (chartH-8)));
+            const x = tableX + i * stepX;
+            S.managementUI.push(scene.add.circle(x, y, 2.5, s.color));
+        });
+    });
+    // Legend
+    let legX = tableX + chartW + 8;
+    series.forEach((s, i) => {
+        S.managementUI.push(scene.add.rectangle(legX, ypos + 8 + i * 18, 12, 4, s.color));
+        S.managementUI.push(scene.add.text(legX + 10, ypos + 8 + i * 18, s.label, {
+            font: '10px monospace', color: s.labelColor
+        }).setOrigin(0, 0.5));
+    });
+    ypos += chartH + 14;
+
+    S.managementUI.push(scene.add.text(tableX, ypos, '📋 TABLA DETALLADA — Últimos 15 días', {
+        font: 'bold 12px monospace', color: '#a5f3fc'
+    }));
+    ypos += 18;
 
     const hdrs = ['Día', 'Revenue', 'Sueldos', 'Util.', 'Aten.', '😡', '🏃', 'Rep.'];
     const colWs = [70, 100, 100, 100, 70, 60, 60, 60];
@@ -2312,6 +2395,7 @@ function processExitViaTotem() {
         let amount = stayedMin * CONFIG.pricePerMinute * getConvenioRevenueCut();
         if (car.isEV) amount *= CONFIG.evMultiplier;
         if (car.isAppUser) amount *= CONFIG.parkingAppTariffMultiplier;   // Nivel 5 premium
+        if (S.upgrades.valetAI) amount *= CONFIG.valetAITariffMultiplier; // Nivel 6 luxury
         if (car.washed) { amount += CONFIG.washPrice; flashEvent(`🚿 +$${CONFIG.washPrice.toLocaleString('es-CL')} lavado!`); }
         if (S.nextCarMultiplier > 1) {
             amount *= S.nextCarMultiplier;
@@ -2748,6 +2832,22 @@ function purchaseParkingApp() {
     S.scene.scene.restart();
 }
 
+function purchaseValetAI() {
+    if (S.upgrades.valetAI) return;
+    if (!S.upgrades.parkingApp) {
+        flashEvent('⚠️ Necesitas ParkingApp (Nivel 5) antes del valet AI.');
+        return;
+    }
+    if (S.money < CONFIG.valetAICost) return;
+    S.money -= CONFIG.valetAICost;
+    S.upgrades.valetAI = true;
+    S.reputation = Math.min(100, S.reputation + CONFIG.valetAIRepBonus);
+    closeManagementPanel();
+    flashEvent('🤖 ¡Valet AI activado! Autos se estacionan solos · +80% tarifa luxury. Nivel 6.');
+    SFX.purchase();
+    S.scene.scene.restart();
+}
+
 function showBarriersCelebration() {
     const scene = S.scene;
     const W = CONFIG.width, H = CONFIG.height;
@@ -3104,6 +3204,21 @@ function createPauseButton(scene) {
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
     btn.on('pointerdown', togglePause);
     S.hud.pauseBtn = btn;
+
+    // Speed control button (cycles 1x → 2x → 3x → 1x)
+    const speedLabel = '⏩ ' + (S.speedMultiplier || 1) + 'x';
+    const initialColor = (S.speedMultiplier || 1) === 1 ? '#475569' : ((S.speedMultiplier || 1) === 2 ? '#0891b2' : '#dc2626');
+    const speedBtn = scene.add.text(CONFIG.width - 130, 10, speedLabel, {
+        font: 'bold 15px monospace', color: '#fff',
+        backgroundColor: initialColor, padding: { x: 10, y: 6 }
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    speedBtn.on('pointerdown', cycleSpeed);
+    S.hud.speedBtn = speedBtn;
+    // Re-apply runtime scale (in case scene restarted with multiplier already set)
+    if (S.speedMultiplier && S.speedMultiplier !== 1) {
+        scene.tweens.timeScale = S.speedMultiplier;
+        scene.time.timeScale = S.speedMultiplier;
+    }
 }
 
 function togglePause() {
@@ -3118,11 +3233,28 @@ function togglePause() {
     flashEvent(S.paused ? '⏸ Juego pausado.' : '▶ Reanudando...');
 }
 
+// Cycle through 1x / 2x / 3x game speed. Scales game-time, tween speed,
+// and delayed-call timers proportionally so the WHOLE game runs faster.
+function cycleSpeed() {
+    if (S.dayEnded) return;
+    const speeds = [1, 2, 3];
+    const cur = speeds.indexOf(S.speedMultiplier || 1);
+    const next = speeds[(cur + 1) % speeds.length];
+    S.speedMultiplier = next;
+    if (S.scene && S.scene.tweens) S.scene.tweens.timeScale = next;
+    if (S.scene && S.scene.time)   S.scene.time.timeScale   = next;
+    if (S.hud.speedBtn) {
+        S.hud.speedBtn.setText(`⏩ ${next}x`);
+        S.hud.speedBtn.setBackgroundColor(next === 1 ? '#475569' : (next === 2 ? '#0891b2' : '#dc2626'));
+    }
+    flashEvent(`⏩ Velocidad: ${next}x`);
+}
+
 // ─── MAIN LOOP ─────────────────────────────────────────────
 function update(time, delta) {
     if (S.dayEnded || S.paused) return;
 
-    const gameMinutesAdvanced = (delta / 1000) * CONFIG.timeSpeed;
+    const gameMinutesAdvanced = (delta / 1000) * CONFIG.timeSpeed * (S.speedMultiplier || 1);
     S.timeMinutes += gameMinutesAdvanced;
     if (S.timeMinutes >= CONFIG.endHour * 60) { endDay(); return; }
 
@@ -3933,6 +4065,7 @@ function attendExit(emp) {
             let amount = stayedMin * CONFIG.pricePerMinute * getConvenioRevenueCut();
             if (car.isEV) amount *= CONFIG.evMultiplier;
             if (car.isAppUser) amount *= CONFIG.parkingAppTariffMultiplier;   // Nivel 5 premium
+            if (S.upgrades.valetAI) amount *= CONFIG.valetAITariffMultiplier;  // Nivel 6 luxury
             // Car wash is now MANUAL — applied per car when player clicked it
             if (car.washed) {
                 amount += CONFIG.washPrice;
@@ -4080,7 +4213,8 @@ function updateInfoBoard() {
     const title = $('page-title');
     if (title) {
         let levelText = 'Nivel 1: Papeleta';
-        if (S.upgrades.parkingApp) levelText = 'Nivel 5: ParkingApp';
+        if (S.upgrades.valetAI) levelText = 'Nivel 6: Valet AI';
+        else if (S.upgrades.parkingApp) levelText = 'Nivel 5: ParkingApp';
         else if (S.upgrades.exitTotem) levelText = 'Nivel 4: Autopago';
         else if (S.upgrades.entryTotem) levelText = 'Nivel 3 final: Tótem auto-ticket';
         else if (S.upgrades.barriers) levelText = 'Nivel 3: Barreras';
@@ -4115,6 +4249,7 @@ function updateInfoBoard() {
     if (S.upgrades.entryTotem) services.push({ label: '🎫 Tótem entrada', active: true });
     if (S.upgrades.exitTotem) services.push({ label: '💳 Autopago', active: true });
     if (S.upgrades.parkingApp) services.push({ label: '📱 App N5', active: true });
+    if (S.upgrades.valetAI) services.push({ label: '🤖 Valet AI N6', active: true });
     // ParkingApp + Redcomercio shown as a "tech stack" badge once integrated
     if (S.cinematicShown) services.push({ label: '🅿️ ParkingApp', active: true });
     if (S.upgrades.pos) services.push({ label: '💳 Redcomercio', active: true });
@@ -4412,7 +4547,7 @@ function hardReset() {
     S.reputation = 100;
     S.upgrades = {
         booth: false, pos: false, barriers: false, entryTotem: false, exitTotem: false,
-        parkingApp: false,
+        parkingApp: false, valetAI: false,
         adScreens: 0, signs: 0, expansions: 0,
         convenios: [],
         cameras: false, carwash: false, evCharger: false,
