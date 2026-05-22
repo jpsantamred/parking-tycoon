@@ -507,7 +507,7 @@ function resetTransientState() {
     S.hud = {};
     S.timeMinutes = CONFIG.startHour * 60;
     S.carsServedToday = 0; S.angryToday = 0; S.escapedToday = 0;
-    S.revenueToday = 0; S.drivePastToday = 0; S.salariesPaidToday = 0;
+    S.revenueToday = 0; S.drivePastToday = 0; S.salariesPaidToday = 0; S.adRevenueToday = 0;
     S.nextCarMultiplier = 1; S.rushUntilMin = 0;
     S.eventTimer = 0; S.nextEventIn = Phaser.Math.Between(45000, 120000);
     S.subscriptionRevenueToday = 0;
@@ -2247,6 +2247,7 @@ function update(time, delta) {
         const adIncome = S.upgrades.adScreens * CONFIG.adScreenIncomePerGameMin * gameMinutesAdvanced;
         S.money += adIncome;
         S.revenueToday += adIncome;
+        S.adRevenueToday = (S.adRevenueToday || 0) + adIncome;
         S.lifetimeRevenue += adIncome;
     }
 
@@ -3224,7 +3225,7 @@ function renderEndOfDay() {
     const W = CONFIG.width, H = CONFIG.height;
     const utility = S.revenueToday - S.salariesPaidToday;
     const subRev = S.subscriptionRevenueToday || 0;
-    const adRev = (S.upgrades.adScreens * CONFIG.adScreenIncomePerGameMin * 14 * 60) || 0;
+    const adRev = S.adRevenueToday || 0;
     const profit = utility >= 0;
 
     // Solid backdrop — fully opaque AND with depth 1000 so all canvas elements stay underneath
