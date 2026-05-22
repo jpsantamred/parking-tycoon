@@ -40,7 +40,7 @@ const CONFIG = {
     posCost: 40000,
     posCobroDuration: 300,           // dramatically faster than papeleta
 
-    spawnMinMs: 2800, spawnMaxMs: 5500,
+    spawnMinMs: 3500, spawnMaxMs: 6500,  // slower spawn to prevent overlap
     patienceMs: 22000, repenaltyAngry: 5,
     exitPatienceMs: 16000, repenaltyEscape: 10,
     stayMinMin: 30, stayMaxMin: 180,
@@ -437,6 +437,7 @@ function resetTransientState() {
     S.subscriptionRevenueToday = 0;
     S.managementOpen = false; S.managementUI = [];
     S.boothSprites = []; S.boothWindowSprite = null; S.boothCobradorSprite = null;
+    S.closedSignGroup = null; S.streetClosedSign = null;
     S.endDayUI = [];
 }
 
@@ -541,6 +542,14 @@ function drawPlaceholder(scene) {
     scene.add.text(L.placeholderCx, L.placeholderCy + 10, '(upgrade)', {
         font: 'italic 11px monospace', color: '#9ca3af'
     }).setOrigin(0.5);
+
+    // Without booth, show a CERRADO sign at the lot entrance when no operators
+    const sign = scene.add.text(L.entryOpeningX, L.lotFenceY - 20,
+        '🚫 CERRADO', {
+        font: 'bold 14px monospace', color: '#fff',
+        backgroundColor: '#b91c1c', padding: { x: 8, y: 4 }
+    }).setOrigin(0.5);
+    S.streetClosedSign = sign;
 }
 
 function drawBooth(scene) {
@@ -597,6 +606,13 @@ function drawBooth(scene) {
     sprites.push(scene.add.text(cx, cy + h/2 - 8, '$ CASETA $', {
         font: 'bold 10px monospace', color: '#1f1408'
     }).setOrigin(0.5));
+
+    // CERRADO sign overlay (shown when no operators)
+    const closedBg = scene.add.rectangle(cx, cy - h/2 + 26, w - 24, 22, 0xb91c1c).setStrokeStyle(2, 0xfca5a5);
+    const closedTxt = scene.add.text(cx, cy - h/2 + 26, 'CERRADO', {
+        font: 'bold 11px monospace', color: '#fff'
+    }).setOrigin(0.5);
+    S.closedSignGroup = [closedBg, closedTxt];
 
     S.boothSprites = sprites;
     S.boothWindowSprite = windowGlass;
@@ -743,6 +759,18 @@ function updateBoothCobrador() {
         S.boothCobradorSprite.setVisible(true);
     } else {
         S.boothCobradorSprite.setVisible(false);
+    }
+    updateClosedSign();
+}
+
+function updateClosedSign() {
+    const closed = !isOpen();
+    if (S.upgrades.booth && S.closedSignGroup) {
+        // CERRADO sign over the booth window
+        S.closedSignGroup.forEach(o => o.setVisible(closed));
+    }
+    if (S.streetClosedSign) {
+        S.streetClosedSign.setVisible(closed);
     }
 }
 
@@ -1219,8 +1247,8 @@ function renderUpgradesTab(scene, contentY, panelW) {
     }
     ypos += 38;
 
-    // POS upgrade (Nivel 2) — only after caseta
-    if (S.upgrades.booth && !S.upgrades.pos) {
+    // POS upgrade (Nivel 2) — ONLY after Ana's cinematic introduces ParkingApp
+    if (S.upgrades.booth && !S.upgrades.pos && S.cinematicShown) {
         const canAfford = S.money >= CONFIG.posCost;
         const btn = scene.add.text(tableX, ypos, `  💳  POS DIGITAL  $${CONFIG.posCost.toLocaleString('es-CL')}  `, {
             font: 'bold 13px monospace', color: canAfford ? '#fff' : '#9ca3af',
@@ -1351,29 +1379,26 @@ function drawAdScreens(scene) {
 }
 
 function drawSigns(scene) {
-    // Pixel-art parking signs in the road MEDIAN flanking the openings
-    const medianY = (L.bypassLaneY + L.entryLaneY) / 2;
+    // Parking signs on the SIDEWALK, at the far edges (out of traffic, but visible)
     const positions = [
-        { x: L.entryOpeningX - 50, y: medianY },
-        { x: L.exitOpeningX  + 50, y: medianY },
+        { x: 50,                   y: L.sidewalkY }, // far west on sidewalk
+        { x: CONFIG.width - 50,    y: L.sidewalkY }, // far east on sidewalk
     ];
     for (let i = 0; i < S.upgrades.signs && i < positions.length; i++) {
         const { x, y } = positions[i];
         // Pole base
-        scene.add.rectangle(x, y + 20, 3, 18, 0x4b5563);
-        scene.add.rectangle(x - 6, y + 28, 16, 3, 0x374151);  // pole base footing
+        scene.add.rectangle(x, y + 22, 3, 18, 0x4b5563);
+        scene.add.rectangle(x - 6, y + 30, 16, 3, 0x374151);
         // Sign shadow
-        scene.add.rectangle(x + 1, y + 1, 40, 30, 0x000000, 0.3);
+        scene.add.rectangle(x + 1, y + 1, 44, 32, 0x000000, 0.3);
         // Sign body
-        scene.add.rectangle(x, y, 40, 30, 0xfbbf24).setStrokeStyle(2, 0x78350f);
-        // Inner border (double-line look)
-        scene.add.rectangle(x, y, 34, 24, 0xfbbf24).setStrokeStyle(1, 0x78350f);
-        // "P" big letter
-        scene.add.text(x - 6, y - 1, 'P', { font: 'bold 18px monospace', color: '#000' }).setOrigin(0.5);
-        // Arrow
-        scene.add.text(x + 8, y, '→', { font: 'bold 14px monospace', color: '#000' }).setOrigin(0.5);
+        scene.add.rectangle(x, y, 44, 32, 0xfbbf24).setStrokeStyle(2, 0x78350f);
+        scene.add.rectangle(x, y, 38, 26, 0xfbbf24).setStrokeStyle(1, 0x78350f);
+        // "P" and arrow
+        scene.add.text(x - 7, y - 1, 'P', { font: 'bold 18px monospace', color: '#000' }).setOrigin(0.5);
+        scene.add.text(x + 9, y, i === 0 ? '→' : '←', { font: 'bold 14px monospace', color: '#000' }).setOrigin(0.5);
         // Highlight gleam
-        scene.add.rectangle(x - 14, y - 11, 2, 6, 0xffffff, 0.7);
+        scene.add.rectangle(x - 15, y - 11, 2, 6, 0xffffff, 0.7);
     }
 }
 
@@ -1698,6 +1723,7 @@ function update(time, delta) {
     }
 
     S.employees.forEach(updateEmployeeAppearance);
+    updateClosedSign();
     updateHUD();
     updateEmployeeCardsHTML();
 }
@@ -1725,6 +1751,13 @@ function driveCar(car, waypoints, onDone) {
 // ─── SPAWN ─────────────────────────────────────────────────
 function spawnCar() {
     if (!isOpen()) { spawnDrivePast(); return; }
+    // Don't spawn if there's still a car too close to the spawn point — prevents overlap
+    const tooClose = S.cars.some(c => c.sprite && c.sprite.x < 60 && c.sprite.y < 200);
+    if (tooClose) {
+        // Retry in a bit (skip this spawn)
+        S.spawnTimer = Math.max(0, S.nextSpawnIn - 600);
+        return;
+    }
     spawnQueueCar();
 }
 
