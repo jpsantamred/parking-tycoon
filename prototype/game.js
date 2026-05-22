@@ -674,31 +674,44 @@ const SFX = {
 };
 
 // ─── AMBIENT MUSIC ─────────────────────────────────────────
-// Very subtle drone pad + arpeggiated chord pattern that loops.
-// Volume kept low (0.015) so it sits under SFX and doesn't fatigue.
-// Toggleable via window.__musicMuted (set true to silence).
+// Drone pad + arpeggiated chord pattern that loops. Audible but not
+// overpowering — sits below SFX. Toggleable via window.__musicMuted.
 let __ambientState = { started: false, oscs: [], gain: null, timer: null };
 function startAmbientMusic() {
     if (__ambientState.started) return;
     const ctx = getAudioCtx();
-    if (!ctx) return;
+    if (!ctx) {
+        console.warn('[music] no AudioContext available');
+        return;
+    }
+    // Resume context if suspended (browsers often suspend before user gesture)
+    if (ctx.state === 'suspended') {
+        ctx.resume().catch(e => console.warn('[music] resume failed', e));
+    }
     __ambientState.started = true;
+    console.log('[music] starting ambient (state=' + ctx.state + ')');
 
-    // Master gain (low volume)
+    // Master gain — start at 0, fade in
     const master = ctx.createGain();
     master.gain.value = 0.0;
     master.connect(ctx.destination);
     __ambientState.gain = master;
 
-    // Two slowly-detuned sine oscillators (sub-octave drone)
+    // Drone: two slightly-detuned sine oscillators in A2 + A3 octave
     const a = ctx.createOscillator();
-    a.type = 'sine'; a.frequency.value = 110;   // A2
+    a.type = 'sine'; a.frequency.value = 110;
     a.connect(master);
     const b = ctx.createOscillator();
-    b.type = 'sine'; b.frequency.value = 110.4; // slight detune for movement
+    b.type = 'sine'; b.frequency.value = 110.4;
     b.connect(master);
-    a.start(); b.start();
-    __ambientState.oscs.push(a, b);
+    // Add a third oscillator one octave up for body
+    const c = ctx.createOscillator();
+    c.type = 'sine'; c.frequency.value = 220;
+    const cGain = ctx.createGain();
+    cGain.gain.value = 0.45;
+    c.connect(cGain); cGain.connect(master);
+    a.start(); b.start(); c.start();
+    __ambientState.oscs.push(a, b, c);
 
     // Slow chord arpeggio overlay — Am, F, C, G (4s per chord)
     const chords = [
@@ -709,7 +722,8 @@ function startAmbientMusic() {
     ];
     let chordIdx = 0;
     const playArp = () => {
-        if (window.__musicMuted || S.dayEnded) return;
+        if (window.__musicMuted) return;
+        if (typeof S !== 'undefined' && S.dayEnded) return;
         const chord = chords[chordIdx % chords.length];
         chordIdx++;
         chord.forEach((freq, i) => {
@@ -717,21 +731,23 @@ function startAmbientMusic() {
                 if (window.__musicMuted) return;
                 const osc = ctx.createOscillator();
                 osc.type = 'triangle';
-                osc.frequency.value = freq * 2;   // up one octave for sparkle
+                osc.frequency.value = freq * 2;
                 const g = ctx.createGain();
                 g.gain.value = 0;
-                g.gain.linearRampToValueAtTime(0.012, ctx.currentTime + 0.15);
-                g.gain.linearRampToValueAtTime(0.0, ctx.currentTime + 1.2);
+                g.gain.linearRampToValueAtTime(0.035, ctx.currentTime + 0.15);
+                g.gain.linearRampToValueAtTime(0.0, ctx.currentTime + 1.4);
                 osc.connect(g); g.connect(ctx.destination);
                 osc.start();
-                osc.stop(ctx.currentTime + 1.3);
+                osc.stop(ctx.currentTime + 1.5);
             }, i * 350);
         });
     };
     __ambientState.timer = setInterval(playArp, 4000);
+    // First chord plays immediately so the player hears something right away
+    setTimeout(playArp, 800);
 
-    // Fade in over 3s
-    master.gain.linearRampToValueAtTime(0.015, ctx.currentTime + 3);
+    // Fade in master gain over 2s — louder than before so it's audible
+    master.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 2);
 }
 
 function stopAmbientMusic() {
@@ -2193,19 +2209,43 @@ function dispenseTicket() {
 // Self-service exit. Car arrives at exit barrier, totem reads ticket
 // (LPR or ParkingApp QR), charges via Redcomercio, gate opens. No cobrador
 // needed for exits — the operator can be 0 employees if entry also automated.
-const EXIT_TOTEM_X_OFFSET = 20;
+//
+// Positioned BIG and PROMINENT next to the exit barrier (south of the
+// booth, on the right). Bigger sprite + emoji label so it's impossible to
+// miss.
+const EXIT_TOTEM_X_OFFSET = 24;
 function drawExitTotem(scene) {
     const x = L.exitOpeningX + EXIT_TOTEM_X_OFFSET;
     const y = L.placeholderCy + L.placeholderH/2 - 35;
     S.exitTotemSprites = [];
-    scene.add.rectangle(x, y + 18, 14, 6, 0x52525b);
-    scene.add.rectangle(x, y + 4, 12, 28, 0x064e3b).setStrokeStyle(1, 0x022c1f);
-    drawRedcomercioBadge(scene, x, y - 5, 0.5);
-    scene.add.rectangle(x, y + 4, 9, 6, 0x10b981).setStrokeStyle(1, 0x064e3b);
-    scene.add.text(x, y + 4, '$$$', { font: 'bold 4px monospace', color: '#0f172a' }).setOrigin(0.5);
-    scene.add.rectangle(x, y + 12, 8, 1.5, 0xfbbf24);
-    const led = scene.add.circle(x - 4, y - 2, 1.2, 0x10b981);
-    scene.tweens.add({ targets: led, alpha: { from: 1, to: 0.4 }, duration: 800, yoyo: true, repeat: -1 });
+
+    // Big floating "AUTOPAGO" label above so the player spots it
+    const label = scene.add.text(x, y - 26, 'AUTOPAGO', {
+        font: 'bold 8px monospace', color: '#fff',
+        backgroundColor: '#16a34a', padding: { x: 4, y: 2 }
+    }).setOrigin(0.5);
+    label.setDepth(20);
+
+    // Wider concrete base
+    scene.add.rectangle(x, y + 22, 22, 7, 0x52525b).setStrokeStyle(1, 0x27272a);
+    // Main body — bright green (matches autopay/cash flow color)
+    scene.add.rectangle(x, y + 5, 20, 36, 0x166534).setStrokeStyle(2, 0x22c55e);
+    // Redcomercio badge prominent on top
+    drawRedcomercioBadge(scene, x, y - 8, 0.8);
+    // Big LCD screen
+    scene.add.rectangle(x, y + 4, 16, 10, 0x0c4a6e).setStrokeStyle(1, 0x38bdf8);
+    scene.add.text(x, y + 4, '$$$', { font: 'bold 7px monospace', color: '#fde047' }).setOrigin(0.5);
+    // Card slot
+    scene.add.rectangle(x, y + 13, 14, 2, 0xfbbf24).setStrokeStyle(1, 0x713f12);
+    // QR scanner area (small black square below screen)
+    scene.add.rectangle(x, y + 19, 8, 4, 0x0f172a).setStrokeStyle(1, 0x10b981);
+    // Blinking green LED — ready to charge
+    const led = scene.add.circle(x - 7, y - 2, 1.6, 0x22c55e);
+    scene.tweens.add({ targets: led, alpha: { from: 1, to: 0.3 }, duration: 600, yoyo: true, repeat: -1 });
+    // Pulse on the body to grab attention (subtle)
+    const bodyGlow = scene.add.rectangle(x, y + 5, 24, 40, 0x22c55e, 0.0);
+    scene.tweens.add({ targets: bodyGlow, alpha: { from: 0.0, to: 0.18 },
+        duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 }
 
 function dispenseExitCharge() {
