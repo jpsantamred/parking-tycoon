@@ -40,6 +40,12 @@ const CONFIG = {
     posCost: 200000,                 // Nivel 2 — premium upgrade
     posCobroDuration: 300,
 
+    // Barriers upgrade (Nivel 3 transition) — automatic gate scanner
+    barriersCost: 350000,            // Nivel 3 — major capex (ParkingApp+Redcomercio LPR system)
+    barrierScanMs: 400,              // gate scan + lift time (very fast, no cobrador needed)
+    barrierAutoTickMs: 700,          // how often the gate "checks" for queued cars
+    barrierEscapeReductionPct: 90,   // % of would-be escapes prevented by physical gate
+
     // NEW — Cameras prevent robberies
     cameraCost: 35000,
 
@@ -354,6 +360,7 @@ const S = {
     upgrades: {
         booth: false,
         pos: false,
+        barriers: false,                    // Nivel 3 — automatic gate scanner
         adScreens: 0,
         signs: 0,
         expansions: 0,
@@ -542,6 +549,7 @@ function create() {
     drawSigns(this);
     drawSafetyAndServices(this);
     drawAesthetics(this);
+    if (S.upgrades.barriers) drawBarriers(this);
     // drawPaymentDecal removed — was redundant with booth sticker / SERVICIOS card,
     // and the previous position interfered with road traffic / ad screens.
 
@@ -1435,6 +1443,25 @@ function renderUpgradesTab(scene, contentY, panelW) {
     }
     yL += rowH + 6;
 
+    // Barreras (Nivel 3) — requires POS first
+    if (S.upgrades.pos && !S.upgrades.barriers) {
+        renderRow(colLX, yL, {
+            done: false,
+            cost: CONFIG.barriersCost,
+            label: `🚧 BARRERAS  $${CONFIG.barriersCost.toLocaleString('es-CL')}`,
+            color: '#ea580c',
+            desc: 'Nivel 3 · acceso automático · -90% escapes',
+            onClick: () => { purchaseBarriers(); renderManagementPanel(); },
+        });
+    } else if (S.upgrades.barriers) {
+        renderRow(colLX, yL, { done: true, doneLabel: 'Barreras Auto (Nivel 3)' });
+    } else {
+        S.managementUI.push(scene.add.text(colLX, yL,
+            '  🚧  BARRERAS  — bloqueado (necesita POS)',
+            { font: 'italic 11px monospace', color: '#64748b' }));
+    }
+    yL += rowH + 6;
+
     // ── RIGHT COLUMN: SERVICIOS & ESTÉTICA ──────────────────
     let yR = contentY;
     S.managementUI.push(scene.add.text(colRX, yR, '🛡️ SERVICIOS', {
@@ -1675,6 +1702,96 @@ function drawAdScreens(scene) {
         scene.add.rectangle(x - 32, y + 16, 2, 2, 0x10b981);
         scene.add.rectangle(x + 32, y + 16, 2, 2, 0x10b981);
     }
+}
+
+// ─── BARRIERS (Nivel 3) ────────────────────────────────────
+// Automatic gate scanners powered by ParkingApp + Redcomercio LPR.
+// Two gates: one at entry opening, one at exit opening.
+// Each gate has a vertical post (housing the scanner) and a horizontal
+// striped arm that rotates up to let cars through.
+function drawBarriers(scene) {
+    S.barriers = { entry: null, exit: null };
+
+    const makeGate = (x, kind) => {
+        // The arm "hinges" from the post (which sits on the west side of the opening)
+        const postX = x - 22;
+        const postY = L.lotFenceY;
+        const sprites = [];
+
+        // === POST (housing the scanner) ===
+        // Concrete base
+        sprites.push(scene.add.rectangle(postX, postY + 4, 12, 8, 0x52525b).setStrokeStyle(1, 0x27272a));
+        // Tall post body
+        sprites.push(scene.add.rectangle(postX, postY - 8, 8, 26, 0x71717a).setStrokeStyle(1, 0x3f3f46));
+        // Top cap (where the arm hinges)
+        sprites.push(scene.add.rectangle(postX, postY - 20, 12, 5, 0x3f3f46));
+        // Scanner LED — blinks green when idle, red when scanning
+        const led = scene.add.circle(postX, postY - 10, 2, 0x10b981);
+        scene.tweens.add({ targets: led, alpha: { from: 1, to: 0.3 }, duration: 900, yoyo: true, repeat: -1 });
+        sprites.push(led);
+        // Small ParkingApp badge on the post (branded)
+        drawParkingAppBadge(scene, postX, postY - 2, 0.5).forEach(s => sprites.push(s));
+
+        // === ARM (rotates around its left endpoint = postX) ===
+        // Container holds the striped bar so we can rotate as a unit.
+        const arm = scene.add.container(postX, postY - 18);
+        const armLength = 40;
+        // Background bar
+        const bar = scene.add.rectangle(armLength/2, 0, armLength, 6, 0xfde047).setStrokeStyle(1, 0x713f12);
+        arm.add(bar);
+        // Diagonal black stripes
+        for (let i = 0; i < 4; i++) {
+            const stripe = scene.add.rectangle(i * 10 + 4, 0, 5, 6, 0x1f1408);
+            stripe.setAngle(-30);   // diagonal stripe inside the bar
+            arm.add(stripe);
+        }
+        // Tip (red light at the far end)
+        const tipLed = scene.add.circle(armLength, 0, 1.8, 0xef4444);
+        scene.tweens.add({ targets: tipLed, alpha: { from: 1, to: 0.2 }, duration: 500, yoyo: true, repeat: -1 });
+        arm.add(tipLed);
+        sprites.push(arm);
+
+        // Gate starts in DOWN (closed) position. angle 0 = horizontal (pointing east).
+        arm.angle = 0;
+
+        // Save references for animation
+        S.barriers[kind] = { arm, led, sprites, isOpen: false, x, postX, postY };
+    };
+
+    makeGate(L.entryOpeningX, 'entry');
+    makeGate(L.exitOpeningX, 'exit');
+}
+
+// Open/close a gate with a smooth tween. Calls onOpen once arm reaches top.
+function operateGate(kind, onOpen, onClosed) {
+    const gate = S.barriers && S.barriers[kind];
+    if (!gate) { if (onOpen) onOpen(); if (onClosed) onClosed(); return; }
+    if (gate.isOpen) { if (onOpen) onOpen(); return; }   // already up, just call
+
+    gate.isOpen = true;
+    // Scanner flash — LED turns red briefly
+    gate.led.setFillStyle(0xef4444);
+    SFX.beep && SFX.beep(800, 80, 0.2);
+
+    S.scene.tweens.add({
+        targets: gate.arm, angle: -90,
+        duration: CONFIG.barrierScanMs, ease: 'Power2',
+        onComplete: () => {
+            if (onOpen) onOpen();
+            // Auto-close after a brief moment
+            S.scene.time.delayedCall(900, () => {
+                S.scene.tweens.add({
+                    targets: gate.arm, angle: 0,
+                    duration: 350, ease: 'Power2',
+                    onComplete: () => {
+                        gate.isOpen = false;
+                        gate.led.setFillStyle(0x10b981);
+                        if (onClosed) onClosed();
+                    }
+                });
+            });
+        }
+    });
 }
 
 // "Aceptamos:" sign — hung on the sidewalk pole next to the booth window
@@ -1964,6 +2081,102 @@ function purchasePOS() {
     S.upgrades.pos = true;
     closeManagementPanel();
     showPOSCelebration();
+}
+
+function purchaseBarriers() {
+    if (S.upgrades.barriers) return;
+    if (!S.upgrades.pos) {
+        flashEvent('⚠️ Necesitas POS Digital (Nivel 2) antes de instalar barreras.');
+        return;
+    }
+    if (S.money < CONFIG.barriersCost) return;
+    S.money -= CONFIG.barriersCost;
+    S.upgrades.barriers = true;
+    closeManagementPanel();
+    showBarriersCelebration();
+}
+
+function showBarriersCelebration() {
+    const scene = S.scene;
+    const W = CONFIG.width, H = CONFIG.height;
+    const ui = [];
+
+    S.paused = true;
+    scene.tweens.pauseAll();
+
+    SFX.purchase();
+    setTimeout(() => beep && beep(800, 0.12, 'square', 0.07), 200);
+    setTimeout(() => beep && beep(1200, 0.18, 'square', 0.08), 380);
+
+    ui.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.94).setDepth(1000));
+
+    // Title
+    const title = scene.add.text(W/2, 80, '🚧  ¡BARRERAS INSTALADAS!  🚧', {
+        font: 'bold 30px monospace', color: '#fde047',
+        stroke: '#000', strokeThickness: 5
+    }).setOrigin(0.5).setScale(0).setDepth(1001);
+    scene.tweens.add({ targets: title, scale: 1, duration: 600, ease: 'Back.easeOut' });
+    ui.push(title);
+
+    ui.push(scene.add.text(W/2, 118, 'Nivel 3 — Acceso automatizado', {
+        font: 'italic 16px monospace', color: '#a5f3fc'
+    }).setOrigin(0.5).setDepth(1001));
+
+    // Ana portrait + dialog
+    const portraitX = 180, portraitY = 270;
+    const portraitCircle = scene.add.circle(portraitX, portraitY, 65, 0xa855f7)
+        .setStrokeStyle(4, 0xfde047).setDepth(1001);
+    const portraitEmoji = scene.add.image(portraitX, portraitY, 'ana_south').setScale(2.2).setDepth(1001);
+    ui.push(portraitCircle, portraitEmoji);
+    ui.push(scene.add.text(portraitX, portraitY + 90, 'Ana', {
+        font: 'bold 18px monospace', color: '#fde047'
+    }).setOrigin(0.5).setDepth(1001));
+    ui.push(scene.add.text(portraitX, portraitY + 112, 'ParkingApp · Redcomercio', {
+        font: 'italic 11px monospace', color: '#a5f3fc'
+    }).setOrigin(0.5).setDepth(1001));
+
+    // Dialog
+    const dialogX = 320, dialogY = 180;
+    ui.push(scene.add.rectangle(dialogX + 200, dialogY + 80, 420, 240, 0x1e293b, 0.95)
+        .setStrokeStyle(2, 0xfde047).setDepth(1001));
+
+    const lines = [
+        '«El gate scanner ya está en línea.»',
+        '',
+        '🚧 Reconocimiento de patente (LPR)',
+        '💳 Cobro automático vía Redcomercio',
+        '⚡ Entrada/salida en <1s',
+        '🚫 -90% escapes (barrera física)',
+        '',
+        '«El cobrador queda como supervisor.',
+        ' Tu única labor: contar la plata.»',
+        '',
+        '«Esto es la era ParkingApp full.»',
+    ];
+    lines.forEach((line, i) => {
+        const t = scene.add.text(dialogX + 16, dialogY + i * 19 + 10, line, {
+            font: i === 0 ? 'bold 15px monospace' : '13px monospace',
+            color: i === 0 ? '#fde047' : (line.match(/🚧|💳|⚡|🚫/) ? '#10b981' : '#fff')
+        }).setAlpha(0).setDepth(1001);
+        scene.tweens.add({ targets: t, alpha: 1, duration: 300, delay: 500 + i * 70 });
+        ui.push(t);
+    });
+
+    const btn = scene.add.text(W/2, H - 50, '▶   ¡VAMOS!   ▶', {
+        font: 'bold 22px monospace', color: '#fff',
+        backgroundColor: '#16a34a', padding: { x: 28, y: 14 }
+    }).setOrigin(0.5).setAlpha(0).setDepth(1001).setInteractive({ useHandCursor: true });
+    scene.tweens.add({ targets: btn, alpha: 1, duration: 400, delay: 1800 });
+    scene.tweens.add({ targets: btn, scale: { from: 1, to: 1.05 },
+        duration: 500, yoyo: true, repeat: -1, delay: 2200 });
+    btn.on('pointerdown', () => {
+        ui.forEach(o => { try { o.destroy(); } catch(e) {} });
+        S.paused = false;
+        scene.tweens.resumeAll();
+        flashEvent('🚧 Barreras operativas — autos se procesan solos.');
+        S.scene.scene.restart();
+    });
+    ui.push(btn);
 }
 
 function showPOSCelebration() {
@@ -2278,6 +2491,21 @@ function update(time, delta) {
         S.lifetimeRevenue += adIncome;
     }
 
+    // Barriers auto-tick: when barriers are installed, the gate automatically
+    // processes queued cars without requiring a player click. Still requires an
+    // employee on shift (the supervisor) to keep the system "manned".
+    if (S.upgrades.barriers && isOpen()) {
+        S.barrierTickTimer = (S.barrierTickTimer || 0) + delta;
+        if (S.barrierTickTimer >= CONFIG.barrierAutoTickMs) {
+            S.barrierTickTimer = 0;
+            const emp = findAvailableEmployee();
+            if (emp) {
+                if (S.exitQueue.some(c => c.state === 'exit-waiting')) attendExit(emp);
+                else if (S.queue.some(c => c.state === 'queueing')) attendEntry(emp);
+            }
+        }
+    }
+
     S.spawnTimer += delta;
     if (S.spawnTimer >= S.nextSpawnIn) {
         spawnCar();
@@ -2343,7 +2571,14 @@ function update(time, delta) {
     for (const car of [...S.exitQueue]) {
         if (car.state !== 'exit-waiting') continue;
         car.exitPatience -= delta;
-        if (car.exitPatience <= 0) { escapeWithoutPaying(car); continue; }
+        if (car.exitPatience <= 0) {
+            // Barriers physically block ~90% of escape attempts (configurable)
+            if (S.upgrades.barriers && Math.random() * 100 < CONFIG.barrierEscapeReductionPct) {
+                car.exitPatience = CONFIG.exitPatienceMs * 0.5;  // reset some patience — gate forces them to wait
+                continue;
+            }
+            escapeWithoutPaying(car); continue;
+        }
         if (car.exitPatience < CONFIG.exitPatienceMs * 0.4 && !car.escapeHint) {
             car.escapeHint = true;
             // Sneaky escaping emoji
@@ -2609,11 +2844,17 @@ function attendEntry(emp) {
     const carX = car.sprite.x, carY = car.sprite.y;
     const hasBooth = S.upgrades.booth;
     const hasPos = S.upgrades.pos;
-    const cobroDur = hasPos ? CONFIG.posCobroDuration : (hasBooth ? CONFIG.boothCobroDuration : CONFIG.cobroDuration);
+    const hasBarriers = S.upgrades.barriers;
+    const cobroDur = hasBarriers ? CONFIG.barrierScanMs
+        : (hasPos ? CONFIG.posCobroDuration : (hasBooth ? CONFIG.boothCobroDuration : CONFIG.cobroDuration));
+
+    // Open the entry gate (animation runs in parallel with the scan delay)
+    if (hasBarriers) operateGate('entry');
 
     const doPapeleta = () => {
-        if (hasBooth && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindowBusy);
-        flashEvent(`✍️ ${emp.name} ${hasPos ? 'cobra con POS' : 'registra entrada'}${hasBooth ? ' (caseta)' : ''}...`);
+        if (hasBooth && !hasBarriers && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindowBusy);
+        const verb = hasBarriers ? 'escanea LPR' : (hasPos ? 'cobra con POS' : 'registra entrada');
+        flashEvent(`✍️ ${hasBarriers ? '🚧 Barrera' : emp.name} ${verb}${hasBooth && !hasBarriers ? ' (caseta)' : ''}...`);
         S.scene.time.delayedCall(cobroDur, () => {
             if (hasBooth && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindow);
 
@@ -2656,7 +2897,7 @@ function attendEntry(emp) {
                 }
             });
 
-            if (hasBooth) {
+            if (hasBooth || hasBarriers) {
                 emp.busy = false;
                 updateEmployeeAppearance(emp);
                 updateEmployeeCardsHTML();
@@ -2677,7 +2918,7 @@ function attendEntry(emp) {
         });
     };
 
-    if (hasBooth) {
+    if (hasBooth || hasBarriers) {
         doPapeleta();
     } else {
         // Cobrador walks INSIDE the lot to the car at the entry vlane
@@ -2750,11 +2991,16 @@ function attendExit(emp) {
     const carX = car.sprite.x, carY = car.sprite.y;
     const hasBooth = S.upgrades.booth;
     const hasPos = S.upgrades.pos;
-    const cobroDur = hasPos ? CONFIG.posCobroDuration : (hasBooth ? CONFIG.boothCobroDuration : CONFIG.cobroDuration);
+    const hasBarriers = S.upgrades.barriers;
+    const cobroDur = hasBarriers ? CONFIG.barrierScanMs
+        : (hasPos ? CONFIG.posCobroDuration : (hasBooth ? CONFIG.boothCobroDuration : CONFIG.cobroDuration));
+
+    // Open the exit gate (animation runs in parallel with the scan delay)
+    if (hasBarriers) operateGate('exit');
 
     const doCobro = () => {
-        if (hasBooth && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindowBusy);
-        flashEvent(`💵 ${emp.name} cobra salida${hasBooth ? ' (caseta)' : ''}...`);
+        if (hasBooth && !hasBarriers && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindowBusy);
+        flashEvent(`💵 ${hasBarriers ? '🚧 Barrera cobra automático' : emp.name + ' cobra salida'}${hasBooth && !hasBarriers ? ' (caseta)' : ''}...`);
         S.scene.time.delayedCall(cobroDur, () => {
             if (hasBooth && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindow);
 
@@ -2792,7 +3038,7 @@ function attendExit(emp) {
                 S.cars = S.cars.filter(c => c.id !== car.id);
             });
 
-            if (hasBooth) {
+            if (hasBooth || hasBarriers) {
                 emp.busy = false;
                 updateEmployeeAppearance(emp);
                 repositionExitQueue();
@@ -2811,7 +3057,7 @@ function attendExit(emp) {
         });
     };
 
-    if (hasBooth) {
+    if (hasBooth || hasBarriers) {
         doCobro();
     } else {
         S.scene.tweens.add({
@@ -2912,6 +3158,7 @@ function updateInfoBoard() {
     const services = [];
     if (S.upgrades.booth) services.push({ label: '🛂 Caseta', active: true });
     if (S.upgrades.pos) services.push({ label: '💳 POS', active: true });
+    if (S.upgrades.barriers) services.push({ label: '🚧 Barreras', active: true });
     // ParkingApp + Redcomercio shown as a "tech stack" badge once integrated
     if (S.cinematicShown) services.push({ label: '🅿️ ParkingApp', active: true });
     if (S.upgrades.pos) services.push({ label: '💳 Redcomercio', active: true });
@@ -3207,10 +3454,11 @@ function hardReset() {
     S.dayOfWeek = 0;
     S.reputation = 100;
     S.upgrades = {
-        booth: false, pos: false,
+        booth: false, pos: false, barriers: false,
         adScreens: 0, signs: 0, expansions: 0,
         convenios: [],
         cameras: false, carwash: false, evCharger: false,
+        pavement: false, lines: false, lights: false, guard: false, greenery: false,
     };
     S.employeeRoster = [];
     S.subscriptions = [];
