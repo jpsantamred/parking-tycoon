@@ -13,23 +13,30 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            padding: 16px;
+            padding: 8px;
         }
-        h1 { font-size: 22px; margin-bottom: 4px; color: #fbbf24; }
-        .subtitle { color: #94a3b8; margin-bottom: 14px; font-size: 13px; }
+        h1 { font-size: 18px; margin-bottom: 2px; color: #fbbf24; }
+        .subtitle { color: #94a3b8; margin-bottom: 8px; font-size: 12px; }
         #game {
-            border: 3px solid #4a5568;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 2px solid #4a5568;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.5);
             background: #2d3e50;
+            width: 100%;
+            max-width: 960px;
+        }
+        #game canvas {
+            display: block;
+            width: 100% !important;     /* Phaser FIT scale uses inline width */
+            height: auto !important;
         }
         .hint-row {
-            margin-top: 10px;
+            margin-top: 6px;
             display: flex;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
             justify-content: center;
             max-width: 960px;
-            font-size: 12px;
+            font-size: 11px;
             color: #94a3b8;
         }
         .hint-row kbd {
@@ -43,8 +50,9 @@
 
         /* ── Employee Cards Strip ────────────────────────── */
         #employee-strip-wrapper {
-            width: 960px;
-            margin: 14px auto 0;
+            width: 100%;
+            max-width: 960px;
+            margin: 10px auto 0;
         }
         #employee-strip-title {
             display: flex;

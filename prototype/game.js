@@ -238,9 +238,9 @@ const L = {
     entryOpeningX: 420, exitOpeningX: 540, openingW: 50,
     entryVlaneX: 420, exitVlaneX: 540,
 
-    centerLaneY: 355, laneH: 44,
-    row1Y: 250, row2Y: 430,
-    spaceW: 50, spaceH: 70,            // vertical parking slots
+    centerLaneY: 345, laneH: 40,
+    row1Y: 245, row2Y: 415,            // moved tighter — leaves room for expansion row
+    spaceW: 50, spaceH: 60,            // shorter so expansion row fits in canvas
     cols: [70, 155, 240, 325, 590, 675, 760, 845],
 
     // v0.10c — Queue: HEAD inside lot at entry vlane; rest on street going WEST
@@ -333,6 +333,10 @@ const phaserConfig = {
     type: Phaser.AUTO, width: CONFIG.width, height: CONFIG.height,
     parent: 'game', backgroundColor: COLORS.bgOutside,
     pixelArt: false, antialias: true, roundPixels: true,
+    scale: {
+        mode: Phaser.Scale.FIT,            // canvas scales to fit viewport
+        autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
+    },
     scene: { preload, create, update }
 };
 let game = new Phaser.Game(phaserConfig);
@@ -632,7 +636,7 @@ function createParkingSpaces(scene) {
     });
     // Expansion row (only 1 max — placed right below row 2, fits in canvas)
     if (S.upgrades.expansions > 0) {
-        const y = L.row2Y + 65;  // y=495, spans 460-530 — bottom of lot
+        const y = L.row2Y + 60;  // ~y=475, spans 445-505 — fits in lot bottom (510)
         for (let c = 0; c < CONFIG.expansionExtraSpaces && c < L.cols.length; c++) {
             addSpace(scene, L.cols[c], y, 'down', c + 10);
         }
