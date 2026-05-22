@@ -412,8 +412,12 @@
                 <p>conozcas a la gente de <strong>ParkingApp</strong>.</p>
             </div>
 
+            <button id="splash-continue" class="splash-button" style="display:none; background:#3b82f6;">▶  CONTINUAR</button>
             <button id="splash-start" class="splash-button">▶  EMPEZAR</button>
-            <div class="splash-version">v0.27 · prototype</div>
+            <div id="splash-clear-save" style="display:none; margin-top:8px; font-size:11px; color:#94a3b8; cursor:pointer; text-decoration:underline;">
+                ↻ Borrar partida guardada y empezar de cero
+            </div>
+            <div class="splash-version">v0.28 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -422,7 +426,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.27 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.28 prototype | el dolor antes de ParkingApp</div>
     <div id="game"></div>
     <div class="hint-row">
         <div><kbd>Click</kbd> en cobrador / tarjeta para atender</div>
@@ -471,20 +475,67 @@
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
     <script src="game.js"></script>
     <script>
-        // Splash screen dismissal
-        document.getElementById('splash-start').addEventListener('click', () => {
+        // ─── Save / Load wiring ─────────────────────────
+        function dismissSplash(showOnboarding) {
             const splash = document.getElementById('splash');
             splash.classList.add('closing');
             setTimeout(() => {
                 splash.style.display = 'none';
-                // Show onboarding only the first time (no localStorage flag yet,
-                // so use a session flag — every page reload re-shows it).
-                if (!window.__onboardingShown) {
+                if (showOnboarding && !window.__onboardingShown) {
                     document.getElementById('onboarding').style.display = 'block';
                     window.__onboardingShown = true;
                 }
             }, 600);
+        }
+
+        // Update splash UI based on whether a save exists. peekSave() lives in game.js;
+        // we poll briefly until it's defined (game.js may still be loading).
+        function refreshSplashSaveState() {
+            if (typeof peekSave !== 'function') {
+                setTimeout(refreshSplashSaveState, 100);
+                return;
+            }
+            const save = peekSave();
+            const continueBtn = document.getElementById('splash-continue');
+            const clearLink = document.getElementById('splash-clear-save');
+            const startBtn = document.getElementById('splash-start');
+            if (save) {
+                const moneyStr = '$' + Math.floor(save.money).toLocaleString('es-CL');
+                continueBtn.textContent = `▶  CONTINUAR  (Día ${save.day} · ${moneyStr})`;
+                continueBtn.style.display = 'inline-block';
+                clearLink.style.display = 'block';
+                startBtn.textContent = '↻  EMPEZAR NUEVA PARTIDA';
+                startBtn.style.background = '#475569';
+            }
+        }
+        refreshSplashSaveState();
+
+        // EMPEZAR (new game) — always starts fresh (clears any save).
+        document.getElementById('splash-start').addEventListener('click', () => {
+            if (typeof clearSave === 'function') clearSave();
+            // Page reload so S re-initializes to defaults
+            if (peekSave && peekSave()) { location.reload(); return; }
+            dismissSplash(true);
         });
+
+        // CONTINUAR — loads the saved game then restarts the scene
+        document.getElementById('splash-continue').addEventListener('click', () => {
+            if (typeof loadGame === 'function' && loadGame()) {
+                // Restart the Phaser scene so it re-renders with loaded S state
+                if (window.game && window.game.scene && window.game.scene.scenes[0]) {
+                    window.game.scene.scenes[0].scene.restart();
+                }
+            }
+            dismissSplash(false);   // skip onboarding when continuing
+        });
+
+        document.getElementById('splash-clear-save').addEventListener('click', () => {
+            if (confirm('¿Borrar partida guardada y empezar de cero?')) {
+                if (typeof clearSave === 'function') clearSave();
+                location.reload();
+            }
+        });
+
         document.getElementById('onboarding-close').addEventListener('click', () => {
             document.getElementById('onboarding').style.display = 'none';
         });

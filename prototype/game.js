@@ -6,6 +6,91 @@
 //   - Employee CARDS at lot bottom when booth is owned
 //   - Employee sprites on sidewalk when no booth
 
+// ─── SAVE / LOAD ───────────────────────────────────────────
+// Persists S state to localStorage between page reloads.
+// Saved at end of day (after the player clicks "DÍA SIGUIENTE").
+const SAVE_KEY = 'parking-tycoon-save-v1';
+
+function saveGame() {
+    try {
+        const data = {
+            version: 1,
+            timestamp: Date.now(),
+            money: S.money,
+            day: S.day,
+            dayOfWeek: S.dayOfWeek,
+            reputation: S.reputation,
+            upgrades: S.upgrades,
+            employeeRoster: S.employeeRoster,
+            subscriptions: S.subscriptions,
+            lifetimeServed: S.lifetimeServed,
+            lifetimeRevenue: S.lifetimeRevenue,
+            lifetimeSalaries: S.lifetimeSalaries,
+            lifetimeAngry: S.lifetimeAngry,
+            lifetimeEscaped: S.lifetimeEscaped,
+            consecutiveNegDays: S.consecutiveNegDays,
+            cinematicShown: S.cinematicShown,
+            dailyStatsHistory: S.dailyStatsHistory,
+        };
+        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+        return true;
+    } catch (e) {
+        console.warn('[save] failed:', e);
+        return false;
+    }
+}
+
+function peekSave() {
+    // Returns metadata without applying — used by splash to decide which buttons to show.
+    try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        if (data.version !== 1) return null;
+        return { day: data.day, money: data.money, timestamp: data.timestamp };
+    } catch (e) {
+        return null;
+    }
+}
+
+function loadGame() {
+    try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        if (data.version !== 1) return false;
+        S.money = data.money;
+        S.day = data.day;
+        S.dayOfWeek = data.dayOfWeek;
+        S.reputation = data.reputation;
+        // Merge upgrades carefully — newer schema fields default false/0 if missing
+        S.upgrades = Object.assign({
+            booth: false, pos: false, barriers: false, entryTotem: false,
+            adScreens: 0, signs: 0, expansions: 0, convenios: [],
+            cameras: false, carwash: false, evCharger: false,
+            pavement: false, lines: false, lights: false, guard: false, greenery: false,
+        }, data.upgrades || {});
+        S.employeeRoster = data.employeeRoster || [];
+        S.subscriptions = data.subscriptions || [];
+        S.lifetimeServed = data.lifetimeServed || 0;
+        S.lifetimeRevenue = data.lifetimeRevenue || 0;
+        S.lifetimeSalaries = data.lifetimeSalaries || 0;
+        S.lifetimeAngry = data.lifetimeAngry || 0;
+        S.lifetimeEscaped = data.lifetimeEscaped || 0;
+        S.consecutiveNegDays = data.consecutiveNegDays || 0;
+        S.cinematicShown = !!data.cinematicShown;
+        S.dailyStatsHistory = data.dailyStatsHistory || [];
+        return true;
+    } catch (e) {
+        console.warn('[load] failed:', e);
+        return false;
+    }
+}
+
+function clearSave() {
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+}
+
 const CONFIG = {
     width: 960, height: 540,
     startHour: 8, endHour: 22, timeSpeed: 14,
@@ -421,6 +506,7 @@ const phaserConfig = {
     scene: { preload, create, update }
 };
 let game = new Phaser.Game(phaserConfig);
+window.game = game;   // expose so index.html save/load wiring can restart the scene
 
 const CAR_COLOR_NAMES = ['red', 'blue', 'yellow', 'green', 'white', 'orange', 'cyan', 'purple'];
 
@@ -3757,6 +3843,7 @@ function renderGameOver() {
 
 function hardReset() {
     // Full reset including ALL persistent state — used by Game Over → "Empezar de nuevo"
+    clearSave();
     S.money = CONFIG.startMoney;
     S.day = 1;
     S.dayOfWeek = 0;
@@ -3937,6 +4024,8 @@ function renderEndOfDay() {
         if (S.hud && S.hud.events) S.hud.events.setVisible(true);
         S.day++;
         S.dayOfWeek = (S.dayOfWeek + 1) % 7;
+        // Auto-save: persist progress so the player can reload and continue.
+        saveGame();
         S.scene.scene.restart();
     });
     S.endDayUI.push(nextBtn);
