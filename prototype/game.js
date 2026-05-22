@@ -492,6 +492,7 @@ function resetTransientState() {
     S.nextCarMultiplier = 1; S.rushUntilMin = 0;
     S.eventTimer = 0; S.nextEventIn = Phaser.Math.Between(45000, 120000);
     S.subscriptionRevenueToday = 0;
+    S.corruptEmployeeToday = null;
     S.managementOpen = false; S.managementUI = [];
     S.boothSprites = []; S.boothWindowSprite = null; S.boothCobradorSprite = null;
     S.closedSignGroup = null; S.streetClosedSign = null;
@@ -2697,8 +2698,21 @@ function showIdleHint() {
 // ─── END OF DAY ────────────────────────────────────────────
 const MAX_NEG_DAYS = 7;   // full week of red before bankruptcy
 
+// Corrupt-employee mechanic
+function runCorruptEmployeeCheck() {
+    if (S.employeeRoster.length === 0 || S.revenueToday < 5000) return;
+    // 12% base chance per day. Goes up if reputation is low.
+    const chance = 0.12 + (S.reputation < 60 ? 0.08 : 0);
+    if (Math.random() > chance) return;
+    const corrupt = Phaser.Math.RND.pick(S.employeeRoster);
+    const skim = Math.floor(S.revenueToday * (0.05 + Math.random() * 0.15));
+    S.money -= skim;
+    S.corruptEmployeeToday = { name: corrupt.name, amount: skim };
+    S.reputation = Math.max(0, S.reputation - 3);
+}
+
 function endDay() {
-    // First check: trigger cinematic instead of normal end-of-day if appropriate
+    // Cinematic check
     if (!S.cinematicShown && S.day >= 3 && (S.upgrades.booth || S.lifetimeRevenue >= 50000)) {
         S.cinematicShown = true;
         renderCinematic();
@@ -2707,6 +2721,22 @@ function endDay() {
     S.dayEnded = true;
     S.paused = true;
     S.scene.tweens.pauseAll();
+
+    // Corrupt-employee check (random per day, slim chance)
+    runCorruptEmployeeCheck();
+
+    // Dark-screen transition: fade-to-black, then show summary
+    const scene = S.scene;
+    const fader = scene.add.rectangle(CONFIG.width/2, CONFIG.height/2, CONFIG.width, CONFIG.height, 0x000000, 0)
+        .setDepth(999);
+    scene.tweens.add({
+        targets: fader, alpha: 1, duration: 900, ease: 'Power2',
+        onComplete: () => {
+            fader.destroy();
+            renderEndOfDay();
+        }
+    });
+    return;
 
     // Subscriptions are pre-paid; here just expire ones whose contract ended
     const stillActive = [];
@@ -2925,6 +2955,16 @@ function renderEndOfDay() {
         S.endDayUI.push(scene.add.text(W/2, 250,
             `⚠️  ${S.consecutiveNegDays}/${MAX_NEG_DAYS} días en rojo  ·  ${remaining} más y QUIEBRA`,
             { font: 'bold 14px monospace', color: '#ef4444' }
+        ).setOrigin(0.5));
+    }
+
+    // Corrupt employee warning (if it happened today)
+    if (S.corruptEmployeeToday) {
+        const c = S.corruptEmployeeToday;
+        S.endDayUI.push(scene.add.rectangle(W/2, 250, 540, 32, 0x7c1d1d).setStrokeStyle(2, 0xef4444));
+        S.endDayUI.push(scene.add.text(W/2, 250,
+            `💸 ¡${c.name} se metió $${c.amount.toLocaleString('es-CL')} al bolsillo!  Considera despedirlo.`,
+            { font: 'bold 13px monospace', color: '#fca5a5' }
         ).setOrigin(0.5));
     }
 
