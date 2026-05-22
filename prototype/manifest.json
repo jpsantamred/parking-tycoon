@@ -1,0 +1,43 @@
+{
+  "name": "Parking Tycoon — De la papeleta a las naves espaciales",
+  "short_name": "Parking Tycoon",
+  "description": "Juego de gestión de estacionamientos con progresión narrativa: papeleta → POS → barreras → tótem → app → naves espaciales.",
+  "id": "/parking-tycoon",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "categories": ["games", "entertainment"],
+  "lang": "es-CL",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Continuar partida",
+      "short_name": "Continuar",
+      "description": "Carga tu partida guardada",
+      "url": "./index.html?continue=1"
+    }
+  ]
+}
