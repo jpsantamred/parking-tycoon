@@ -66,7 +66,7 @@ function loadGame() {
         // Merge upgrades carefully — newer schema fields default false/0 if missing
         S.upgrades = Object.assign({
             booth: false, pos: false, barriers: false, entryTotem: false, exitTotem: false,
-            parkingApp: false, valetAI: false,
+            parkingApp: false, valetAI: false, multiLevel: false, drone: false, spaceport: false,
             adScreens: 0, signs: 0, expansions: 0, convenios: [],
             cameras: false, carwash: false, evCharger: false,
             pavement: false, lines: false, lights: false, guard: false, greenery: false,
@@ -198,6 +198,23 @@ const CONFIG = {
     valetAIDriveSpeed: 2.0,          // 2x faster lot maneuvers (frictionless)
     valetAITariffMultiplier: 1.8,    // luxury tarifa premium (encima del app)
     valetAIRepBonus: 8,              // +8 reputación al comprar (luxury hub)
+
+    // Multi-level parking (Nivel 7) — vertical expansion
+    multiLevelCost: 1000000,
+    multiLevelCapacityMultiplier: 3, // 3x effective capacity (visible spaces unchanged)
+    multiLevelPassiveIncomePerMin: 200, // hidden floors generate passive revenue
+
+    // Drone delivery (Nivel 8) — drones pick up/drop off cars
+    droneCost: 2000000,
+    droneTariffMultiplier: 1.3,      // bonus on top of valet AI
+    droneRepBonus: 12,
+    droneAmbientRevenuePerMin: 350,
+
+    // Spaceport (Nivel 9) — el juego termina
+    spaceportCost: 5000000,
+    spaceportTariffMultiplier: 1.5,
+    spaceportRepBonus: 20,
+    spaceportPassiveIncomePerMin: 800,
 
     // NEW — Cameras prevent robberies
     cameraCost: 35000,
@@ -529,6 +546,9 @@ const S = {
         exitTotem: false,                   // Nivel 4 — self-service autopay totem at exit
         parkingApp: false,                  // Nivel 5 — ParkingApp integration
         valetAI: false,                     // Nivel 6 — autonomous self-parking
+        multiLevel: false,                  // Nivel 7 — vertical parking (3x capacity)
+        drone: false,                       // Nivel 8 — drone delivery
+        spaceport: false,                   // Nivel 9 — naves espaciales (finale)
         adScreens: 0,
         signs: 0,
         expansions: 0,
@@ -859,6 +879,15 @@ function create() {
     this.input.keyboard.on('keydown-ESC', () => { if (S.managementOpen) closeManagementPanel(); });
 
     logEvent(`Día ${S.day} (${DAY_LONG[S.dayOfWeek]}) — ${S.upgrades.booth ? 'caseta operativa' : 'a pie nomás'}`);
+
+    // If a purchase triggered a scene restart, re-open the management panel
+    // on the same tab so the player can keep buying. (Better UX than having
+    // to press G again after every upgrade.)
+    if (S.shouldReopenManagement) {
+        S.shouldReopenManagement = false;
+        if (S.shouldOpenTab) S.managementTab = S.shouldOpenTab;
+        S.scene.time.delayedCall(50, () => openManagementPanel());
+    }
 }
 
 // ─── BACKGROUND ────────────────────────────────────────────
@@ -1442,6 +1471,14 @@ function closeManagementPanel() {
     }
 }
 
+// Called from purchase functions: schedule a re-open of the panel after
+// scene.restart so the player can keep shopping without re-pressing G.
+function flagReopenManagement() {
+    S.shouldReopenManagement = true;
+    S.shouldOpenTab = S.managementTab || 'upgrades';
+    closeManagementPanel();
+}
+
 function renderManagementPanel() {
     S.managementUI.forEach(o => { try { o.destroy(); } catch(e) {} });
     S.managementUI = [];
@@ -1856,6 +1893,63 @@ function renderUpgradesTab(scene, contentY, panelW) {
     } else {
         S.managementUI.push(scene.add.text(colLX, yL,
             '  🤖  VALET AI  — bloqueado (necesita ParkingApp)',
+            { font: 'italic 11px monospace', color: '#64748b' }));
+    }
+    yL += rowH + 6;
+
+    // Multi-level parking (Nivel 7)
+    if (S.upgrades.valetAI && !S.upgrades.multiLevel) {
+        renderRow(colLX, yL, {
+            done: false,
+            cost: CONFIG.multiLevelCost,
+            label: `🏢 PARKING VERTICAL  $${(CONFIG.multiLevelCost/1000).toFixed(0)}k`,
+            color: '#0284c7',
+            desc: 'Nivel 7 · +$200/min pasivo de pisos ocultos',
+            onClick: () => { purchaseMultiLevel(); renderManagementPanel(); },
+        });
+    } else if (S.upgrades.multiLevel) {
+        renderRow(colLX, yL, { done: true, doneLabel: 'Parking Vertical (Nivel 7)' });
+    } else if (S.upgrades.parkingApp) {
+        S.managementUI.push(scene.add.text(colLX, yL,
+            '  🏢  PARKING VERTICAL  — bloqueado (necesita Valet AI)',
+            { font: 'italic 11px monospace', color: '#64748b' }));
+    }
+    yL += rowH + 6;
+
+    // Drone delivery (Nivel 8)
+    if (S.upgrades.multiLevel && !S.upgrades.drone) {
+        renderRow(colLX, yL, {
+            done: false,
+            cost: CONFIG.droneCost,
+            label: `🚁 DRONES  $${(CONFIG.droneCost/1000).toFixed(0)}k`,
+            color: '#7c3aed',
+            desc: 'Nivel 8 · 1.3x tarifa · $350/min revenue ambient',
+            onClick: () => { purchaseDrone(); renderManagementPanel(); },
+        });
+    } else if (S.upgrades.drone) {
+        renderRow(colLX, yL, { done: true, doneLabel: 'Drones (Nivel 8)' });
+    } else if (S.upgrades.valetAI) {
+        S.managementUI.push(scene.add.text(colLX, yL,
+            '  🚁  DRONES  — bloqueado (necesita Parking Vertical)',
+            { font: 'italic 11px monospace', color: '#64748b' }));
+    }
+    yL += rowH + 6;
+
+    // Spaceport (Nivel 9) — winning condition
+    if (S.upgrades.drone && !S.upgrades.spaceport) {
+        renderRow(colLX, yL, {
+            done: false,
+            cost: CONFIG.spaceportCost,
+            label: `🚀 SPACEPORT  $${(CONFIG.spaceportCost/1000000).toFixed(0)}M`,
+            color: '#dc2626',
+            desc: 'Nivel 9 · ¡GANAR EL JUEGO! · naves espaciales',
+            onClick: () => { purchaseSpaceport(); renderManagementPanel(); },
+        });
+    } else if (S.upgrades.spaceport) {
+        renderRow(colLX, yL, { done: true, doneLabel: '🚀 ¡SPACEPORT GANADO!' });
+    } else if (S.upgrades.multiLevel) {
+        S.managementUI.push(scene.add.text(colLX, yL,
+            '  🚀  SPACEPORT  — bloqueado (necesita Drones)',
             { font: 'italic 11px monospace', color: '#64748b' }));
     }
     yL += rowH + 6;
@@ -2394,8 +2488,10 @@ function processExitViaTotem() {
         const stayedMin = Math.max(1, Math.ceil(S.timeMinutes - (car.entryTimeMinutes ?? S.timeMinutes)));
         let amount = stayedMin * CONFIG.pricePerMinute * getConvenioRevenueCut();
         if (car.isEV) amount *= CONFIG.evMultiplier;
-        if (car.isAppUser) amount *= CONFIG.parkingAppTariffMultiplier;   // Nivel 5 premium
-        if (S.upgrades.valetAI) amount *= CONFIG.valetAITariffMultiplier; // Nivel 6 luxury
+        if (car.isAppUser) amount *= CONFIG.parkingAppTariffMultiplier;       // Nivel 5
+        if (S.upgrades.valetAI) amount *= CONFIG.valetAITariffMultiplier;     // Nivel 6
+        if (S.upgrades.drone) amount *= CONFIG.droneTariffMultiplier;         // Nivel 8
+        if (S.upgrades.spaceport) amount *= CONFIG.spaceportTariffMultiplier; // Nivel 9
         if (car.washed) { amount += CONFIG.washPrice; flashEvent(`🚿 +$${CONFIG.washPrice.toLocaleString('es-CL')} lavado!`); }
         if (S.nextCarMultiplier > 1) {
             amount *= S.nextCarMultiplier;
@@ -2666,7 +2762,7 @@ function purchaseBooth() {
     S.money -= CONFIG.boothCost;
     S.upgrades.booth = true;
     flashEvent('🛂 ¡Caseta instalada! Cobradores ahora son tarjetas + 33% más rápido.');
-    closeManagementPanel();
+    flagReopenManagement();
     S.scene.scene.restart();
 }
 
@@ -2676,8 +2772,8 @@ function purchaseAdScreen() {
     S.money -= CONFIG.adScreenCost;
     S.upgrades.adScreens++;
     flashEvent(`📺 Pantalla publicitaria #${S.upgrades.adScreens} instalada! +ingreso pasivo`);
-    closeManagementPanel();
-    S.scene.scene.restart();  // refresh canvas so the screen appears
+    flagReopenManagement();
+    S.scene.scene.restart();
 }
 
 function purchaseSign() {
@@ -2686,8 +2782,8 @@ function purchaseSign() {
     S.money -= CONFIG.signCost;
     S.upgrades.signs++;
     flashEvent(`📣 Cartel #${S.upgrades.signs} instalado! +25% spawn`);
-    closeManagementPanel();
-    S.scene.scene.restart();  // refresh canvas so the sign appears
+    flagReopenManagement();
+    S.scene.scene.restart();
 }
 
 function purchaseExpansion() {
@@ -2696,7 +2792,7 @@ function purchaseExpansion() {
     S.money -= CONFIG.expansionCost;
     S.upgrades.expansions++;
     flashEvent(`🏗️ Lote ampliado! +${CONFIG.expansionExtraSpaces} espacios`);
-    closeManagementPanel();
+    flagReopenManagement();
     S.scene.scene.restart();
 }
 
@@ -2706,7 +2802,8 @@ function purchaseCameras() {
     S.money -= CONFIG.cameraCost;
     S.upgrades.cameras = true;
     flashEvent('📹 Cámaras de seguridad instaladas. Robos y vandalismo bloqueados.');
-    S.scene.scene.restart();  // redraw with camera icons
+    flagReopenManagement();
+    S.scene.scene.restart();
 }
 
 function purchaseCarwash() {
@@ -2715,6 +2812,7 @@ function purchaseCarwash() {
     S.money -= CONFIG.washCost;
     S.upgrades.carwash = true;
     flashEvent(`🚿 Lavado disponible. Click en autos estacionados para lavar (+$${CONFIG.washPrice.toLocaleString('es-CL')})`);
+    flagReopenManagement();
     S.scene.scene.restart();
 }
 
@@ -2746,7 +2844,7 @@ function purchaseAesthetic(key, costKey, repBonusKey, name) {
     S.reputation = Math.min(100, S.reputation + bonus);
     flashEvent(`✨ ${name} instalado! +${bonus} reputación.`);
     SFX.purchase();
-    closeManagementPanel();
+    flagReopenManagement();
     S.scene.scene.restart();
 }
 
@@ -2762,6 +2860,7 @@ function purchaseEVCharger() {
     S.money -= CONFIG.evChargerCost;
     S.upgrades.evCharger = true;
     flashEvent(`🔌 Cargador EV instalado. Atrae clientes EV (pagan ${CONFIG.evMultiplier}x).`);
+    flagReopenManagement();
     S.scene.scene.restart();
 }
 
@@ -2796,9 +2895,9 @@ function purchaseEntryTotem() {
     if (S.money < CONFIG.entryTotemCost) return;
     S.money -= CONFIG.entryTotemCost;
     S.upgrades.entryTotem = true;
-    closeManagementPanel();
     flashEvent('🎫 ¡Tótem instalado! Los autos ahora entran solos. Vos cobrá las salidas.');
     SFX.purchase();
+    flagReopenManagement();
     S.scene.scene.restart();
 }
 
@@ -2811,9 +2910,9 @@ function purchaseExitTotem() {
     if (S.money < CONFIG.exitTotemCost) return;
     S.money -= CONFIG.exitTotemCost;
     S.upgrades.exitTotem = true;
-    closeManagementPanel();
     flashEvent('💳 ¡Tótem autopago instalado! Salidas se cobran solas vía Redcomercio. Nivel 4.');
     SFX.purchase();
+    flagReopenManagement();
     S.scene.scene.restart();
 }
 
@@ -2826,9 +2925,9 @@ function purchaseParkingApp() {
     if (S.money < CONFIG.parkingAppCost) return;
     S.money -= CONFIG.parkingAppCost;
     S.upgrades.parkingApp = true;
-    closeManagementPanel();
     flashEvent('📱 ¡ParkingApp integrada! +30% clientes premium · +$50/min suscripciones. Nivel 5.');
     SFX.purchase();
+    flagReopenManagement();
     S.scene.scene.restart();
 }
 
@@ -2842,10 +2941,110 @@ function purchaseValetAI() {
     S.money -= CONFIG.valetAICost;
     S.upgrades.valetAI = true;
     S.reputation = Math.min(100, S.reputation + CONFIG.valetAIRepBonus);
-    closeManagementPanel();
     flashEvent('🤖 ¡Valet AI activado! Autos se estacionan solos · +80% tarifa luxury. Nivel 6.');
     SFX.purchase();
+    flagReopenManagement();
     S.scene.scene.restart();
+}
+
+function purchaseMultiLevel() {
+    if (S.upgrades.multiLevel) return;
+    if (!S.upgrades.valetAI) {
+        flashEvent('⚠️ Necesitas Valet AI (Nivel 6) antes del parking vertical.');
+        return;
+    }
+    if (S.money < CONFIG.multiLevelCost) return;
+    S.money -= CONFIG.multiLevelCost;
+    S.upgrades.multiLevel = true;
+    flashEvent('🏢 ¡Parking vertical! +200/min pasivo de pisos ocultos. Nivel 7.');
+    SFX.purchase();
+    flagReopenManagement();
+    S.scene.scene.restart();
+}
+
+function purchaseDrone() {
+    if (S.upgrades.drone) return;
+    if (!S.upgrades.multiLevel) {
+        flashEvent('⚠️ Necesitas Parking Vertical (Nivel 7) antes de los drones.');
+        return;
+    }
+    if (S.money < CONFIG.droneCost) return;
+    S.money -= CONFIG.droneCost;
+    S.upgrades.drone = true;
+    S.reputation = Math.min(100, S.reputation + CONFIG.droneRepBonus);
+    flashEvent('🚁 ¡Drones operativos! Delivery aéreo + tarifa premium. Nivel 8.');
+    SFX.purchase();
+    flagReopenManagement();
+    S.scene.scene.restart();
+}
+
+function purchaseSpaceport() {
+    if (S.upgrades.spaceport) return;
+    if (!S.upgrades.drone) {
+        flashEvent('⚠️ Necesitas Drones (Nivel 8) antes del Spaceport.');
+        return;
+    }
+    if (S.money < CONFIG.spaceportCost) return;
+    S.money -= CONFIG.spaceportCost;
+    S.upgrades.spaceport = true;
+    S.reputation = Math.min(100, S.reputation + CONFIG.spaceportRepBonus);
+    flashEvent('🚀 ¡SPACEPORT! Has llegado a las naves espaciales. ¡Ganaste el juego!');
+    SFX.purchase();
+    showGameWonCelebration();
+}
+
+function showGameWonCelebration() {
+    const scene = S.scene;
+    const W = CONFIG.width, H = CONFIG.height;
+    const ui = [];
+    S.paused = true;
+    scene.tweens.pauseAll();
+
+    ui.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.95).setDepth(2000));
+
+    const title = scene.add.text(W/2, 100, '🚀  ¡GANASTE!  🚀', {
+        font: 'bold 44px monospace', color: '#fde047',
+        stroke: '#7c2d12', strokeThickness: 6
+    }).setOrigin(0.5).setScale(0).setDepth(2001);
+    scene.tweens.add({ targets: title, scale: 1, duration: 700, ease: 'Back.easeOut' });
+    ui.push(title);
+
+    ui.push(scene.add.text(W/2, 160, 'Nivel 9 alcanzado: SPACEPORT', {
+        font: 'italic 18px monospace', color: '#a5f3fc'
+    }).setOrigin(0.5).setDepth(2001));
+
+    const lines = [
+        '«Empezaste con un block de papeletas...',
+        ' ahora estacionas NAVES ESPACIALES.»',
+        '',
+        '🅿️ Día 1: Tomás caminaba con un block',
+        '📱 Hoy: ParkingApp + Redcomercio + AI + drones + naves',
+        '',
+        'De $76.000 iniciales a tu imperio actual.',
+        '',
+        'Hecho con humor, Phaser 3 y PixelLab AI 🎨',
+        '🎬 GAME OVER — winner edition',
+    ];
+    lines.forEach((line, i) => {
+        const t = scene.add.text(W/2, 210 + i * 22, line, {
+            font: i === 0 || i === 1 ? 'bold 16px monospace' : '14px monospace',
+            color: i < 2 ? '#fde047' : '#fff'
+        }).setOrigin(0.5).setAlpha(0).setDepth(2001);
+        scene.tweens.add({ targets: t, alpha: 1, duration: 400, delay: 600 + i * 150 });
+        ui.push(t);
+    });
+
+    const btn = scene.add.text(W/2, H - 50, '🔁  EMPEZAR DE NUEVO', {
+        font: 'bold 18px monospace', color: '#fff',
+        backgroundColor: '#16a34a', padding: { x: 20, y: 12 }
+    }).setOrigin(0.5).setAlpha(0).setDepth(2001).setInteractive({ useHandCursor: true });
+    scene.tweens.add({ targets: btn, alpha: 1, duration: 400, delay: 2500 });
+    btn.on('pointerdown', () => {
+        ui.forEach(o => { try { o.destroy(); } catch(e) {} });
+        clearSave();
+        location.reload();
+    });
+    ui.push(btn);
 }
 
 function showBarriersCelebration() {
@@ -3284,6 +3483,22 @@ function update(time, delta) {
         S.revenueToday += appIncome;
         S.appRevenueToday = (S.appRevenueToday || 0) + appIncome;
         S.lifetimeRevenue += appIncome;
+    }
+
+    // Multi-level vertical parking (Nivel 7) — pisos ocultos generan revenue
+    if (S.upgrades.multiLevel) {
+        const inc = CONFIG.multiLevelPassiveIncomePerMin * gameMinutesAdvanced;
+        S.money += inc; S.revenueToday += inc; S.lifetimeRevenue += inc;
+    }
+    // Drone delivery (Nivel 8) — entregas constantes
+    if (S.upgrades.drone) {
+        const inc = CONFIG.droneAmbientRevenuePerMin * gameMinutesAdvanced;
+        S.money += inc; S.revenueToday += inc; S.lifetimeRevenue += inc;
+    }
+    // Spaceport (Nivel 9) — naves espaciales
+    if (S.upgrades.spaceport) {
+        const inc = CONFIG.spaceportPassiveIncomePerMin * gameMinutesAdvanced;
+        S.money += inc; S.revenueToday += inc; S.lifetimeRevenue += inc;
     }
 
     // Final-Nivel-3 upgrade: Tótem de tickets en la entrada.
@@ -4065,7 +4280,9 @@ function attendExit(emp) {
             let amount = stayedMin * CONFIG.pricePerMinute * getConvenioRevenueCut();
             if (car.isEV) amount *= CONFIG.evMultiplier;
             if (car.isAppUser) amount *= CONFIG.parkingAppTariffMultiplier;   // Nivel 5 premium
-            if (S.upgrades.valetAI) amount *= CONFIG.valetAITariffMultiplier;  // Nivel 6 luxury
+            if (S.upgrades.valetAI) amount *= CONFIG.valetAITariffMultiplier;     // Nivel 6
+        if (S.upgrades.drone) amount *= CONFIG.droneTariffMultiplier;         // Nivel 8
+        if (S.upgrades.spaceport) amount *= CONFIG.spaceportTariffMultiplier; // Nivel 9
             // Car wash is now MANUAL — applied per car when player clicked it
             if (car.washed) {
                 amount += CONFIG.washPrice;
@@ -4213,7 +4430,10 @@ function updateInfoBoard() {
     const title = $('page-title');
     if (title) {
         let levelText = 'Nivel 1: Papeleta';
-        if (S.upgrades.valetAI) levelText = 'Nivel 6: Valet AI';
+        if (S.upgrades.spaceport) levelText = 'Nivel 9: 🚀 SPACEPORT';
+        else if (S.upgrades.drone) levelText = 'Nivel 8: Drones';
+        else if (S.upgrades.multiLevel) levelText = 'Nivel 7: Parking Vertical';
+        else if (S.upgrades.valetAI) levelText = 'Nivel 6: Valet AI';
         else if (S.upgrades.parkingApp) levelText = 'Nivel 5: ParkingApp';
         else if (S.upgrades.exitTotem) levelText = 'Nivel 4: Autopago';
         else if (S.upgrades.entryTotem) levelText = 'Nivel 3 final: Tótem auto-ticket';
@@ -4250,6 +4470,9 @@ function updateInfoBoard() {
     if (S.upgrades.exitTotem) services.push({ label: '💳 Autopago', active: true });
     if (S.upgrades.parkingApp) services.push({ label: '📱 App N5', active: true });
     if (S.upgrades.valetAI) services.push({ label: '🤖 Valet AI N6', active: true });
+    if (S.upgrades.multiLevel) services.push({ label: '🏢 Vertical N7', active: true });
+    if (S.upgrades.drone) services.push({ label: '🚁 Drones N8', active: true });
+    if (S.upgrades.spaceport) services.push({ label: '🚀 SPACEPORT N9', active: true });
     // ParkingApp + Redcomercio shown as a "tech stack" badge once integrated
     if (S.cinematicShown) services.push({ label: '🅿️ ParkingApp', active: true });
     if (S.upgrades.pos) services.push({ label: '💳 Redcomercio', active: true });
@@ -4547,7 +4770,7 @@ function hardReset() {
     S.reputation = 100;
     S.upgrades = {
         booth: false, pos: false, barriers: false, entryTotem: false, exitTotem: false,
-        parkingApp: false, valetAI: false,
+        parkingApp: false, valetAI: false, multiLevel: false, drone: false, spaceport: false,
         adScreens: 0, signs: 0, expansions: 0,
         convenios: [],
         cameras: false, carwash: false, evCharger: false,
