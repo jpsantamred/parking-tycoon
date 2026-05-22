@@ -92,6 +92,45 @@ function clearSave() {
     try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
 }
 
+// ─── DIFFICULTY (hard mode) ────────────────────────────────
+const DIFFICULTY_KEY = 'parking-tycoon-difficulty';
+function getDifficulty() {
+    try { return localStorage.getItem(DIFFICULTY_KEY) || 'normal'; } catch (e) { return 'normal'; }
+}
+function setDifficulty(d) {
+    try { localStorage.setItem(DIFFICULTY_KEY, d); } catch (e) {}
+}
+function isHardMode() { return getDifficulty() === 'hard'; }
+
+// ─── LEADERBOARD ──────────────────────────────────────────
+const LEADERBOARD_KEY = 'parking-tycoon-leaderboard-v1';
+function getLeaderboard() {
+    try {
+        const raw = localStorage.getItem(LEADERBOARD_KEY);
+        if (!raw) return { bestDay: 0, bestUtility: 0, longestStreak: 0, lifetimeServed: 0, lifetimeRevenue: 0, runs: 0 };
+        return JSON.parse(raw);
+    } catch (e) { return {}; }
+}
+function updateLeaderboard(stats) {
+    try {
+        const lb = getLeaderboard();
+        if (stats.utility > (lb.bestUtility || 0)) {
+            lb.bestUtility = stats.utility;
+            lb.bestDay = stats.day;
+        }
+        if (S.lifetimeServed > (lb.lifetimeServed || 0)) lb.lifetimeServed = S.lifetimeServed;
+        if (S.lifetimeRevenue > (lb.lifetimeRevenue || 0)) lb.lifetimeRevenue = S.lifetimeRevenue;
+        // Track positive-day streak
+        if (stats.utility >= 0) {
+            S.currentStreak = (S.currentStreak || 0) + 1;
+            if (S.currentStreak > (lb.longestStreak || 0)) lb.longestStreak = S.currentStreak;
+        } else {
+            S.currentStreak = 0;
+        }
+        localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(lb));
+    } catch (e) {}
+}
+
 // ─── EMPLOYEE LEVELING ─────────────────────────────────────
 // XP is awarded on each cobro. Level is derived from XP. Bonuses
 // boost XP immediately so the player can spend $5k to push someone
@@ -145,6 +184,11 @@ const CONFIG = {
     cobroDuration: 1500,
     boothCobroDuration: 1000,
     boothCost: 60000,                // serious investment — saves walk time + boosts speed
+
+    // Hard mode settings
+    hardModeStartMoney: 30000,       // vs 80000 normal
+    hardModeSpawnFactor: 1.4,        // 40% more spawns
+    hardModePenaltyMultiplier: 1.5,  // angry/escape penalties 1.5x worse
 
     // Ad screens (passive income + patience bonus)
     adScreenCost: 40000,
@@ -612,8 +656,11 @@ const CAR_COLORS = [
 ];
 
 // ─── STATE ─────────────────────────────────────────────────
+const __initialMoney = (typeof localStorage !== 'undefined' &&
+    localStorage.getItem('parking-tycoon-difficulty') === 'hard')
+    ? 30000 : CONFIG.startMoney;
 const S = {
-    money: CONFIG.startMoney, day: 1, dayOfWeek: 0, reputation: 100,
+    money: __initialMoney, day: 1, dayOfWeek: 0, reputation: 100,
     timeMinutes: CONFIG.startHour * 60,
 
     upgrades: {
@@ -2180,6 +2227,27 @@ function renderStatsTab(scene, contentY, panelW) {
     }
 
     let ypos = contentY;
+
+    // ── Leaderboard mini-card ──
+    const lb = getLeaderboard();
+    if (lb.bestUtility) {
+        S.managementUI.push(scene.add.text(tableX, ypos, '🏆 RÉCORDS', {
+            font: 'bold 12px monospace', color: '#fde047'
+        }));
+        ypos += 16;
+        const items = [
+            `Mejor día: $${Math.floor(lb.bestUtility).toLocaleString('es-CL')} (D${lb.bestDay || '?'})`,
+            `Racha positiva: ${lb.longestStreak || 0} días`,
+            `Lifetime atendidos: ${lb.lifetimeServed || 0}`,
+            `Lifetime revenue: $${Math.floor(lb.lifetimeRevenue || 0).toLocaleString('es-CL')}`,
+        ];
+        items.forEach((line, i) => {
+            S.managementUI.push(scene.add.text(tableX + (i % 2) * 380, ypos + Math.floor(i / 2) * 16,
+                line, { font: '11px monospace', color: '#fde047' }));
+        });
+        ypos += 36;
+    }
+
     S.managementUI.push(scene.add.text(tableX, ypos, '📊 GRÁFICO — Revenue / Sueldos / Utilidad por día', {
         font: 'bold 12px monospace', color: '#a5f3fc'
     }));
@@ -3728,6 +3796,14 @@ function createHUD(scene) {
         font: 'bold 15px monospace', color: '#fbbf24'
     });
 
+    // Hard mode badge in the HUD
+    if (isHardMode()) {
+        scene.add.text(CONFIG.width - 240, 10, '🔥 HARD', {
+            font: 'bold 13px monospace', color: '#fff',
+            backgroundColor: '#dc2626', padding: { x: 6, y: 3 }
+        }).setOrigin(1, 0);
+    }
+
     createPauseButton(scene);
     updateHUD();
 }
@@ -3890,11 +3966,16 @@ function update(time, delta) {
         const signBoost = 1 + (S.upgrades.signs * CONFIG.signSpawnBoostPct / 100);
         const convenioBoost = getConvenioSpawnBoost();
         // Easier first 3 days — give the player time to learn the loop.
-        // Day 1 = 50% slower, Day 2 = 30% slower, Day 3 = 15% slower.
+        // Hard mode skips the ease curve entirely + bumps spawn 40%.
         let earlyEase = 1;
-        if (S.day === 1) earlyEase = 0.5;
-        else if (S.day === 2) earlyEase = 0.7;
-        else if (S.day === 3) earlyEase = 0.85;
+        const hard = isHardMode();
+        if (!hard) {
+            if (S.day === 1) earlyEase = 0.5;
+            else if (S.day === 2) earlyEase = 0.7;
+            else if (S.day === 3) earlyEase = 0.85;
+        } else {
+            earlyEase = CONFIG.hardModeSpawnFactor;
+        }
         const effective = demand * signBoost * convenioBoost * earlyEase;
         const base = Phaser.Math.Between(CONFIG.spawnMinMs, CONFIG.spawnMaxMs);
         S.nextSpawnIn = Math.max(500, base / effective);
@@ -4147,18 +4228,39 @@ function spawnQueueCar() {
     const isEV = S.upgrades.evCharger && Math.random() * 100 < CONFIG.evCustomerChance;
     // ParkingApp customers (Nivel 5) — premium tariff + loyalty patience
     const isAppUser = S.upgrades.parkingApp && Math.random() * 100 < CONFIG.parkingAppUserChance;
+    // Vehicle variety — random size class: 15% trucks (bigger), 8% motos (smaller)
+    const vehicleRoll = Math.random();
+    const isTruck = vehicleRoll < 0.15;
+    const isMoto = !isTruck && vehicleRoll < 0.23;
+    let scale = 1.6;
+    let randomTint = null;
+    if (isTruck) {
+        scale = 2.0;           // bigger sprite = truck/SUV
+        // Trucks get a darker shade (custom tint shifts)
+        randomTint = Phaser.Math.RND.pick([0x71717a, 0x44403c, 0x57534e, 0x1f2937]);
+    } else if (isMoto) {
+        scale = 1.0;           // smaller = motorcycle
+        randomTint = Phaser.Math.RND.pick([0xfbbf24, 0xef4444, 0x10b981, 0x3b82f6]);
+    } else if (Math.random() < 0.30) {
+        // 30% of regular cars get a slight tint variation for visual diversity
+        const variations = [0xfee2e2, 0xfed7aa, 0xfde68a, 0xdcfce7, 0xdbeafe, 0xe0e7ff, 0xf3e8ff];
+        randomTint = Phaser.Math.RND.pick(variations);
+    }
+
     const textureKey = isEV
         ? Phaser.Math.RND.pick(['car_green_1', 'car_green_2', 'car_green_3', 'car_cyan_1'])
         : Phaser.Math.RND.pick(CAR_TEXTURES);
     const stayMin = Phaser.Math.Between(CONFIG.stayMinMin, CONFIG.stayMaxMin);
 
-    const sprite = scene.add.image(L.spawnX, L.entryLaneY, textureKey).setScale(1.6);
+    const sprite = scene.add.image(L.spawnX, L.entryLaneY, textureKey).setScale(scale);
     if (isEV) {
         sprite.setTint(0x4ade80);
         scene.tweens.add({
             targets: sprite, alpha: { from: 1, to: 0.85 },
             duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
         });
+    } else if (randomTint !== null) {
+        sprite.setTint(randomTint);
     }
     const windows = scene.add.rectangle(L.spawnX, L.entryLaneY, 1, 1, 0).setAlpha(0);
 
@@ -4168,7 +4270,7 @@ function spawnQueueCar() {
 
     const car = {
         id: Math.random().toString(36).slice(2),
-        sprite, windows, stayMin, isEV, isAppUser,
+        sprite, windows, stayMin, isEV, isAppUser, isTruck, isMoto,
         stayRemainingMs: stayMin * (1000 / CONFIG.timeSpeed),
         patience: CONFIG.patienceMs * patienceMul,
         exitPatience: CONFIG.exitPatienceMs * patienceMul,
@@ -4861,23 +4963,50 @@ function updateInfoBoard() {
     $('info-served-today').textContent = String(S.carsServedToday);
 }
 
-// ─── DAY/NIGHT TINT ────────────────────────────────────────
-// Returns {color: int, alpha: float} based on game hour.
-// 8-10: dawn (warm yellow, 0.05)
-// 10-15: bright day (clear, 0)
-// 15-17: afternoon (slight warm, 0.05)
-// 17-19: golden hour (orange, 0.12)
-// 19-21: dusk (purple, 0.25)
-// 21-22+: night (dark blue, 0.40)
+// ─── DAY/NIGHT TINT (smooth interpolation) ─────────────────
+// Defines keyframes (hour, color, alpha) and lerps between them so the
+// tint changes continuously throughout the day instead of snapping.
+const DAY_NIGHT_KEYFRAMES = [
+    { h: 8.0,  color: 0xfbbf24, alpha: 0.10 }, // dawn warm
+    { h: 9.5,  color: 0xfde047, alpha: 0.03 }, // morning soft
+    { h: 12.0, color: 0xffffff, alpha: 0.00 }, // noon
+    { h: 15.0, color: 0xffffff, alpha: 0.00 }, // bright
+    { h: 17.0, color: 0xfed7aa, alpha: 0.06 }, // late afternoon
+    { h: 18.5, color: 0xfb923c, alpha: 0.20 }, // golden hour
+    { h: 19.5, color: 0x9333ea, alpha: 0.32 }, // dusk
+    { h: 20.5, color: 0x4338ca, alpha: 0.42 }, // late dusk
+    { h: 21.5, color: 0x1e1b4b, alpha: 0.55 }, // night
+    { h: 22.5, color: 0x0c0a40, alpha: 0.60 }, // deep night
+];
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+function lerpColor(c1, c2, t) {
+    const r1 = (c1 >> 16) & 0xff, g1 = (c1 >> 8) & 0xff, b1 = c1 & 0xff;
+    const r2 = (c2 >> 16) & 0xff, g2 = (c2 >> 8) & 0xff, b2 = c2 & 0xff;
+    const r = Math.round(lerp(r1, r2, t));
+    const g = Math.round(lerp(g1, g2, t));
+    const b = Math.round(lerp(b1, b2, t));
+    return (r << 16) | (g << 8) | b;
+}
+
 function getDayNightTint(hour) {
-    if (hour < 9)       return { color: 0xfbbf24, alpha: 0.08 };  // dawn warm
-    if (hour < 10)      return { color: 0xfde047, alpha: 0.04 };  // morning soft
-    if (hour < 15)      return { color: 0xffffff, alpha: 0.00 };  // bright day
-    if (hour < 17)      return { color: 0xfed7aa, alpha: 0.05 };  // afternoon warmth
-    if (hour < 18.5)    return { color: 0xfb923c, alpha: 0.18 };  // golden hour
-    if (hour < 20)      return { color: 0x7c3aed, alpha: 0.30 };  // dusk purple
-    if (hour < 21)      return { color: 0x312e81, alpha: 0.42 };  // late dusk
-    return { color: 0x0c0a40, alpha: 0.55 };                       // night
+    // Clamp before first or after last keyframe
+    if (hour <= DAY_NIGHT_KEYFRAMES[0].h) return DAY_NIGHT_KEYFRAMES[0];
+    const last = DAY_NIGHT_KEYFRAMES[DAY_NIGHT_KEYFRAMES.length - 1];
+    if (hour >= last.h) return last;
+    // Find the bracketing keyframes and lerp
+    for (let i = 0; i < DAY_NIGHT_KEYFRAMES.length - 1; i++) {
+        const a = DAY_NIGHT_KEYFRAMES[i];
+        const b = DAY_NIGHT_KEYFRAMES[i + 1];
+        if (hour >= a.h && hour <= b.h) {
+            const t = (hour - a.h) / (b.h - a.h);
+            return {
+                color: lerpColor(a.color, b.color, t),
+                alpha: lerp(a.alpha, b.alpha, t),
+            };
+        }
+    }
+    return last;
 }
 
 function updateDayNightOverlay() {
@@ -5186,6 +5315,7 @@ function renderEndOfDay() {
     });
 
     // Record stats
+    const utility = S.revenueToday - S.salariesPaidToday;
     S.dailyStatsHistory.push({
         day: S.day, dow: S.dayOfWeek,
         revenue: S.revenueToday, salaries: S.salariesPaidToday,
@@ -5194,6 +5324,8 @@ function renderEndOfDay() {
         endMoney: S.money, reputation: S.reputation,
     });
     if (S.dailyStatsHistory.length > 30) S.dailyStatsHistory.shift();
+    // Track best days / lifetime stats in leaderboard
+    updateLeaderboard({ day: S.day, utility });
 
     const scene = S.scene;
     const W = CONFIG.width, H = CONFIG.height;

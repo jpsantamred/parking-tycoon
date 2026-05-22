@@ -489,7 +489,17 @@
             <div id="splash-clear-save" style="display:none; margin-top:8px; font-size:11px; color:#94a3b8; cursor:pointer; text-decoration:underline;">
                 ↻ Borrar partida guardada y empezar de cero
             </div>
-            <div class="splash-version">v0.45 · prototype</div>
+            <div id="splash-difficulty" style="margin-top:14px; font-size:12px; color:#94a3b8;">
+                <span>Dificultad:</span>
+                <label style="margin-left:8px; cursor:pointer;">
+                    <input type="radio" name="diff" value="normal" id="diff-normal" checked> Normal
+                </label>
+                <label style="margin-left:8px; cursor:pointer;">
+                    <input type="radio" name="diff" value="hard" id="diff-hard"> 🔥 Hard
+                </label>
+            </div>
+            <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
+            <div class="splash-version">v0.46 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -498,7 +508,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.45 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.46 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -582,8 +592,30 @@
                 startBtn.textContent = '↻  EMPEZAR NUEVA PARTIDA';
                 startBtn.style.background = '#475569';
             }
+            // Preselect saved difficulty
+            const diff = (typeof getDifficulty === 'function') ? getDifficulty() : 'normal';
+            const r = document.getElementById('diff-' + diff);
+            if (r) r.checked = true;
+            // Leaderboard display
+            const lb = (typeof getLeaderboard === 'function') ? getLeaderboard() : null;
+            if (lb && lb.bestUtility) {
+                const el = document.getElementById('splash-leaderboard');
+                el.innerHTML = `<strong style="color:#fde047;">🏆 RÉCORDS LOCALES</strong><br>
+                    Mejor día: <strong style="color:#10b981;">$${Math.floor(lb.bestUtility).toLocaleString('es-CL')}</strong> (D${lb.bestDay || '?'})<br>
+                    Racha positiva: <strong>${lb.longestStreak || 0}</strong> días<br>
+                    Lifetime atendidos: <strong>${lb.lifetimeServed || 0}</strong><br>
+                    Lifetime revenue: <strong>$${Math.floor(lb.lifetimeRevenue || 0).toLocaleString('es-CL')}</strong>`;
+                el.style.display = 'block';
+            }
         }
         refreshSplashSaveState();
+
+        // Save difficulty when changed
+        document.querySelectorAll('input[name="diff"]').forEach(r => {
+            r.addEventListener('change', e => {
+                if (typeof setDifficulty === 'function') setDifficulty(e.target.value);
+            });
+        });
 
         // EMPEZAR (new game) — always starts fresh (clears any save).
         document.getElementById('splash-start').addEventListener('click', () => {
