@@ -639,14 +639,11 @@ function drawBackground(scene) {
 }
 
 function drawPlaceholder(scene) {
-    scene.add.rectangle(L.placeholderCx, L.placeholderCy, L.placeholderW, L.placeholderH, 0x000000, 0)
-        .setStrokeStyle(2, COLORS.placeholderStroke);
-    scene.add.text(L.placeholderCx, L.placeholderCy - 10, 'CASETA', {
-        font: 'italic 13px monospace', color: '#9ca3af'
-    }).setOrigin(0.5);
-    scene.add.text(L.placeholderCx, L.placeholderCy + 10, '(upgrade)', {
-        font: 'italic 11px monospace', color: '#9ca3af'
-    }).setOrigin(0.5);
+    // Subtle post marker (a chalk circle on the floor where the cobrador stands).
+    // Avoids the ugly "CASETA (upgrade)" empty box look — just a faint footprint.
+    const post = scene.add.circle(L.placeholderCx, L.placeholderCy + 12, 14, 0xffffff, 0.10)
+        .setStrokeStyle(1, 0xffffff, 0.25);
+    // No labels — keep the lot looking like a real working spot, not a placeholder.
 
     // Without booth, show a CERRADO sign at the lot entrance when no operators
     const sign = scene.add.text(L.entryOpeningX, L.lotFenceY - 20,
@@ -1301,193 +1298,174 @@ function renderEmployeesTab(scene, contentY, panelW) {
 
 function renderUpgradesTab(scene, contentY, panelW) {
     const W = CONFIG.width;
-    const tableX = W/2 - panelW/2 + 24;
-    const upY = contentY;
+    const colLX = W/2 - panelW/2 + 24;
+    const colRX = colLX + 410;
+    const rowH = 30;
 
-    let ypos = upY;
+    // Helper to render a single upgrade row (compact, fits column width ~390)
+    const renderRow = (x, y, cfg) => {
+        if (cfg.done) {
+            S.managementUI.push(scene.add.text(x, y, `  ✅  ${cfg.doneLabel}`, {
+                font: 'bold 12px monospace', color: '#10b981'
+            }));
+            return;
+        }
+        const canAfford = S.money >= cfg.cost;
+        const btn = scene.add.text(x, y, ` ${cfg.label} `, {
+            font: 'bold 12px monospace', color: canAfford ? '#fff' : '#9ca3af',
+            backgroundColor: canAfford ? cfg.color : '#374151',
+            padding: { x: 9, y: 5 }
+        });
+        if (canAfford && cfg.onClick) {
+            btn.setInteractive({ useHandCursor: true });
+            btn.on('pointerdown', cfg.onClick);
+        }
+        S.managementUI.push(btn);
+        if (cfg.desc) {
+            S.managementUI.push(scene.add.text(x, y + 18, '  ' + cfg.desc,
+                { font: '10px monospace', color: '#94a3b8' }));
+        }
+    };
+
+    // ── LEFT COLUMN: INFRASTRUCTURE ─────────────────────────
+    let yL = contentY;
+    S.managementUI.push(scene.add.text(colLX, yL, '🏗️ INFRAESTRUCTURA', {
+        font: 'bold 13px monospace', color: '#fbbf24'
+    }));
+    yL += 22;
 
     // Caseta
-    if (!S.upgrades.booth) {
-        const canAfford = S.money >= CONFIG.boothCost;
-        const btn = scene.add.text(tableX, ypos, `  🛂  CASETA  $${CONFIG.boothCost.toLocaleString('es-CL')}  `, {
-            font: 'bold 13px monospace', color: canAfford ? '#fff' : '#9ca3af',
-            backgroundColor: canAfford ? '#3b82f6' : '#374151',
-            padding: { x: 12, y: 7 }
-        });
-        if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', purchaseBooth); }
-        S.managementUI.push(btn);
-        S.managementUI.push(scene.add.text(tableX + 245, ypos + 3,
-            '• sin caminata · cobro 33% más rápido',
-            { font: '12px monospace', color: '#cbd5e1' }
-        ));
-    } else {
-        S.managementUI.push(scene.add.text(tableX, ypos, '  ✅  Caseta',
-            { font: 'bold 13px monospace', color: '#10b981' }
-        ));
-    }
-    ypos += 38;
+    renderRow(colLX, yL, {
+        done: S.upgrades.booth,
+        doneLabel: 'Caseta de cobro',
+        cost: CONFIG.boothCost,
+        label: `🛂 CASETA  $${CONFIG.boothCost.toLocaleString('es-CL')}`,
+        color: '#3b82f6',
+        desc: 'sin caminata · cobro 33% más rápido',
+        onClick: purchaseBooth,
+    });
+    yL += rowH + 6;
 
     // Ad screens
     const adRemaining = CONFIG.adScreenMax - S.upgrades.adScreens;
-    if (adRemaining > 0) {
-        const canAfford = S.money >= CONFIG.adScreenCost;
-        const btn = scene.add.text(tableX, ypos, `  📺  PANTALLA  $${CONFIG.adScreenCost.toLocaleString('es-CL')}  (${S.upgrades.adScreens}/${CONFIG.adScreenMax})  `, {
-            font: 'bold 13px monospace', color: canAfford ? '#fff' : '#9ca3af',
-            backgroundColor: canAfford ? '#0891b2' : '#374151',
-            padding: { x: 12, y: 7 }
-        });
-        if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { purchaseAdScreen(); renderManagementPanel(); }); }
-        S.managementUI.push(btn);
-        S.managementUI.push(scene.add.text(tableX + 285, ypos + 3,
-            `• +$${CONFIG.adScreenIncomePerGameMin}/min pasivo · +${CONFIG.adScreenPatienceBonusPct}% paciencia`,
-            { font: '12px monospace', color: '#cbd5e1' }
-        ));
-    } else {
-        S.managementUI.push(scene.add.text(tableX, ypos, `  ✅  Pantallas (3/3)`, { font: 'bold 13px monospace', color: '#10b981' }));
-    }
-    ypos += 38;
+    renderRow(colLX, yL, {
+        done: adRemaining <= 0,
+        doneLabel: `Pantallas (${CONFIG.adScreenMax}/${CONFIG.adScreenMax})`,
+        cost: CONFIG.adScreenCost,
+        label: `📺 PANTALLA  $${CONFIG.adScreenCost.toLocaleString('es-CL')}  (${S.upgrades.adScreens}/${CONFIG.adScreenMax})`,
+        color: '#0891b2',
+        desc: `+$${CONFIG.adScreenIncomePerGameMin}/min · +${CONFIG.adScreenPatienceBonusPct}% paciencia`,
+        onClick: () => { purchaseAdScreen(); renderManagementPanel(); },
+    });
+    yL += rowH + 6;
 
     // Signs
     const signRemaining = CONFIG.signMax - S.upgrades.signs;
-    if (signRemaining > 0) {
-        const canAfford = S.money >= CONFIG.signCost;
-        const btn = scene.add.text(tableX, ypos, `  📣  CARTEL  $${CONFIG.signCost.toLocaleString('es-CL')}  (${S.upgrades.signs}/${CONFIG.signMax})  `, {
-            font: 'bold 13px monospace', color: canAfford ? '#fff' : '#9ca3af',
-            backgroundColor: canAfford ? '#ca8a04' : '#374151',
-            padding: { x: 12, y: 7 }
-        });
-        if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { purchaseSign(); renderManagementPanel(); }); }
-        S.managementUI.push(btn);
-        S.managementUI.push(scene.add.text(tableX + 265, ypos + 3,
-            `• +${CONFIG.signSpawnBoostPct}% spawn de autos`,
-            { font: '12px monospace', color: '#cbd5e1' }
-        ));
-    } else {
-        S.managementUI.push(scene.add.text(tableX, ypos, `  ✅  Carteles (2/2)`, { font: 'bold 13px monospace', color: '#10b981' }));
-    }
-    ypos += 38;
+    renderRow(colLX, yL, {
+        done: signRemaining <= 0,
+        doneLabel: `Carteles (${CONFIG.signMax}/${CONFIG.signMax})`,
+        cost: CONFIG.signCost,
+        label: `📣 CARTEL  $${CONFIG.signCost.toLocaleString('es-CL')}  (${S.upgrades.signs}/${CONFIG.signMax})`,
+        color: '#ca8a04',
+        desc: `+${CONFIG.signSpawnBoostPct}% spawn de autos`,
+        onClick: () => { purchaseSign(); renderManagementPanel(); },
+    });
+    yL += rowH + 6;
 
     // Expansion
     const expRemaining = CONFIG.expansionMax - S.upgrades.expansions;
-    if (expRemaining > 0) {
-        const canAfford = S.money >= CONFIG.expansionCost;
-        const btn = scene.add.text(tableX, ypos, `  🏗️  AMPLIAR  $${CONFIG.expansionCost.toLocaleString('es-CL')}  (${S.upgrades.expansions}/${CONFIG.expansionMax})  `, {
-            font: 'bold 13px monospace', color: canAfford ? '#fff' : '#9ca3af',
-            backgroundColor: canAfford ? '#16a34a' : '#374151',
-            padding: { x: 12, y: 7 }
-        });
-        if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { purchaseExpansion(); }); }
-        S.managementUI.push(btn);
-        S.managementUI.push(scene.add.text(tableX + 285, ypos + 3,
-            `• +${CONFIG.expansionExtraSpaces} espacios de estacionamiento`,
-            { font: '12px monospace', color: '#cbd5e1' }
-        ));
-    } else {
-        S.managementUI.push(scene.add.text(tableX, ypos, `  ✅  Lote al máximo (3/3)`, { font: 'bold 13px monospace', color: '#10b981' }));
-    }
-    ypos += 38;
+    renderRow(colLX, yL, {
+        done: expRemaining <= 0,
+        doneLabel: `Lote al máximo (${CONFIG.expansionMax}/${CONFIG.expansionMax})`,
+        cost: CONFIG.expansionCost,
+        label: `🏗️ AMPLIAR  $${CONFIG.expansionCost.toLocaleString('es-CL')}  (${S.upgrades.expansions}/${CONFIG.expansionMax})`,
+        color: '#16a34a',
+        desc: `+${CONFIG.expansionExtraSpaces} espacios de estacionamiento`,
+        onClick: () => { purchaseExpansion(); },
+    });
+    yL += rowH + 6;
 
     // Subscriptions (Mensualistas)
     const subActive = S.subscriptions.length;
     const subRemaining = CONFIG.subscriptionMax - subActive;
-    if (subRemaining > 0) {
-        const btn = scene.add.text(tableX, ypos, `  📋  MENSUALISTA  $${CONFIG.subscriptionPricePerDay.toLocaleString('es-CL')}/día x${CONFIG.subscriptionDayRange}d  (${subActive}/${CONFIG.subscriptionMax})  `, {
-            font: 'bold 13px monospace', color: '#fff',
-            backgroundColor: '#a855f7',
-            padding: { x: 12, y: 7 }
-        });
-        btn.setInteractive({ useHandCursor: true });
-        btn.on('pointerdown', () => { purchaseSubscription(); renderManagementPanel(); });
-        S.managementUI.push(btn);
-        S.managementUI.push(scene.add.text(450, ypos + 3,
-            '• Revenue fijo · ocupa 1 espacio',
-            { font: '12px monospace', color: '#cbd5e1' }
-        ));
-    } else {
-        S.managementUI.push(scene.add.text(tableX, ypos, `  ✅  Mensualistas al máximo`, { font: 'bold 13px monospace', color: '#10b981' }));
-    }
-    ypos += 38;
+    renderRow(colLX, yL, {
+        done: subRemaining <= 0,
+        doneLabel: `Mensualistas (${CONFIG.subscriptionMax}/${CONFIG.subscriptionMax})`,
+        cost: CONFIG.subscriptionPricePerDay * CONFIG.subscriptionDayRange,
+        label: `📋 MENSUALISTA  $${CONFIG.subscriptionPricePerDay.toLocaleString('es-CL')}/día x${CONFIG.subscriptionDayRange}d  (${subActive}/${CONFIG.subscriptionMax})`,
+        color: '#a855f7',
+        desc: 'revenue fijo · ocupa 1 espacio',
+        onClick: () => { purchaseSubscription(); renderManagementPanel(); },
+    });
+    yL += rowH + 6;
 
-    // ── SAFETY & SERVICES ─────────────────────────────────
-    // Cameras
-    if (!S.upgrades.cameras) {
-        const canAfford = S.money >= CONFIG.cameraCost;
-        const btn = scene.add.text(tableX, ypos, `  📹  CÁMARAS  $${CONFIG.cameraCost.toLocaleString('es-CL')}  `, {
-            font: 'bold 13px monospace', color: canAfford ? '#fff' : '#9ca3af',
-            backgroundColor: canAfford ? '#1e40af' : '#374151',
-            padding: { x: 12, y: 7 }
+    // POS upgrade (Nivel 2)
+    if (S.upgrades.booth && !S.upgrades.pos && S.cinematicShown) {
+        renderRow(colLX, yL, {
+            done: false,
+            cost: CONFIG.posCost,
+            label: `💳 POS DIGITAL  $${CONFIG.posCost.toLocaleString('es-CL')}`,
+            color: '#dc2626',
+            desc: 'Nivel 2 · cobro 0.3s · 5x productividad',
+            onClick: () => { purchasePOS(); renderManagementPanel(); },
         });
-        if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { purchaseCameras(); renderManagementPanel(); }); }
-        S.managementUI.push(btn);
-        S.managementUI.push(scene.add.text(tableX + 260, ypos + 3,
-            '• bloquea robos · bloquea vandalismo', { font: '12px monospace', color: '#cbd5e1' }));
+    } else if (S.upgrades.pos) {
+        renderRow(colLX, yL, { done: true, doneLabel: 'POS Digital (Nivel 2)' });
     } else {
-        S.managementUI.push(scene.add.text(tableX, ypos, '  ✅  Cámaras', { font: 'bold 13px monospace', color: '#10b981' }));
+        S.managementUI.push(scene.add.text(colLX, yL,
+            '  💳  POS DIGITAL  — bloqueado (necesita caseta + cinemática)',
+            { font: 'italic 11px monospace', color: '#64748b' }));
     }
-    ypos += 38;
+    yL += rowH + 6;
+
+    // ── RIGHT COLUMN: SERVICIOS & ESTÉTICA ──────────────────
+    let yR = contentY;
+    S.managementUI.push(scene.add.text(colRX, yR, '🛡️ SERVICIOS', {
+        font: 'bold 13px monospace', color: '#fbbf24'
+    }));
+    yR += 22;
+
+    // Cameras
+    renderRow(colRX, yR, {
+        done: S.upgrades.cameras,
+        doneLabel: 'Cámaras de seguridad',
+        cost: CONFIG.cameraCost,
+        label: `📹 CÁMARAS  $${CONFIG.cameraCost.toLocaleString('es-CL')}`,
+        color: '#1e40af',
+        desc: 'bloquea robos · bloquea vandalismo',
+        onClick: () => { purchaseCameras(); renderManagementPanel(); },
+    });
+    yR += rowH + 6;
 
     // Car wash
-    if (!S.upgrades.carwash) {
-        const canAfford = S.money >= CONFIG.washCost;
-        const btn = scene.add.text(tableX, ypos, `  🚿  LAVADO  $${CONFIG.washCost.toLocaleString('es-CL')}  `, {
-            font: 'bold 13px monospace', color: canAfford ? '#fff' : '#9ca3af',
-            backgroundColor: canAfford ? '#0d9488' : '#374151',
-            padding: { x: 12, y: 7 }
-        });
-        if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { purchaseCarwash(); renderManagementPanel(); }); }
-        S.managementUI.push(btn);
-        S.managementUI.push(scene.add.text(tableX + 240, ypos + 3,
-            `• ${CONFIG.washPctChance}% autos pagan $${CONFIG.washPrice.toLocaleString('es-CL')} extra`,
-            { font: '12px monospace', color: '#cbd5e1' }));
-    } else {
-        S.managementUI.push(scene.add.text(tableX, ypos, '  ✅  Lavado de autos', { font: 'bold 13px monospace', color: '#10b981' }));
-    }
-    ypos += 38;
+    renderRow(colRX, yR, {
+        done: S.upgrades.carwash,
+        doneLabel: 'Lavado de autos',
+        cost: CONFIG.washCost,
+        label: `🚿 LAVADO  $${CONFIG.washCost.toLocaleString('es-CL')}`,
+        color: '#0d9488',
+        desc: `${CONFIG.washPctChance}% pagan $${CONFIG.washPrice.toLocaleString('es-CL')} extra`,
+        onClick: () => { purchaseCarwash(); renderManagementPanel(); },
+    });
+    yR += rowH + 6;
 
     // EV charger
-    if (!S.upgrades.evCharger) {
-        const canAfford = S.money >= CONFIG.evChargerCost;
-        const btn = scene.add.text(tableX, ypos, `  🔌  CARGADOR EV  $${CONFIG.evChargerCost.toLocaleString('es-CL')}  `, {
-            font: 'bold 13px monospace', color: canAfford ? '#fff' : '#9ca3af',
-            backgroundColor: canAfford ? '#16a34a' : '#374151',
-            padding: { x: 12, y: 7 }
-        });
-        if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { purchaseEVCharger(); renderManagementPanel(); }); }
-        S.managementUI.push(btn);
-        S.managementUI.push(scene.add.text(tableX + 290, ypos + 3,
-            `• ${CONFIG.evCustomerChance}% spawns son EV · pagan ${CONFIG.evMultiplier}x`,
-            { font: '12px monospace', color: '#cbd5e1' }));
-    } else {
-        S.managementUI.push(scene.add.text(tableX, ypos, '  ✅  Cargador EV', { font: 'bold 13px monospace', color: '#10b981' }));
-    }
-    ypos += 38;
+    renderRow(colRX, yR, {
+        done: S.upgrades.evCharger,
+        doneLabel: 'Cargador EV',
+        cost: CONFIG.evChargerCost,
+        label: `🔌 CARGADOR EV  $${CONFIG.evChargerCost.toLocaleString('es-CL')}`,
+        color: '#16a34a',
+        desc: `${CONFIG.evCustomerChance}% spawns EV · pagan ${CONFIG.evMultiplier}x`,
+        onClick: () => { purchaseEVCharger(); renderManagementPanel(); },
+    });
+    yR += rowH + 12;
 
-    // POS upgrade (Nivel 2) — ONLY after Ana's cinematic introduces ParkingApp
-    if (S.upgrades.booth && !S.upgrades.pos && S.cinematicShown) {
-        const canAfford = S.money >= CONFIG.posCost;
-        const btn = scene.add.text(tableX, ypos, `  💳  POS DIGITAL  $${CONFIG.posCost.toLocaleString('es-CL')}  `, {
-            font: 'bold 13px monospace', color: canAfford ? '#fff' : '#9ca3af',
-            backgroundColor: canAfford ? '#dc2626' : '#374151',
-            padding: { x: 12, y: 7 }
-        });
-        if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { purchasePOS(); renderManagementPanel(); }); }
-        S.managementUI.push(btn);
-        S.managementUI.push(scene.add.text(tableX + 235, ypos + 3,
-            '• Nivel 2 · cobro súper rápido (0.3s) · 5x productividad',
-            { font: '12px monospace', color: '#cbd5e1' }
-        ));
-    } else if (S.upgrades.pos) {
-        S.managementUI.push(scene.add.text(tableX, ypos, '  ✅  POS Digital INSTALADO (Nivel 2)', {
-            font: 'bold 13px monospace', color: '#10b981'
-        }));
-    }
-    ypos += 38;
-
-    // ── AESTHETIC / REPUTATION UPGRADES ───────────────────
-    S.managementUI.push(scene.add.text(tableX, ypos, '✨ ESTÉTICA & REPUTACIÓN', {
-        font: 'bold 15px monospace', color: '#a5f3fc'
+    // ── AESTHETIC / REPUTATION UPGRADES (right col) ─────────
+    S.managementUI.push(scene.add.text(colRX, yR, '✨ ESTÉTICA & REPUTACIÓN', {
+        font: 'bold 13px monospace', color: '#a5f3fc'
     }));
-    ypos += 24;
+    yR += 22;
     const aestheticUpgrades = [
         { key: 'pavement', cost: CONFIG.pavementCost, bonus: CONFIG.pavementRepBonus, name: '🪨 Pavimentar',      fn: purchasePavement },
         { key: 'lines',    cost: CONFIG.linesCost,    bonus: CONFIG.linesRepBonus,    name: '🎨 Líneas pintadas',   fn: purchaseLines },
@@ -1499,46 +1477,56 @@ function renderUpgradesTab(scene, contentY, panelW) {
         const active = S.upgrades[a.key];
         const canAfford = S.money >= a.cost;
         if (active) {
-            S.managementUI.push(scene.add.text(tableX, ypos, `  ✅  ${a.name}`, {
-                font: 'bold 12px monospace', color: '#10b981'
+            S.managementUI.push(scene.add.text(colRX, yR, `  ✅  ${a.name}`, {
+                font: 'bold 11px monospace', color: '#10b981'
             }));
         } else {
-            const btn = scene.add.text(tableX, ypos, `  ${a.name}  $${a.cost.toLocaleString('es-CL')}  +${a.bonus} rep  `, {
-                font: 'bold 12px monospace', color: canAfford ? '#fff' : '#9ca3af',
+            const btn = scene.add.text(colRX, yR, ` ${a.name}  $${a.cost.toLocaleString('es-CL')}  +${a.bonus} rep `, {
+                font: 'bold 11px monospace', color: canAfford ? '#fff' : '#9ca3af',
                 backgroundColor: canAfford ? '#7c2d12' : '#374151',
-                padding: { x: 10, y: 5 }
+                padding: { x: 8, y: 4 }
             });
-            if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { a.fn(); }); }
+            if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { a.fn(); renderManagementPanel(); }); }
             S.managementUI.push(btn);
         }
-        ypos += 24;
+        yR += 22;
     });
-    ypos += 12;
 
-    // ── CONVENIOS ──────────────────────────────────────────
-    S.managementUI.push(scene.add.text(45, ypos, '🤝 CONVENIOS', {
-        font: 'bold 15px monospace', color: '#a5f3fc'
+    // ── CONVENIOS (spans full width at bottom) ─────────────
+    const yBottom = Math.max(yL, yR) + 14;
+    S.managementUI.push(scene.add.text(colLX, yBottom, '🤝 CONVENIOS', {
+        font: 'bold 13px monospace', color: '#fbbf24'
     }));
-    ypos += 24;
+    let xConv = colLX;
+    let yConv = yBottom + 22;
+    let convIdx = 0;
+    // Abbreviate names so 3 buttons fit in the bottom row
+    const conveniosShort = {
+        restaurant: '🍽️ Restaurante',
+        mall:       '🛍️ Mall Plaza',
+        cinema:     '🎬 Cine Hoyts',
+    };
     Object.values(CONVENIOS).forEach(c => {
         const active = S.upgrades.convenios.includes(c.id);
         const canAfford = S.money >= c.cost;
+        const xPos = colLX + (convIdx % 3) * 270;
+        const yPos = yBottom + 22 + Math.floor(convIdx / 3) * 24;
+        const shortName = conveniosShort[c.id] || c.name;
         if (active) {
-            S.managementUI.push(scene.add.text(45, ypos, `  ✅  ${c.name}`, {
-                font: 'bold 12px monospace', color: '#10b981'
+            S.managementUI.push(scene.add.text(xPos, yPos, `  ✅  ${shortName}`, {
+                font: 'bold 11px monospace', color: '#10b981'
             }));
         } else {
-            const btn = scene.add.text(tableX, ypos, `  ${c.name}  $${c.cost.toLocaleString('es-CL')}  +${c.spawnBoost}% / -${c.revenueCut}%  `, {
-                font: 'bold 12px monospace', color: canAfford ? '#fff' : '#9ca3af',
+            const btn = scene.add.text(xPos, yPos, ` ${shortName} $${c.cost.toLocaleString('es-CL')} +${c.spawnBoost}%/-${c.revenueCut}% `, {
+                font: 'bold 11px monospace', color: canAfford ? '#fff' : '#9ca3af',
                 backgroundColor: canAfford ? '#0d9488' : '#374151',
-                padding: { x: 10, y: 5 }
+                padding: { x: 7, y: 4 }
             });
             if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { purchaseConvenio(c.id); renderManagementPanel(); }); }
             S.managementUI.push(btn);
         }
-        ypos += 26;
+        convIdx++;
     });
-
 }
 
 function renderStatsTab(scene, contentY, panelW) {
