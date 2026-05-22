@@ -1378,6 +1378,10 @@ function renderManagementPanel() {
     S.managementUI.push(scene.add.text(W/2, H - 14, 'ESC o ✕ para cerrar  ·  G abre/cierra', {
         font: 'italic 11px monospace', color: '#94a3b8'
     }).setOrigin(0.5));
+
+    // All management UI sits ABOVE booth (depth 15), guard accessories (~depth 0),
+    // barriers and other lot decoration. Set high depth so the panel always wins.
+    S.managementUI.forEach(o => { try { o.setDepth(200); } catch(e) {} });
 }
 
 function renderEmployeesTab(scene, contentY, panelW) {
@@ -1929,7 +1933,9 @@ function drawBarriers(scene) {
         //            screen-right side anyway, this just keeps it visible).
         const onRight = (kind === 'entry');
         const postX = onRight ? x + 22 : x - 22;
-        const postY = L.lotFenceY;
+        // User feedback: barriers should be at the height of the booth's
+        // "$ CASETA $" sign, not at the top of the lot. Place at booth bottom.
+        const postY = L.placeholderCy + L.placeholderH/2 - 8;
         const sprites = [];
 
         // === POST (housing the scanner) ===
@@ -1971,6 +1977,11 @@ function drawBarriers(scene) {
         // For left-extending  (entry): closed=0 also (the bar is already mirrored),
         //                              open=+90 (rotate up the other way).
         arm.angle = 0;
+
+        // Depth: barriers should be ABOVE cars (cars must visually drive UNDER
+        // the closed arm and stop). Set higher than default 0.
+        sprites.forEach(s => { try { s.setDepth(18); } catch(e) {} });
+        arm.setDepth(18);
 
         // Save references for animation
         S.barriers[kind] = { arm, led, sprites, isOpen: false, x, postX, postY, armDir };
@@ -2026,10 +2037,12 @@ function operateGate(kind, onOpen, onClosed) {
 // (smaller x). The totem sits at lotFenceY - 35 so the slot/screen is at
 // driver-window height when the car stops at the totem stop position.
 const TOTEM_X_OFFSET = -20;   // LEFT of entry opening center (driver-side)
-function getTotemStopY() { return L.lotFenceY - 35; }   // car's center y when at totem
+// Totem sits next to the gate. With the barrier moved to booth-sign level,
+// the totem is also there — driver pulls ticket at the gate, then crosses.
+function getTotemStopY() { return L.placeholderCy + L.placeholderH/2 - 35; }
 function drawEntryTotem(scene) {
     const x = L.entryOpeningX + TOTEM_X_OFFSET;   // LEFT side of opening
-    const y = L.lotFenceY - 35;                    // height of driver window when at stop
+    const y = L.placeholderCy + L.placeholderH/2 - 35;  // aligned to barrier height
     S.entryTotemSprites = [];
     // Concrete base
     S.entryTotemSprites.push(scene.add.rectangle(x, y + 18, 14, 6, 0x52525b));
@@ -2211,19 +2224,31 @@ function drawAesthetics(scene) {
 }
 
 function drawSafetyAndServices(scene) {
-    // Security cameras at lot corners
+    // Security cameras at lot corners — bigger + label so they read clearly
     if (S.upgrades.cameras) {
         const corners = [
-            { x: L.lotLeft + 12, y: L.lotFenceY + 12 },
-            { x: L.lotRight - 12, y: L.lotFenceY + 12 },
-            { x: L.lotLeft + 12, y: L.lotBottom - 12 },
-            { x: L.lotRight - 12, y: L.lotBottom - 12 },
+            { x: L.lotLeft + 18, y: L.lotFenceY + 18 },
+            { x: L.lotRight - 18, y: L.lotFenceY + 18 },
+            { x: L.lotLeft + 18, y: L.lotBottom - 18 },
+            { x: L.lotRight - 18, y: L.lotBottom - 18 },
         ];
         corners.forEach(p => {
-            scene.add.rectangle(p.x, p.y, 10, 8, 0x000000).setStrokeStyle(1, 0xcbd5e1);
-            scene.add.circle(p.x + 2, p.y, 2, 0x991b1b);
-            const led = scene.add.circle(p.x - 3, p.y - 2, 1.5, 0x10b981);
+            // Mounting pole (small bracket down from the corner)
+            scene.add.rectangle(p.x, p.y + 4, 3, 8, 0x52525b);
+            // Camera housing — dome-shaped (black body)
+            scene.add.rectangle(p.x, p.y, 20, 14, 0x111827).setStrokeStyle(2, 0xcbd5e1);
+            // Front lens (the "eye") — bigger red dot
+            scene.add.circle(p.x + 5, p.y, 4, 0x7f1d1d).setStrokeStyle(1, 0xfca5a5);
+            scene.add.circle(p.x + 5, p.y, 2, 0xef4444);
+            // Recording LED — blinking green
+            const led = scene.add.circle(p.x - 6, p.y - 4, 2, 0x10b981);
             scene.tweens.add({ targets: led, alpha: { from: 1, to: 0.2 }, duration: 800, yoyo: true, repeat: -1 });
+            // "REC" mini-label
+            scene.add.text(p.x - 6, p.y + 4, 'REC', {
+                font: 'bold 4px monospace', color: '#fca5a5'
+            }).setOrigin(0.5);
+            // 📹 emoji on top for unmistakable identification
+            scene.add.text(p.x, p.y - 14, '📹', { font: '11px sans-serif' }).setOrigin(0.5);
         });
     }
 
@@ -2715,8 +2740,10 @@ function closeCinematic() {
 
 function purchaseSubscription() {
     if (S.subscriptions.length >= CONFIG.subscriptionMax) return;
-    // Reserve the first available space
-    const space = S.spaces.find(s => !s.occupied);
+    // Reserve the first available NON-EV space (mensualistas don't get the
+    // green EV spots — those stay reserved for EV cars).
+    let space = S.spaces.find(s => !s.occupied && !s.isEV);
+    if (!space) space = S.spaces.find(s => !s.occupied);   // fallback if lot is super full
     if (!space) { flashEvent('❌ Sin espacios libres para mensualista'); return; }
 
     // Charge full subscription UPFRONT (prepaid)
