@@ -609,12 +609,109 @@ const EVENTS = [
             flashEvent('🚧 Protesta corta las calles. Menos autos llegando. ¡La app ParkingApp ayudaría!');
         }
     },
+    // ── BRANCH-LOT-SPECIFIC EVENTS — only fire if you OWN the lot ──
+    {
+        id: 'beach_marea', weight: 5, name: 'Marea alta (Playa)',
+        requireLot: 'beach',
+        apply: () => {
+            const loss = 8000;
+            S.money -= loss;
+            flashEvent(`🌊 Marea alta en Reñaca — acceso bloqueado 2h. -$${loss.toLocaleString('es-CL')}`);
+        }
+    },
+    {
+        id: 'beach_summer', weight: 6, name: 'Día de calor récord (Playa)',
+        requireLot: 'beach',
+        apply: () => {
+            const bonus = 22000;
+            S.money += bonus;
+            flashEvent(`🌞 Calor récord — Reñaca explota de turistas. +$${bonus.toLocaleString('es-CL')}`);
+        }
+    },
+    {
+        id: 'hospital_emerg', weight: 4, name: 'Emergencia (Hospital)',
+        requireLot: 'hospital',
+        apply: () => {
+            const loss = 6000;
+            S.money -= loss;
+            flashEvent(`🚑 Hospital: emergencia masiva, ambulancias bloquean espacios. -$${loss.toLocaleString('es-CL')}`);
+        }
+    },
+    {
+        id: 'hospital_visit', weight: 5, name: 'Día de visita (Hospital)',
+        requireLot: 'hospital',
+        apply: () => {
+            const bonus = 15000;
+            S.money += bonus;
+            flashEvent(`💐 Hospital: día de visita familiar. +$${bonus.toLocaleString('es-CL')}`);
+        }
+    },
+    {
+        id: 'mall_sale', weight: 6, name: 'Black Friday (Mall)',
+        requireLot: 'mall',
+        apply: () => {
+            const bonus = 40000;
+            S.money += bonus;
+            flashEvent(`🛒 Mall en Black Friday — lote a tope. +$${bonus.toLocaleString('es-CL')}`);
+        }
+    },
+    {
+        id: 'finance_crash', weight: 3, name: 'Crisis bursátil (Distrito)',
+        requireLot: 'finance',
+        apply: () => {
+            const loss = 18000;
+            S.money -= loss;
+            flashEvent(`📉 Crisis bursátil — ejecutivos a casa. -$${loss.toLocaleString('es-CL')} en distrito.`);
+        }
+    },
+    {
+        id: 'finance_ipo', weight: 4, name: 'IPO grande (Distrito)',
+        requireLot: 'finance',
+        apply: () => {
+            const bonus = 55000;
+            S.money += bonus;
+            flashEvent(`💼 IPO mega-corp en el distrito — banqueros parqueando todo el día. +$${bonus.toLocaleString('es-CL')}`);
+        }
+    },
+    {
+        id: 'airport_delay', weight: 4, name: 'Vuelos demorados (Aeropuerto)',
+        requireLot: 'airport',
+        apply: () => {
+            const bonus = 70000;
+            S.money += bonus;
+            flashEvent(`✈️ Vuelos demorados — pasajeros parqueando horas extra. +$${bonus.toLocaleString('es-CL')}`);
+        }
+    },
+    {
+        id: 'stadium_classic', weight: 5, name: 'Partido clásico (Estadio)',
+        requireLot: 'stadium',
+        apply: () => {
+            const bonus = 120000;
+            S.money += bonus;
+            flashEvent(`⚽ ¡CLÁSICO en el Monumental! Demanda histórica. +$${bonus.toLocaleString('es-CL')}`);
+        }
+    },
+    {
+        id: 'stadium_rain', weight: 3, name: 'Partido suspendido (Estadio)',
+        requireLot: 'stadium',
+        apply: () => {
+            const loss = 30000;
+            S.money -= loss;
+            flashEvent(`🌧️ Partido suspendido por lluvia — nadie estaciona. -$${loss.toLocaleString('es-CL')}`);
+        }
+    },
 ];
 
 function triggerRandomEvent() {
-    const totalWeight = EVENTS.reduce((s, e) => s + e.weight, 0);
+    // Filter: only include events whose requireLot matches an owned branch lot
+    // (or which have no requireLot at all — generic events always available).
+    const eligible = EVENTS.filter(e => {
+        if (!e.requireLot) return true;
+        return S.branchLots && S.branchLots.includes(e.requireLot);
+    });
+    const totalWeight = eligible.reduce((s, e) => s + e.weight, 0);
     let roll = Math.random() * totalWeight;
-    for (const ev of EVENTS) {
+    for (const ev of eligible) {
         roll -= ev.weight;
         if (roll <= 0) { ev.apply(); return ev.id; }
     }
@@ -2277,6 +2374,16 @@ function renderUpgradesTab(scene, contentY, panelW) {
     });
 }
 
+// Stylized map positions for each lot type. Coords relative to map area.
+const LOT_MAP_POSITIONS = {
+    beach:    { x: 0.18, y: 0.72 },
+    hospital: { x: 0.42, y: 0.30 },
+    mall:     { x: 0.55, y: 0.68 },
+    finance:  { x: 0.72, y: 0.20 },
+    airport:  { x: 0.88, y: 0.55 },
+    stadium:  { x: 0.32, y: 0.85 },
+};
+
 function renderLotsTab(scene, contentY, panelW) {
     const W = CONFIG.width;
     const tableX = W/2 - panelW/2 + 24;
@@ -2298,58 +2405,94 @@ function renderLotsTab(scene, contentY, panelW) {
         `${(S.branchLots || []).length} lotes · hoy +$${Math.floor(totalDaily).toLocaleString('es-CL')}/día`,
         { font: '12px monospace', color: '#86efac' }
     ));
-    ypos += 26;
-    S.managementUI.push(scene.add.text(tableX, ypos,
-        'Expandí tu imperio comprando lotes en otros barrios. Cada uno tiene su ritmo.',
-        { font: 'italic 11px monospace', color: '#94a3b8' }));
     ypos += 22;
 
-    // Render each lot type as a card
+    // ─── CITY MAP ─────────────────────────────────────────
+    const mapW = 340, mapH = 130;
+    const mapX = tableX, mapY = ypos;
+    // Map background — dark with subtle grid feel
+    S.managementUI.push(scene.add.rectangle(mapX + mapW/2, mapY + mapH/2, mapW, mapH, 0x0c1726)
+        .setStrokeStyle(2, 0x334155));
+    // Subtle grid lines (street feel)
+    for (let gx = 1; gx < 5; gx++) {
+        S.managementUI.push(scene.add.rectangle(mapX + gx * mapW / 5, mapY + mapH/2, 1, mapH - 4, 0x1e293b));
+    }
+    for (let gy = 1; gy < 3; gy++) {
+        S.managementUI.push(scene.add.rectangle(mapX + mapW/2, mapY + gy * mapH / 3, mapW - 4, 1, 0x1e293b));
+    }
+    // "CIUDAD" label
+    S.managementUI.push(scene.add.text(mapX + 6, mapY + 4, 'CIUDAD', {
+        font: 'bold 8px monospace', color: '#475569'
+    }));
+    // Plot each lot as a marker
+    LOT_TYPES.forEach(lot => {
+        const pos = LOT_MAP_POSITIONS[lot.id];
+        if (!pos) return;
+        const px = mapX + pos.x * mapW;
+        const py = mapY + pos.y * mapH;
+        const owned = (S.branchLots || []).includes(lot.id);
+        const locked = lot.unlockRequires && !S.upgrades[lot.unlockRequires];
+        // Marker base (background circle)
+        const baseColor = owned ? 0x10b981 : (locked ? 0x475569 : 0xfbbf24);
+        const marker = scene.add.circle(px, py, 11, baseColor, owned ? 1 : 0.6)
+            .setStrokeStyle(2, owned ? 0x86efac : (locked ? 0x64748b : 0xfde047));
+        S.managementUI.push(marker);
+        // Pulse animation for owned lots
+        if (owned) {
+            const pulse = scene.add.circle(px, py, 11, baseColor, 0.4);
+            scene.tweens.add({ targets: pulse, radius: 20, alpha: 0, duration: 1600, repeat: -1 });
+            S.managementUI.push(pulse);
+        }
+        // Icon emoji on top of marker
+        S.managementUI.push(scene.add.text(px, py, lot.icon, {
+            font: '12px sans-serif'
+        }).setOrigin(0.5));
+    });
+
+    // ── Main lot indicator (the parking you're playing in) ──
+    const mainX = mapX + 0.50 * mapW;
+    const mainY = mapY + 0.55 * mapH;
+    const mainMarker = scene.add.circle(mainX, mainY, 9, 0xa855f7, 1).setStrokeStyle(2, 0xfde047);
+    S.managementUI.push(mainMarker);
+    S.managementUI.push(scene.add.text(mainX, mainY, '🅿️', { font: '11px sans-serif' }).setOrigin(0.5));
+    S.managementUI.push(scene.add.text(mainX + 10, mainY - 16, 'tu lote', {
+        font: 'bold 8px monospace', color: '#a5b4fc'
+    }));
+
+    // Cards (compact form, side-by-side with the map on the right)
+    const cardsX = mapX + mapW + 16;
+    const cardsW = panelW - mapW - 70;
+    ypos = mapY;
     LOT_TYPES.forEach((lot, idx) => {
         const owned = (S.branchLots || []).includes(lot.id);
         const locked = lot.unlockRequires && !S.upgrades[lot.unlockRequires];
         const canAfford = S.money >= lot.cost;
-        const col = idx % 2;
-        const row = Math.floor(idx / 2);
-        const cardX = tableX + col * 410;
-        const cardY = ypos + row * 60;
-        // Card background
-        S.managementUI.push(scene.add.rectangle(cardX + 200, cardY + 26, 400, 52, 0x1e293b, 0.6)
-            .setStrokeStyle(1, owned ? 0x10b981 : (locked ? 0x475569 : (canAfford ? 0xfbbf24 : 0x475569))));
-        // Icon
-        S.managementUI.push(scene.add.text(cardX + 14, cardY + 26, lot.icon, {
-            font: '24px sans-serif'
-        }).setOrigin(0.5));
-        // Name + flavor
-        S.managementUI.push(scene.add.text(cardX + 36, cardY + 12, lot.name, {
-            font: 'bold 12px monospace', color: '#fff'
+        const cardY = mapY + idx * 22;
+        // Mini row card
+        S.managementUI.push(scene.add.text(cardsX, cardY, lot.icon, {
+            font: '14px sans-serif'
         }));
-        S.managementUI.push(scene.add.text(cardX + 36, cardY + 28, lot.flavor, {
-            font: 'italic 9px monospace', color: '#94a3b8'
+        S.managementUI.push(scene.add.text(cardsX + 22, cardY, lot.name, {
+            font: 'bold 10px monospace', color: owned ? '#86efac' : '#cbd5e1'
         }));
-        S.managementUI.push(scene.add.text(cardX + 36, cardY + 42,
-            `+$${lot.dailyIncome.toLocaleString('es-CL')}/día base · L-V ${lot.weekdayFactor}x · S-D ${lot.weekendFactor}x`,
-            { font: '9px monospace', color: '#cbd5e1' }
-        ));
-        // Right side: status / buy button
+        // Status / buy
         if (owned) {
-            S.managementUI.push(scene.add.text(cardX + 320, cardY + 26, '✅ TUYO', {
-                font: 'bold 11px monospace', color: '#10b981',
-                backgroundColor: '#064e3b', padding: { x: 8, y: 5 }
-            }).setOrigin(0.5));
+            S.managementUI.push(scene.add.text(cardsX + cardsW - 10, cardY, '✅', {
+                font: '12px sans-serif'
+            }).setOrigin(1, 0));
         } else if (locked) {
-            S.managementUI.push(scene.add.text(cardX + 320, cardY + 26, `🔒 ${lot.unlockRequires}`, {
-                font: 'bold 9px monospace', color: '#94a3b8',
-                backgroundColor: '#1f2937', padding: { x: 6, y: 4 }
-            }).setOrigin(0.5));
+            S.managementUI.push(scene.add.text(cardsX + cardsW - 10, cardY,
+                `🔒 ${lot.unlockRequires}`, {
+                font: '9px monospace', color: '#64748b'
+            }).setOrigin(1, 0));
         } else {
-            const btn = scene.add.text(cardX + 320, cardY + 26,
-                `$${(lot.cost/1000000).toFixed(1)}M`, {
-                font: 'bold 11px monospace',
+            const btn = scene.add.text(cardsX + cardsW - 10, cardY,
+                `${(lot.cost/1000000).toFixed(1)}M`, {
+                font: 'bold 10px monospace',
                 color: canAfford ? '#fff' : '#9ca3af',
                 backgroundColor: canAfford ? '#0d9488' : '#374151',
-                padding: { x: 10, y: 6 }
-            }).setOrigin(0.5);
+                padding: { x: 6, y: 2 }
+            }).setOrigin(1, 0);
             if (canAfford) {
                 btn.setInteractive({ useHandCursor: true });
                 btn.on('pointerdown', () => purchaseBranchLot(lot.id));
@@ -2357,6 +2500,33 @@ function renderLotsTab(scene, contentY, panelW) {
             S.managementUI.push(btn);
         }
     });
+
+    ypos = mapY + mapH + 14;
+    // Detail section for owned lots
+    if ((S.branchLots || []).length > 0) {
+        S.managementUI.push(scene.add.text(tableX, ypos, '✨ TUS LOTES — Performance hoy', {
+            font: 'bold 12px monospace', color: '#fde047'
+        }));
+        ypos += 16;
+        const isWeekend = (S.dayOfWeek === 5 || S.dayOfWeek === 6);
+        S.branchLots.forEach((id, i) => {
+            const lot = LOT_TYPES.find(l => l.id === id);
+            if (!lot) return;
+            const factor = isWeekend ? lot.weekendFactor : lot.weekdayFactor;
+            const todayIncome = lot.dailyIncome * factor;
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const lineX = tableX + col * 380;
+            const lineY = ypos + row * 16;
+            S.managementUI.push(scene.add.text(lineX, lineY,
+                `${lot.icon} ${lot.name}: +$${Math.floor(todayIncome).toLocaleString('es-CL')} (${factor}x ${isWeekend ? 'S-D' : 'L-V'})`,
+                { font: 'bold 10px monospace', color: '#86efac' }));
+        });
+    } else {
+        S.managementUI.push(scene.add.text(tableX, ypos,
+            '👉 Comprá tu primer lote arriba para diversificar el negocio.',
+            { font: 'italic 11px monospace', color: '#94a3b8' }));
+    }
 }
 
 function renderStatsTab(scene, contentY, panelW) {
