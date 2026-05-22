@@ -66,6 +66,7 @@ function loadGame() {
         // Merge upgrades carefully — newer schema fields default false/0 if missing
         S.upgrades = Object.assign({
             booth: false, pos: false, barriers: false, entryTotem: false, exitTotem: false,
+            parkingApp: false,
             adScreens: 0, signs: 0, expansions: 0, convenios: [],
             cameras: false, carwash: false, evCharger: false,
             pavement: false, lines: false, lights: false, guard: false, greenery: false,
@@ -184,6 +185,13 @@ const CONFIG = {
     exitTotemCost: 280000,           // major capex
     exitTotemTickMs: 1300,           // how often it processes the next exit
     exitTotemScanMs: 700,            // QR/LPR scan + charge animation time
+
+    // ParkingApp integration (Nivel 5) — app subscribers, premium tariff, loyalty
+    parkingAppCost: 400000,          // top-tier upgrade
+    parkingAppUserChance: 30,        // % of spawns that are app users
+    parkingAppTariffMultiplier: 1.5, // app users pay 1.5x rate
+    parkingAppPatienceBonusPct: 50,  // app users have +50% patience (loyalty)
+    parkingAppSubscriptionIncomePerGameMin: 50,  // passive subscription revenue
 
     // NEW — Cameras prevent robberies
     cameraCost: 35000,
@@ -513,6 +521,7 @@ const S = {
         barriers: false,                    // Nivel 3 — automatic gate scanner
         entryTotem: false,                  // Nivel 3 end — self-service ticket totem
         exitTotem: false,                   // Nivel 4 — self-service autopay totem at exit
+        parkingApp: false,                  // Nivel 5 — ParkingApp integration
         adScreens: 0,
         signs: 0,
         expansions: 0,
@@ -770,7 +779,7 @@ function resetTransientState() {
     S.hud = {};
     S.timeMinutes = CONFIG.startHour * 60;
     S.carsServedToday = 0; S.angryToday = 0; S.escapedToday = 0;
-    S.revenueToday = 0; S.drivePastToday = 0; S.salariesPaidToday = 0; S.adRevenueToday = 0;
+    S.revenueToday = 0; S.drivePastToday = 0; S.salariesPaidToday = 0; S.adRevenueToday = 0; S.appRevenueToday = 0;
     S.nextCarMultiplier = 1; S.rushUntilMin = 0;
     S.eventTimer = 0; S.nextEventIn = Phaser.Math.Between(45000, 120000);
     S.subscriptionRevenueToday = 0;
@@ -1805,6 +1814,25 @@ function renderUpgradesTab(scene, contentY, panelW) {
     }
     yL += rowH + 6;
 
+    // ParkingApp Integration (Nivel 5) — requires exitTotem
+    if (S.upgrades.exitTotem && !S.upgrades.parkingApp) {
+        renderRow(colLX, yL, {
+            done: false,
+            cost: CONFIG.parkingAppCost,
+            label: `📱 PARKING APP  $${CONFIG.parkingAppCost.toLocaleString('es-CL')}`,
+            color: '#3b82f6',
+            desc: 'Nivel 5 · 30% premium · +$50/min suscripciones',
+            onClick: () => { purchaseParkingApp(); renderManagementPanel(); },
+        });
+    } else if (S.upgrades.parkingApp) {
+        renderRow(colLX, yL, { done: true, doneLabel: 'ParkingApp (Nivel 5)' });
+    } else {
+        S.managementUI.push(scene.add.text(colLX, yL,
+            '  📱  PARKING APP  — bloqueado (necesita Autopago)',
+            { font: 'italic 11px monospace', color: '#64748b' }));
+    }
+    yL += rowH + 6;
+
     // ── RIGHT COLUMN: SERVICIOS & ESTÉTICA ──────────────────
     let yR = contentY;
     S.managementUI.push(scene.add.text(colRX, yR, '🛡️ SERVICIOS', {
@@ -2283,6 +2311,7 @@ function processExitViaTotem() {
         const stayedMin = Math.max(1, Math.ceil(S.timeMinutes - (car.entryTimeMinutes ?? S.timeMinutes)));
         let amount = stayedMin * CONFIG.pricePerMinute * getConvenioRevenueCut();
         if (car.isEV) amount *= CONFIG.evMultiplier;
+        if (car.isAppUser) amount *= CONFIG.parkingAppTariffMultiplier;   // Nivel 5 premium
         if (car.washed) { amount += CONFIG.washPrice; flashEvent(`🚿 +$${CONFIG.washPrice.toLocaleString('es-CL')} lavado!`); }
         if (S.nextCarMultiplier > 1) {
             amount *= S.nextCarMultiplier;
@@ -2704,6 +2733,21 @@ function purchaseExitTotem() {
     S.scene.scene.restart();
 }
 
+function purchaseParkingApp() {
+    if (S.upgrades.parkingApp) return;
+    if (!S.upgrades.exitTotem) {
+        flashEvent('⚠️ Necesitas Autopago (Nivel 4) antes de integrar la app.');
+        return;
+    }
+    if (S.money < CONFIG.parkingAppCost) return;
+    S.money -= CONFIG.parkingAppCost;
+    S.upgrades.parkingApp = true;
+    closeManagementPanel();
+    flashEvent('📱 ¡ParkingApp integrada! +30% clientes premium · +$50/min suscripciones. Nivel 5.');
+    SFX.purchase();
+    S.scene.scene.restart();
+}
+
 function showBarriersCelebration() {
     const scene = S.scene;
     const W = CONFIG.width, H = CONFIG.height;
@@ -3101,6 +3145,15 @@ function update(time, delta) {
         S.lifetimeRevenue += adIncome;
     }
 
+    // ParkingApp subscriber passive revenue (Nivel 5) — also 24/7
+    if (S.upgrades.parkingApp) {
+        const appIncome = CONFIG.parkingAppSubscriptionIncomePerGameMin * gameMinutesAdvanced;
+        S.money += appIncome;
+        S.revenueToday += appIncome;
+        S.appRevenueToday = (S.appRevenueToday || 0) + appIncome;
+        S.lifetimeRevenue += appIncome;
+    }
+
     // Final-Nivel-3 upgrade: Tótem de tickets en la entrada.
     // Cuando está instalado, los autos sacan ticket automáticamente y entran
     // sin que el cobrador tenga que hacer nada. La salida sigue requiriendo
@@ -3360,6 +3413,21 @@ function spawnCar() {
     spawnQueueCar();
 }
 
+function makeAppBadge(scene, car) {
+    // Floating 📱 badge above ParkingApp cars
+    const offsetY = car.evBadge ? -44 : -28;   // stack above EV badge if present
+    const badge = scene.add.text(car.sprite.x, car.sprite.y + offsetY, '📱', {
+        font: 'bold 14px sans-serif',
+        backgroundColor: '#3b82f6', padding: { x: 4, y: 1 }
+    }).setOrigin(0.5);
+    scene.tweens.add({
+        targets: badge, scale: { from: 1, to: 1.18 },
+        duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+    });
+    car.appBadge = badge;
+    car.appBadgeOffsetY = offsetY;
+}
+
 function makeEVBadge(scene, car) {
     // Floating ⚡ badge above EV cars in queue
     const badge = scene.add.text(car.sprite.x, car.sprite.y - 28, '⚡EV', {
@@ -3377,6 +3445,8 @@ function spawnQueueCar() {
     const scene = S.scene;
     // EV customers prefer green colors and pay more
     const isEV = S.upgrades.evCharger && Math.random() * 100 < CONFIG.evCustomerChance;
+    // ParkingApp customers (Nivel 5) — premium tariff + loyalty patience
+    const isAppUser = S.upgrades.parkingApp && Math.random() * 100 < CONFIG.parkingAppUserChance;
     const textureKey = isEV
         ? Phaser.Math.RND.pick(['car_green_1', 'car_green_2', 'car_green_3', 'car_cyan_1'])
         : Phaser.Math.RND.pick(CAR_TEXTURES);
@@ -3384,7 +3454,6 @@ function spawnQueueCar() {
 
     const sprite = scene.add.image(L.spawnX, L.entryLaneY, textureKey).setScale(1.6);
     if (isEV) {
-        // EV cars get a strong green tint AND a glow effect — easy to spot
         sprite.setTint(0x4ade80);
         scene.tweens.add({
             targets: sprite, alpha: { from: 1, to: 0.85 },
@@ -3393,15 +3462,16 @@ function spawnQueueCar() {
     }
     const windows = scene.add.rectangle(L.spawnX, L.entryLaneY, 1, 1, 0).setAlpha(0);
 
-    // Ad screens give patience bonus
-    const patienceBonus = 1 + (S.upgrades.adScreens * CONFIG.adScreenPatienceBonusPct / 100);
+    // Patience: ad screens + app loyalty stack
+    let patienceMul = 1 + (S.upgrades.adScreens * CONFIG.adScreenPatienceBonusPct / 100);
+    if (isAppUser) patienceMul *= (1 + CONFIG.parkingAppPatienceBonusPct / 100);
 
     const car = {
         id: Math.random().toString(36).slice(2),
-        sprite, windows, stayMin, isEV,
+        sprite, windows, stayMin, isEV, isAppUser,
         stayRemainingMs: stayMin * (1000 / CONFIG.timeSpeed),
-        patience: CONFIG.patienceMs * patienceBonus,
-        exitPatience: CONFIG.exitPatienceMs * patienceBonus,
+        patience: CONFIG.patienceMs * patienceMul,
+        exitPatience: CONFIG.exitPatienceMs * patienceMul,
         state: 'arriving', space: null, revenue: 0,
         angryHint: false, escapeHint: false,
         entryTimeMinutes: null,
@@ -3409,6 +3479,7 @@ function spawnQueueCar() {
     S.cars.push(car);
     S.queue.push(car);
     if (isEV) makeEVBadge(scene, car);
+    if (isAppUser) makeAppBadge(scene, car);
     attachCarTooltip(car);
 
     // Head (idx==0) drives INTO the lot. Others stop on the street.
@@ -3861,6 +3932,7 @@ function attendExit(emp) {
             const stayedMin = Math.max(1, Math.ceil(S.timeMinutes - (car.entryTimeMinutes ?? S.timeMinutes)));
             let amount = stayedMin * CONFIG.pricePerMinute * getConvenioRevenueCut();
             if (car.isEV) amount *= CONFIG.evMultiplier;
+            if (car.isAppUser) amount *= CONFIG.parkingAppTariffMultiplier;   // Nivel 5 premium
             // Car wash is now MANUAL — applied per car when player clicked it
             if (car.washed) {
                 amount += CONFIG.washPrice;
@@ -4008,7 +4080,8 @@ function updateInfoBoard() {
     const title = $('page-title');
     if (title) {
         let levelText = 'Nivel 1: Papeleta';
-        if (S.upgrades.exitTotem) levelText = 'Nivel 4: Autopago';
+        if (S.upgrades.parkingApp) levelText = 'Nivel 5: ParkingApp';
+        else if (S.upgrades.exitTotem) levelText = 'Nivel 4: Autopago';
         else if (S.upgrades.entryTotem) levelText = 'Nivel 3 final: Tótem auto-ticket';
         else if (S.upgrades.barriers) levelText = 'Nivel 3: Barreras';
         else if (S.upgrades.pos) levelText = 'Nivel 2: POS Digital';
@@ -4041,6 +4114,7 @@ function updateInfoBoard() {
     if (S.upgrades.barriers) services.push({ label: '🚧 Barreras', active: true });
     if (S.upgrades.entryTotem) services.push({ label: '🎫 Tótem entrada', active: true });
     if (S.upgrades.exitTotem) services.push({ label: '💳 Autopago', active: true });
+    if (S.upgrades.parkingApp) services.push({ label: '📱 App N5', active: true });
     // ParkingApp + Redcomercio shown as a "tech stack" badge once integrated
     if (S.cinematicShown) services.push({ label: '🅿️ ParkingApp', active: true });
     if (S.upgrades.pos) services.push({ label: '💳 Redcomercio', active: true });
@@ -4338,6 +4412,7 @@ function hardReset() {
     S.reputation = 100;
     S.upgrades = {
         booth: false, pos: false, barriers: false, entryTotem: false, exitTotem: false,
+        parkingApp: false,
         adScreens: 0, signs: 0, expansions: 0,
         convenios: [],
         cameras: false, carwash: false, evCharger: false,
