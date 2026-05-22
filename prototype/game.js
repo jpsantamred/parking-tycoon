@@ -9,36 +9,55 @@
 const CONFIG = {
     width: 960, height: 540,
     startHour: 8, endHour: 22, timeSpeed: 14,
-    startMoney: 40000,                    // bumped from $25k for a softer start
-    pricePerMinute: 10,
+    startMoney: 80000,                    // higher start to absorb more expensive upgrades
+    pricePerMinute: 30,                   // realistic Chilean tariff (~CLP$30/min)
     cobroDuration: 1500,
     boothCobroDuration: 1000,
-    boothCost: 20000,
+    boothCost: 60000,                // serious investment — saves walk time + boosts speed
 
     // Ad screens (passive income + patience bonus)
-    adScreenCost: 10000,
-    adScreenIncomePerGameMin: 8,    // $8 per game-minute = ~$112/hour per screen
-    adScreenPatienceBonusPct: 10,    // +10% patience to queue cars per screen (max 3)
+    adScreenCost: 40000,
+    adScreenIncomePerGameMin: 25,
+    adScreenPatienceBonusPct: 10,
     adScreenMax: 3,
 
     // Signs (more cars spawn)
-    signCost: 5000,
-    signSpawnBoostPct: 25,           // +25% spawn rate per sign
+    signCost: 25000,
+    signSpawnBoostPct: 25,
     signMax: 2,
 
-    // Capacity expansion (limit to 1 — more rows overflow canvas)
-    expansionCost: 15000,
+    // Capacity expansion
+    expansionCost: 80000,            // major capex
     expansionExtraSpaces: 8,
     expansionMax: 1,
 
     // Monthly subscriptions
-    subscriptionPricePerDay: 2500,
+    subscriptionPricePerDay: 7500,
     subscriptionDayRange: 14,
     subscriptionMax: 6,
 
     // POS upgrade (Nivel 2 transition)
-    posCost: 40000,
-    posCobroDuration: 300,           // dramatically faster than papeleta
+    posCost: 200000,                 // Nivel 2 — premium upgrade
+    posCobroDuration: 300,
+
+    // NEW — Cameras prevent robberies
+    cameraCost: 35000,
+
+    // NEW — Car wash service: random cars pay extra
+    washCost: 50000,
+    washPctChance: 18,               // % of attended cars who want wash
+    washPrice: 5000,                 // extra revenue per wash
+
+    // NEW — EV chargers: rare premium customers
+    evChargerCost: 70000,
+    evCustomerChance: 8,             // % of spawns that are EVs (when charger installed)
+    evMultiplier: 2.5,               // EVs pay 2.5x tariff
+
+    // NEW — Robbery / vandalism penalties
+    robberyPenalty: 8000,            // money lost per robbery (if no cameras)
+    robberyRepLoss: 8,
+    vandalismCleanupCost: 4000,
+    vandalismRepLoss: 4,
 
     spawnMinMs: 3500, spawnMaxMs: 6500,  // slower spawn to prevent overlap
     patienceMs: 22000, repenaltyAngry: 5,
@@ -116,42 +135,31 @@ function purchaseConvenio(id) {
 }
 
 // ─── RANDOM EVENTS ─────────────────────────────────────────
-// Triggered ~once every 60-180 game-minutes during a day.
-// Each has weight + effect + flashEvent message.
 const EVENTS = [
     {
-        id: 'vip',
-        weight: 12,
-        name: 'Cliente VIP',
+        id: 'vip', weight: 10, name: 'Cliente VIP',
         apply: () => {
-            // Next car to be parked pays 2x
             S.nextCarMultiplier = 2;
             flashEvent('💎 ¡Cliente VIP llegando! Próximo cobro paga doble.');
         }
     },
     {
-        id: 'rush',
-        weight: 15,
-        name: 'Spike de demanda',
+        id: 'rush', weight: 12, name: 'Spike de demanda',
         apply: () => {
             S.rushUntilMin = S.timeMinutes + 60;
             flashEvent('🎪 ¡Evento masivo cercano! Demanda x2 por 1 hora.');
         }
     },
     {
-        id: 'inspector',
-        weight: 8,
-        name: 'Inspector municipal',
+        id: 'inspector', weight: 7, name: 'Inspector municipal',
         apply: () => {
-            const fine = 3000 + S.angryToday * 200 + S.escapedToday * 500;
+            const fine = 8000 + S.angryToday * 500 + S.escapedToday * 1200;
             S.money -= fine;
             flashEvent(`👮 Inspector municipal. Multa: -$${fine.toLocaleString('es-CL')}`);
         }
     },
     {
-        id: 'review',
-        weight: 10,
-        name: 'Review en redes',
+        id: 'review', weight: 8, name: 'Review en redes',
         apply: () => {
             const positive = S.reputation >= 70 && Math.random() > 0.3;
             if (positive) {
@@ -164,24 +172,64 @@ const EVENTS = [
         }
     },
     {
-        id: 'lostkey',
-        weight: 6,
-        name: 'Cliente perdió papeleta',
+        id: 'lostkey', weight: 5, name: 'Cliente perdió papeleta',
         apply: () => {
-            // Loss: cobrador busy for some time without revenue
-            // Simplest implementation: small instant penalty
-            S.money -= 500;
-            flashEvent('🗝️ Cliente perdió papeleta. Tarifa máxima diaria: -$500');
+            S.money -= 1500;
+            flashEvent('🗝️ Cliente perdió papeleta. Cobro mínimo: -$1.500');
         }
     },
     {
-        id: 'tip',
-        weight: 5,
-        name: 'Propina inesperada',
+        id: 'tip', weight: 4, name: 'Propina',
         apply: () => {
-            const tip = 1000 + Math.floor(Math.random() * 2000);
+            const tip = 2000 + Math.floor(Math.random() * 4000);
             S.money += tip;
-            flashEvent(`🎁 Propina inesperada de un cliente regular: +$${tip.toLocaleString('es-CL')}`);
+            flashEvent(`🎁 Propina de cliente: +$${tip.toLocaleString('es-CL')}`);
+        }
+    },
+    // NEW EVENTS — appear later in the game
+    {
+        id: 'robbery', weight: 8, name: 'Robo a vehículo',
+        apply: () => {
+            if (S.upgrades.cameras) {
+                flashEvent('📹 Cámaras detectaron intento de robo. Atajado a tiempo!');
+                S.reputation = Math.min(100, S.reputation + 2);
+                return;
+            }
+            S.money -= CONFIG.robberyPenalty;
+            S.reputation = Math.max(0, S.reputation - CONFIG.robberyRepLoss);
+            flashEvent(`🚨 ¡ROBO a un auto! Indemnización: -$${CONFIG.robberyPenalty.toLocaleString('es-CL')} -${CONFIG.robberyRepLoss} rep`);
+            SFX.escape();
+        }
+    },
+    {
+        id: 'vandalism', weight: 6, name: 'Vandalismo',
+        apply: () => {
+            if (S.upgrades.cameras) {
+                flashEvent('📹 Cámaras grabaron al vándalo. La policía lo agarró.');
+                return;
+            }
+            S.money -= CONFIG.vandalismCleanupCost;
+            S.reputation = Math.max(0, S.reputation - CONFIG.vandalismRepLoss);
+            flashEvent(`🎨 Graffiti / vandalismo. Limpieza: -$${CONFIG.vandalismCleanupCost.toLocaleString('es-CL')}`);
+        }
+    },
+    {
+        id: 'rain', weight: 7, name: 'Lluvia repentina',
+        apply: () => {
+            S.rushUntilMin = S.timeMinutes + 90;  // people seek covered parking
+            flashEvent('🌧️ Lluvia repentina — la gente busca estacionamiento. Demanda x2 por 90min.');
+        }
+    },
+    {
+        id: 'tow', weight: 4, name: 'Grúa municipal',
+        apply: () => {
+            // A parked car gets towed (very rare, but visible)
+            if (S.parkedCars.length > 0) {
+                const car = Phaser.Math.RND.pick(S.parkedCars);
+                S.money -= 5000;
+                flashEvent('🚚 Grúa municipal se llevó un auto mal aparcado. Reclamo: -$5.000');
+                requestExit(car); // car leaves (gets removed from lot)
+            }
         }
     },
 ];
@@ -295,11 +343,14 @@ const S = {
 
     upgrades: {
         booth: false,
-        pos: false,                    // Level 2 unlock
+        pos: false,
         adScreens: 0,
         signs: 0,
         expansions: 0,
-        convenios: [],                 // active convenio IDs
+        convenios: [],
+        cameras: false,                // safety — blocks robberies
+        carwash: false,                // generates extra revenue
+        evCharger: false,              // premium EV customers
     },
     cinematicShown: false,             // ParkingApp intro
     dailyStatsHistory: [],             // last 30 days for trends
@@ -465,6 +516,7 @@ function create() {
     drawExitGateMarker(this);
     drawAdScreens(this);
     drawSigns(this);
+    drawSafetyAndServices(this);
 
     if (S.upgrades.booth) drawBooth(this);
     else drawPlaceholder(this);
@@ -1288,6 +1340,60 @@ function renderUpgradesTab(scene, contentY, panelW) {
     }
     ypos += 38;
 
+    // ── SAFETY & SERVICES ─────────────────────────────────
+    // Cameras
+    if (!S.upgrades.cameras) {
+        const canAfford = S.money >= CONFIG.cameraCost;
+        const btn = scene.add.text(tableX, ypos, `  📹  CÁMARAS  $${CONFIG.cameraCost.toLocaleString('es-CL')}  `, {
+            font: 'bold 13px monospace', color: canAfford ? '#fff' : '#9ca3af',
+            backgroundColor: canAfford ? '#1e40af' : '#374151',
+            padding: { x: 12, y: 7 }
+        });
+        if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { purchaseCameras(); renderManagementPanel(); }); }
+        S.managementUI.push(btn);
+        S.managementUI.push(scene.add.text(tableX + 260, ypos + 3,
+            '• bloquea robos · bloquea vandalismo', { font: '12px monospace', color: '#cbd5e1' }));
+    } else {
+        S.managementUI.push(scene.add.text(tableX, ypos, '  ✅  Cámaras', { font: 'bold 13px monospace', color: '#10b981' }));
+    }
+    ypos += 38;
+
+    // Car wash
+    if (!S.upgrades.carwash) {
+        const canAfford = S.money >= CONFIG.washCost;
+        const btn = scene.add.text(tableX, ypos, `  🚿  LAVADO  $${CONFIG.washCost.toLocaleString('es-CL')}  `, {
+            font: 'bold 13px monospace', color: canAfford ? '#fff' : '#9ca3af',
+            backgroundColor: canAfford ? '#0d9488' : '#374151',
+            padding: { x: 12, y: 7 }
+        });
+        if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { purchaseCarwash(); renderManagementPanel(); }); }
+        S.managementUI.push(btn);
+        S.managementUI.push(scene.add.text(tableX + 240, ypos + 3,
+            `• ${CONFIG.washPctChance}% autos pagan $${CONFIG.washPrice.toLocaleString('es-CL')} extra`,
+            { font: '12px monospace', color: '#cbd5e1' }));
+    } else {
+        S.managementUI.push(scene.add.text(tableX, ypos, '  ✅  Lavado de autos', { font: 'bold 13px monospace', color: '#10b981' }));
+    }
+    ypos += 38;
+
+    // EV charger
+    if (!S.upgrades.evCharger) {
+        const canAfford = S.money >= CONFIG.evChargerCost;
+        const btn = scene.add.text(tableX, ypos, `  🔌  CARGADOR EV  $${CONFIG.evChargerCost.toLocaleString('es-CL')}  `, {
+            font: 'bold 13px monospace', color: canAfford ? '#fff' : '#9ca3af',
+            backgroundColor: canAfford ? '#16a34a' : '#374151',
+            padding: { x: 12, y: 7 }
+        });
+        if (canAfford) { btn.setInteractive({ useHandCursor: true }); btn.on('pointerdown', () => { purchaseEVCharger(); renderManagementPanel(); }); }
+        S.managementUI.push(btn);
+        S.managementUI.push(scene.add.text(tableX + 290, ypos + 3,
+            `• ${CONFIG.evCustomerChance}% spawns son EV · pagan ${CONFIG.evMultiplier}x`,
+            { font: '12px monospace', color: '#cbd5e1' }));
+    } else {
+        S.managementUI.push(scene.add.text(tableX, ypos, '  ✅  Cargador EV', { font: 'bold 13px monospace', color: '#10b981' }));
+    }
+    ypos += 38;
+
     // POS upgrade (Nivel 2) — ONLY after Ana's cinematic introduces ParkingApp
     if (S.upgrades.booth && !S.upgrades.pos && S.cinematicShown) {
         const canAfford = S.money >= CONFIG.posCost;
@@ -1419,6 +1525,41 @@ function drawAdScreens(scene) {
     }
 }
 
+function drawSafetyAndServices(scene) {
+    // Security cameras: small black blobs at the 4 corners of the lot
+    if (S.upgrades.cameras) {
+        const corners = [
+            { x: L.lotLeft + 12, y: L.lotFenceY + 12 },
+            { x: L.lotRight - 12, y: L.lotFenceY + 12 },
+            { x: L.lotLeft + 12, y: L.lotBottom - 12 },
+            { x: L.lotRight - 12, y: L.lotBottom - 12 },
+        ];
+        corners.forEach(p => {
+            scene.add.rectangle(p.x, p.y, 10, 8, 0x000000).setStrokeStyle(1, 0xcbd5e1);
+            scene.add.circle(p.x + 2, p.y, 2, 0x991b1b);
+            const led = scene.add.circle(p.x - 3, p.y - 2, 1.5, 0x10b981);
+            scene.tweens.add({ targets: led, alpha: { from: 1, to: 0.2 }, duration: 800, yoyo: true, repeat: -1 });
+        });
+    }
+
+    // Car wash station: at far right side of lot (occupies a chunk of empty space)
+    if (S.upgrades.carwash) {
+        const wx = L.lotRight - 60, wy = L.sidewalkY;
+        // Wash hut
+        scene.add.rectangle(wx, wy, 70, 32, 0x0f766e).setStrokeStyle(2, 0x14b8a6);
+        scene.add.text(wx, wy - 5, '🚿 LAVADO', { font: 'bold 11px monospace', color: '#5eead4' }).setOrigin(0.5);
+        scene.add.text(wx, wy + 8, '★ EXPRESS ★', { font: 'bold 9px monospace', color: '#fde047' }).setOrigin(0.5);
+    }
+
+    // EV charger station: at far left side of lot
+    if (S.upgrades.evCharger) {
+        const ex = L.lotLeft + 50, ey = L.sidewalkY;
+        scene.add.rectangle(ex, ey, 70, 32, 0x166534).setStrokeStyle(2, 0x22c55e);
+        scene.add.text(ex, ey - 5, '🔌 CARGA EV', { font: 'bold 11px monospace', color: '#86efac' }).setOrigin(0.5);
+        scene.add.text(ex, ey + 8, '★ PREMIUM ★', { font: 'bold 9px monospace', color: '#fde047' }).setOrigin(0.5);
+    }
+}
+
 function drawSigns(scene) {
     // Parking signs on the SIDEWALK, at the far edges (out of traffic, but visible)
     const positions = [
@@ -1480,6 +1621,33 @@ function purchaseExpansion() {
     S.upgrades.expansions++;
     flashEvent(`🏗️ Lote ampliado! +${CONFIG.expansionExtraSpaces} espacios`);
     closeManagementPanel();
+    S.scene.scene.restart();
+}
+
+function purchaseCameras() {
+    if (S.upgrades.cameras) return;
+    if (S.money < CONFIG.cameraCost) return;
+    S.money -= CONFIG.cameraCost;
+    S.upgrades.cameras = true;
+    flashEvent('📹 Cámaras de seguridad instaladas. Robos y vandalismo bloqueados.');
+    S.scene.scene.restart();  // redraw with camera icons
+}
+
+function purchaseCarwash() {
+    if (S.upgrades.carwash) return;
+    if (S.money < CONFIG.washCost) return;
+    S.money -= CONFIG.washCost;
+    S.upgrades.carwash = true;
+    flashEvent(`🚿 Servicio de lavado activo. ${CONFIG.washPctChance}% de los autos pagan extra $${CONFIG.washPrice.toLocaleString('es-CL')}`);
+    S.scene.scene.restart();
+}
+
+function purchaseEVCharger() {
+    if (S.upgrades.evCharger) return;
+    if (S.money < CONFIG.evChargerCost) return;
+    S.money -= CONFIG.evChargerCost;
+    S.upgrades.evCharger = true;
+    flashEvent(`🔌 Cargador EV instalado. Atrae clientes EV (pagan ${CONFIG.evMultiplier}x).`);
     S.scene.scene.restart();
 }
 
@@ -1917,11 +2085,15 @@ function spawnCar() {
 
 function spawnQueueCar() {
     const scene = S.scene;
-    const textureKey = Phaser.Math.RND.pick(CAR_TEXTURES);
+    // EV customers prefer green colors and pay more
+    const isEV = S.upgrades.evCharger && Math.random() * 100 < CONFIG.evCustomerChance;
+    const textureKey = isEV
+        ? Phaser.Math.RND.pick(['car_green_1', 'car_green_2', 'car_green_3', 'car_cyan_1'])
+        : Phaser.Math.RND.pick(CAR_TEXTURES);
     const stayMin = Phaser.Math.Between(CONFIG.stayMinMin, CONFIG.stayMaxMin);
 
     const sprite = scene.add.image(L.spawnX, L.entryLaneY, textureKey).setScale(1.6);
-    // Invisible alias so legacy tween targets [sprite, windows] still work
+    if (isEV) sprite.setTint(0xb6f5d4);  // subtle green-cyan tint to mark EVs
     const windows = scene.add.rectangle(L.spawnX, L.entryLaneY, 1, 1, 0).setAlpha(0);
 
     // Ad screens give patience bonus
@@ -1929,7 +2101,7 @@ function spawnQueueCar() {
 
     const car = {
         id: Math.random().toString(36).slice(2),
-        sprite, windows, stayMin,
+        sprite, windows, stayMin, isEV,
         stayRemainingMs: stayMin * (1000 / CONFIG.timeSpeed),
         patience: CONFIG.patienceMs * patienceBonus,
         exitPatience: CONFIG.exitPatienceMs * patienceBonus,
@@ -2216,6 +2388,12 @@ function attendExit(emp) {
 
             const stayedMin = Math.max(1, Math.ceil(S.timeMinutes - (car.entryTimeMinutes ?? S.timeMinutes)));
             let amount = stayedMin * CONFIG.pricePerMinute * getConvenioRevenueCut();
+            if (car.isEV) amount *= CONFIG.evMultiplier;
+            // Random car-wash upsell
+            if (S.upgrades.carwash && Math.random() * 100 < CONFIG.washPctChance) {
+                amount += CONFIG.washPrice;
+                flashEvent(`🚿 +$${CONFIG.washPrice.toLocaleString('es-CL')} de lavado extra!`);
+            }
             if (S.nextCarMultiplier > 1) {
                 amount *= S.nextCarMultiplier;
                 S.nextCarMultiplier = 1; // consume
