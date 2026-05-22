@@ -30,6 +30,7 @@ function saveGame() {
             lifetimeEscaped: S.lifetimeEscaped,
             consecutiveNegDays: S.consecutiveNegDays,
             cinematicShown: S.cinematicShown,
+            branchLots: S.branchLots,
             dailyStatsHistory: S.dailyStatsHistory,
         };
         localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -80,6 +81,7 @@ function loadGame() {
         S.lifetimeEscaped = data.lifetimeEscaped || 0;
         S.consecutiveNegDays = data.consecutiveNegDays || 0;
         S.cinematicShown = !!data.cinematicShown;
+        S.branchLots = data.branchLots || [];
         S.dailyStatsHistory = data.dailyStatsHistory || [];
         return true;
     } catch (e) {
@@ -308,6 +310,64 @@ const CONFIG = {
     bonusCost: 5000,                                // pay $5k to give a bonus
     bonusXp: 25,                                    // XP awarded by a bonus
 };
+
+// ─── BRANCH LOTS — multi-location empire ──────────────────
+// Después de cierto progreso podés comprar lotes adicionales en otros
+// puntos de la ciudad. Cada uno genera income pasivo, modulado por día
+// de semana (algunos pegan fin de semana, otros L-V).
+//
+// dailyIncome = revenue base por DÍA. Aplicamos modifiers según
+// weekdayFactor / weekendFactor para dar personalidad.
+const LOT_TYPES = [
+    {
+        id: 'beach', icon: '🏖️', name: 'Playa Reñaca',
+        cost: 1500000, dailyIncome: 80000,
+        unlockRequires: 'parkingApp',
+        flavor: 'Verano explota · invierno tranqui',
+        weekdayFactor: 0.5, weekendFactor: 2.0,
+        color: 0x06b6d4,
+    },
+    {
+        id: 'hospital', icon: '🏥', name: 'Hospital Central',
+        cost: 2500000, dailyIncome: 120000,
+        unlockRequires: 'parkingApp',
+        flavor: 'Demanda 24/7 · estable como roca',
+        weekdayFactor: 1.0, weekendFactor: 1.0,
+        color: 0xef4444,
+    },
+    {
+        id: 'mall', icon: '🛍️', name: 'Mall Costanera',
+        cost: 3500000, dailyIncome: 180000,
+        unlockRequires: 'parkingApp',
+        flavor: 'Sábados explotan · lunes muerto',
+        weekdayFactor: 0.7, weekendFactor: 1.6,
+        color: 0xa855f7,
+    },
+    {
+        id: 'finance', icon: '🏢', name: 'Distrito Financiero',
+        cost: 5000000, dailyIncome: 250000,
+        unlockRequires: 'valetAI',
+        flavor: 'Lun-Vie ejecutivos · fin de semana cero',
+        weekdayFactor: 1.5, weekendFactor: 0.1,
+        color: 0x3b82f6,
+    },
+    {
+        id: 'airport', icon: '✈️', name: 'Aeropuerto AMB',
+        cost: 8000000, dailyIncome: 400000,
+        unlockRequires: 'multiLevel',
+        flavor: 'Estadías largas · tarifa premium · 24/7',
+        weekdayFactor: 1.1, weekendFactor: 1.2,
+        color: 0xfbbf24,
+    },
+    {
+        id: 'stadium', icon: '🏟️', name: 'Estadio Monumental',
+        cost: 12000000, dailyIncome: 600000,
+        unlockRequires: 'drone',
+        flavor: 'Pico explosivo días de partido (sábados)',
+        weekdayFactor: 0.4, weekendFactor: 2.5,
+        color: 0x16a34a,
+    },
+];
 
 // ─── DAYS OF WEEK ──────────────────────────────────────────
 const DAY_LONG  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
@@ -689,6 +749,7 @@ const S = {
         greenery: false,
     },
     cinematicShown: false,             // ParkingApp intro
+    branchLots: [],                    // owned secondary lots (array of lot IDs)
     dailyStatsHistory: [],             // last 30 days for trends
     subscriptionRevenueToday: 0,
     idleHintTimer: 0,
@@ -939,7 +1000,7 @@ function resetTransientState() {
     S.hud = {};
     S.timeMinutes = CONFIG.startHour * 60;
     S.carsServedToday = 0; S.angryToday = 0; S.escapedToday = 0;
-    S.revenueToday = 0; S.drivePastToday = 0; S.salariesPaidToday = 0; S.adRevenueToday = 0; S.appRevenueToday = 0;
+    S.revenueToday = 0; S.drivePastToday = 0; S.salariesPaidToday = 0; S.adRevenueToday = 0; S.appRevenueToday = 0; S.branchRevenueToday = 0;
     S.nextCarMultiplier = 1; S.rushUntilMin = 0;
     S.eventTimer = 0; S.nextEventIn = Phaser.Math.Between(45000, 120000);
     S.subscriptionRevenueToday = 0;
@@ -1666,17 +1727,18 @@ function renderManagementPanel() {
     const tabs = [
         { id: 'employees', label: '👥 Equipo' },
         { id: 'upgrades',  label: '🛠️ Upgrades' },
+        { id: 'lots',      label: '📍 Lotes' },
         { id: 'stats',     label: '📊 Stats' },
     ];
     const tabY = 84;
     const tabStartX = W/2 - panelW/2 + 24;
     tabs.forEach((t, i) => {
         const active = S.managementTab === t.id;
-        const btn = scene.add.text(tabStartX + i * 140, tabY, ` ${t.label} `, {
-            font: 'bold 14px monospace',
+        const btn = scene.add.text(tabStartX + i * 130, tabY, ` ${t.label} `, {
+            font: 'bold 13px monospace',
             color: active ? '#fff' : '#94a3b8',
             backgroundColor: active ? '#7c3aed' : '#334155',
-            padding: { x: 12, y: 8 }
+            padding: { x: 10, y: 8 }
         }).setInteractive({ useHandCursor: true });
         btn.on('pointerdown', () => { S.managementTab = t.id; renderManagementPanel(); });
         S.managementUI.push(btn);
@@ -1686,6 +1748,7 @@ function renderManagementPanel() {
     const contentY = 130;
     if (S.managementTab === 'employees') renderEmployeesTab(scene, contentY, panelW);
     else if (S.managementTab === 'upgrades') renderUpgradesTab(scene, contentY, panelW);
+    else if (S.managementTab === 'lots') renderLotsTab(scene, contentY, panelW);
     else if (S.managementTab === 'stats') renderStatsTab(scene, contentY, panelW);
 
     S.managementUI.push(scene.add.text(W/2, H - 14, 'ESC o ✕ para cerrar  ·  G abre/cierra', {
@@ -2211,6 +2274,88 @@ function renderUpgradesTab(scene, contentY, panelW) {
             S.managementUI.push(btn);
         }
         convIdx++;
+    });
+}
+
+function renderLotsTab(scene, contentY, panelW) {
+    const W = CONFIG.width;
+    const tableX = W/2 - panelW/2 + 24;
+    let ypos = contentY;
+
+    // Header + total daily income from branch lots
+    const totalDaily = (S.branchLots || []).reduce((sum, id) => {
+        const lot = LOT_TYPES.find(l => l.id === id);
+        if (!lot) return sum;
+        const dow = S.dayOfWeek;
+        const factor = (dow === 5 || dow === 6) ? lot.weekendFactor : lot.weekdayFactor;
+        return sum + lot.dailyIncome * factor;
+    }, 0);
+
+    S.managementUI.push(scene.add.text(tableX, ypos, '📍 SUCURSALES', {
+        font: 'bold 16px monospace', color: '#fde047'
+    }));
+    S.managementUI.push(scene.add.text(tableX + 200, ypos + 2,
+        `${(S.branchLots || []).length} lotes · hoy +$${Math.floor(totalDaily).toLocaleString('es-CL')}/día`,
+        { font: '12px monospace', color: '#86efac' }
+    ));
+    ypos += 26;
+    S.managementUI.push(scene.add.text(tableX, ypos,
+        'Expandí tu imperio comprando lotes en otros barrios. Cada uno tiene su ritmo.',
+        { font: 'italic 11px monospace', color: '#94a3b8' }));
+    ypos += 22;
+
+    // Render each lot type as a card
+    LOT_TYPES.forEach((lot, idx) => {
+        const owned = (S.branchLots || []).includes(lot.id);
+        const locked = lot.unlockRequires && !S.upgrades[lot.unlockRequires];
+        const canAfford = S.money >= lot.cost;
+        const col = idx % 2;
+        const row = Math.floor(idx / 2);
+        const cardX = tableX + col * 410;
+        const cardY = ypos + row * 60;
+        // Card background
+        S.managementUI.push(scene.add.rectangle(cardX + 200, cardY + 26, 400, 52, 0x1e293b, 0.6)
+            .setStrokeStyle(1, owned ? 0x10b981 : (locked ? 0x475569 : (canAfford ? 0xfbbf24 : 0x475569))));
+        // Icon
+        S.managementUI.push(scene.add.text(cardX + 14, cardY + 26, lot.icon, {
+            font: '24px sans-serif'
+        }).setOrigin(0.5));
+        // Name + flavor
+        S.managementUI.push(scene.add.text(cardX + 36, cardY + 12, lot.name, {
+            font: 'bold 12px monospace', color: '#fff'
+        }));
+        S.managementUI.push(scene.add.text(cardX + 36, cardY + 28, lot.flavor, {
+            font: 'italic 9px monospace', color: '#94a3b8'
+        }));
+        S.managementUI.push(scene.add.text(cardX + 36, cardY + 42,
+            `+$${lot.dailyIncome.toLocaleString('es-CL')}/día base · L-V ${lot.weekdayFactor}x · S-D ${lot.weekendFactor}x`,
+            { font: '9px monospace', color: '#cbd5e1' }
+        ));
+        // Right side: status / buy button
+        if (owned) {
+            S.managementUI.push(scene.add.text(cardX + 320, cardY + 26, '✅ TUYO', {
+                font: 'bold 11px monospace', color: '#10b981',
+                backgroundColor: '#064e3b', padding: { x: 8, y: 5 }
+            }).setOrigin(0.5));
+        } else if (locked) {
+            S.managementUI.push(scene.add.text(cardX + 320, cardY + 26, `🔒 ${lot.unlockRequires}`, {
+                font: 'bold 9px monospace', color: '#94a3b8',
+                backgroundColor: '#1f2937', padding: { x: 6, y: 4 }
+            }).setOrigin(0.5));
+        } else {
+            const btn = scene.add.text(cardX + 320, cardY + 26,
+                `$${(lot.cost/1000000).toFixed(1)}M`, {
+                font: 'bold 11px monospace',
+                color: canAfford ? '#fff' : '#9ca3af',
+                backgroundColor: canAfford ? '#0d9488' : '#374151',
+                padding: { x: 10, y: 6 }
+            }).setOrigin(0.5);
+            if (canAfford) {
+                btn.setInteractive({ useHandCursor: true });
+                btn.on('pointerdown', () => purchaseBranchLot(lot.id));
+            }
+            S.managementUI.push(btn);
+        }
     });
 }
 
@@ -3296,6 +3441,44 @@ function purchaseDrone() {
     });
 }
 
+// ─── BRANCH LOT PURCHASE ──────────────────────────────────
+function purchaseBranchLot(lotId) {
+    const lot = LOT_TYPES.find(l => l.id === lotId);
+    if (!lot) return;
+    if (S.branchLots.includes(lotId)) { flashEvent(`Ya tienes el lote de ${lot.name}.`); return; }
+    if (lot.unlockRequires && !S.upgrades[lot.unlockRequires]) {
+        flashEvent(`⚠️ Necesitas ${lot.unlockRequires} para comprar ${lot.name}.`);
+        return;
+    }
+    if (S.money < lot.cost) { flashEvent(`💸 Te faltan $${(lot.cost - S.money).toLocaleString('es-CL')} para ${lot.name}.`); return; }
+    S.money -= lot.cost;
+    S.branchLots.push(lotId);
+    SFX.purchase();
+    showLevelMilestone({
+        icon: lot.icon, color: lot.color,
+        title: lot.name.toUpperCase(),
+        tagline: lot.flavor + ' · +$' + lot.dailyIncome.toLocaleString('es-CL') + '/día',
+        onClose: () => { flagReopenManagement(); S.scene.scene.restart(); }
+    });
+}
+
+// Computes the per-game-minute passive income from all branch lots,
+// modulated by day-of-week.
+function getBranchLotIncomePerGameMin() {
+    if (!S.branchLots || S.branchLots.length === 0) return 0;
+    const dow = S.dayOfWeek;
+    const isWeekend = (dow === 5 || dow === 6);
+    let total = 0;
+    S.branchLots.forEach(id => {
+        const lot = LOT_TYPES.find(l => l.id === id);
+        if (!lot) return;
+        const factor = isWeekend ? lot.weekendFactor : lot.weekdayFactor;
+        // dailyIncome spread across ~840 game minutes (14h opening day)
+        total += (lot.dailyIncome * factor) / 840;
+    });
+    return total;
+}
+
 function purchaseSpaceport() {
     if (S.upgrades.spaceport) return;
     if (!S.upgrades.drone) {
@@ -3901,6 +4084,14 @@ function update(time, delta) {
     if (S.upgrades.multiLevel) {
         const inc = CONFIG.multiLevelPassiveIncomePerMin * gameMinutesAdvanced;
         S.money += inc; S.revenueToday += inc; S.lifetimeRevenue += inc;
+    }
+    // Branch lots (multi-lot empire) — passive income from secondary lots
+    if (S.branchLots && S.branchLots.length > 0) {
+        const inc = getBranchLotIncomePerGameMin() * gameMinutesAdvanced;
+        S.money += inc;
+        S.revenueToday += inc;
+        S.branchRevenueToday = (S.branchRevenueToday || 0) + inc;
+        S.lifetimeRevenue += inc;
     }
     // Drone delivery (Nivel 8) — entregas constantes
     if (S.upgrades.drone) {
@@ -5295,6 +5486,7 @@ function hardReset() {
     S.consecutiveNegDays = 0;
     S.gameOver = false;
     S.cinematicShown = false;
+    S.branchLots = [];
     S.dailyStatsHistory = [];
     S.subscriptionRevenueToday = 0;
     S.endDayUI.forEach(o => { try { o.destroy(); } catch(e) {} });
@@ -5333,6 +5525,7 @@ function renderEndOfDay() {
     const subRev = S.subscriptionRevenueToday || 0;
     const adRev = S.adRevenueToday || 0;
     const appRev = S.appRevenueToday || 0;
+    const branchRev = S.branchRevenueToday || 0;
     // Estimate passive revenue from N7/N8/N9 (game ran for 14h × 60 = 840 game min)
     const mlRev = S.upgrades.multiLevel ? CONFIG.multiLevelPassiveIncomePerMin * 840 : 0;
     const drnRev = S.upgrades.drone ? CONFIG.droneAmbientRevenuePerMin * 840 : 0;
@@ -5379,6 +5572,7 @@ function renderEndOfDay() {
         subRev > 0 ? { label: `  Mensualistas:`, val: `+$${Math.floor(subRev).toLocaleString('es-CL')}`, color: '#cbd5e1' } : null,
         S.upgrades.adScreens > 0 ? { label: `  Pantallas:`, val: `+$${Math.floor(adRev).toLocaleString('es-CL')}`, color: '#cbd5e1' } : null,
         S.upgrades.parkingApp ? { label: `  App subs:`, val: `+$${Math.floor(appRev).toLocaleString('es-CL')}`, color: '#bfdbfe' } : null,
+        (S.branchLots && S.branchLots.length > 0) ? { label: `  Sucursales (${S.branchLots.length}):`, val: `+$${Math.floor(branchRev).toLocaleString('es-CL')}`, color: '#fde047' } : null,
         S.upgrades.multiLevel ? { label: `  Vertical N7:`, val: `+$${Math.floor(mlRev).toLocaleString('es-CL')}`, color: '#bae6fd' } : null,
         S.upgrades.drone ? { label: `  Drones N8:`, val: `+$${Math.floor(drnRev).toLocaleString('es-CL')}`, color: '#ddd6fe' } : null,
         S.upgrades.spaceport ? { label: `  Spaceport N9:`, val: `+$${Math.floor(spRev).toLocaleString('es-CL')}`, color: '#fef08a' } : null,
