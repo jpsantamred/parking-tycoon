@@ -311,6 +311,139 @@ const CONFIG = {
     bonusXp: 25,                                    // XP awarded by a bonus
 };
 
+// ─── ACHIEVEMENTS ──────────────────────────────────────────
+// Logros desbloqueables: definidos como {id, icon, name, desc, check(S)}.
+// Check function returns true when the condition is met. Persisted in
+// localStorage so they survive page reloads + new partidas.
+const ACHIEVEMENTS_KEY = 'parking-tycoon-achievements-v1';
+const ACHIEVEMENTS = [
+    // Hitos básicos
+    { id: 'first_cobro', icon: '🎯', name: 'Primer cobro', desc: 'Atendé tu primer auto',
+        check: () => S.lifetimeServed >= 1 },
+    { id: 'served_10', icon: '🚗', name: '10 autos', desc: 'Atendé 10 autos en total',
+        check: () => S.lifetimeServed >= 10 },
+    { id: 'served_100', icon: '🚙', name: '100 autos', desc: 'Atendé 100 autos en total',
+        check: () => S.lifetimeServed >= 100 },
+    { id: 'served_1000', icon: '🚖', name: '1.000 autos', desc: 'Atendé 1.000 autos',
+        check: () => S.lifetimeServed >= 1000 },
+    // Revenue milestones
+    { id: 'rev_100k', icon: '💵', name: '$100K', desc: 'Llegá a $100.000 de revenue total',
+        check: () => S.lifetimeRevenue >= 100000 },
+    { id: 'rev_1m', icon: '💰', name: '$1M', desc: 'Llegá a $1.000.000 de revenue',
+        check: () => S.lifetimeRevenue >= 1000000 },
+    { id: 'rev_10m', icon: '🏦', name: '$10M', desc: 'Llegá a $10M de revenue',
+        check: () => S.lifetimeRevenue >= 10000000 },
+    { id: 'rev_100m', icon: '🪙', name: '$100M', desc: 'Llegá a $100M de revenue (élite)',
+        check: () => S.lifetimeRevenue >= 100000000 },
+    // Días sobrevividos
+    { id: 'day_7', icon: '📅', name: 'Una semana', desc: 'Llegá al Día 7',
+        check: () => S.day >= 7 },
+    { id: 'day_30', icon: '📆', name: 'Un mes', desc: 'Llegá al Día 30',
+        check: () => S.day >= 30 },
+    // Niveles
+    { id: 'lvl_booth', icon: '🛂', name: 'Caseta operativa', desc: 'Comprá la caseta',
+        check: () => S.upgrades.booth },
+    { id: 'lvl_2', icon: '💳', name: 'Nivel 2 — POS', desc: 'Conocé a ParkingApp',
+        check: () => S.upgrades.pos },
+    { id: 'lvl_3', icon: '🚧', name: 'Nivel 3 — Barreras', desc: 'Instalá gate físico',
+        check: () => S.upgrades.barriers },
+    { id: 'lvl_3f', icon: '🎫', name: 'Tótem auto-ticket', desc: 'Self-service entrada',
+        check: () => S.upgrades.entryTotem },
+    { id: 'lvl_4', icon: '💳', name: 'Nivel 4 — Autopago', desc: 'Self-service salida',
+        check: () => S.upgrades.exitTotem },
+    { id: 'lvl_5', icon: '📱', name: 'Nivel 5 — ParkingApp', desc: 'Integración completa',
+        check: () => S.upgrades.parkingApp },
+    { id: 'lvl_6', icon: '🤖', name: 'Nivel 6 — Valet AI', desc: 'Autos se estacionan solos',
+        check: () => S.upgrades.valetAI },
+    { id: 'lvl_7', icon: '🏢', name: 'Nivel 7 — Vertical', desc: 'Parking de varios pisos',
+        check: () => S.upgrades.multiLevel },
+    { id: 'lvl_8', icon: '🚁', name: 'Nivel 8 — Drones', desc: 'Delivery aéreo',
+        check: () => S.upgrades.drone },
+    { id: 'lvl_9', icon: '🚀', name: 'Nivel 9 — SPACEPORT', desc: '¡GANASTE el juego!',
+        check: () => S.upgrades.spaceport },
+    // Empleados
+    { id: 'emp_lvl5', icon: '⭐', name: 'Empleado top', desc: 'Llevá a un empleado a Lv 5',
+        check: () => S.employeeRoster.some(e => (e.level || 1) >= 5) },
+    { id: 'emp_3', icon: '👥', name: 'Equipo de 3', desc: 'Tené 3+ empleados a la vez',
+        check: () => S.employeeRoster.length >= 3 },
+    // Reputación
+    { id: 'rep_perfect', icon: '🌟', name: 'Estrella', desc: 'Mantené 100% reputación',
+        check: () => S.reputation >= 100 && S.day >= 3 },
+    // Sucursales
+    { id: 'branch_1', icon: '📍', name: 'Primera sucursal', desc: 'Comprá tu primer lote secundario',
+        check: () => (S.branchLots || []).length >= 1 },
+    { id: 'branch_all', icon: '🌐', name: 'Imperio total', desc: 'Comprá los 6 lotes secundarios',
+        check: () => (S.branchLots || []).length >= 6 },
+    // Hard mode
+    { id: 'hard_d7', icon: '🔥', name: 'Hard week', desc: 'Sobreviví Día 7 en hard mode',
+        check: () => isHardMode() && S.day >= 7 },
+];
+
+function getUnlockedAchievements() {
+    try {
+        const raw = localStorage.getItem(ACHIEVEMENTS_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+}
+function setUnlockedAchievements(map) {
+    try { localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(map)); } catch (e) {}
+}
+
+function checkAchievements() {
+    const unlocked = getUnlockedAchievements();
+    let changed = false;
+    ACHIEVEMENTS.forEach(a => {
+        if (unlocked[a.id]) return;
+        try {
+            if (a.check()) {
+                unlocked[a.id] = Date.now();
+                changed = true;
+                showAchievementToast(a);
+            }
+        } catch (e) {}
+    });
+    if (changed) setUnlockedAchievements(unlocked);
+}
+
+function showAchievementToast(achievement) {
+    if (!S.scene) return;
+    const scene = S.scene;
+    const x = CONFIG.width / 2;
+    const y = 100;
+    // Backdrop
+    const bg = scene.add.rectangle(x, y, 360, 56, 0x064e3b, 0.95)
+        .setStrokeStyle(2, 0xfde047).setDepth(2000).setAlpha(0);
+    const icon = scene.add.text(x - 150, y, achievement.icon, {
+        font: '28px sans-serif'
+    }).setOrigin(0.5).setDepth(2001).setAlpha(0);
+    const header = scene.add.text(x - 120, y - 12, '🏆 LOGRO DESBLOQUEADO', {
+        font: 'bold 10px monospace', color: '#fde047'
+    }).setOrigin(0, 0.5).setDepth(2001).setAlpha(0);
+    const name = scene.add.text(x - 120, y + 2, achievement.name, {
+        font: 'bold 14px monospace', color: '#fff'
+    }).setOrigin(0, 0.5).setDepth(2001).setAlpha(0);
+    const desc = scene.add.text(x - 120, y + 16, achievement.desc, {
+        font: 'italic 10px monospace', color: '#a7f3d0'
+    }).setOrigin(0, 0.5).setDepth(2001).setAlpha(0);
+
+    // Fanfare sound — short ascending arpeggio
+    if (typeof SFX !== 'undefined' && SFX.beep) {
+        SFX.beep(523, 0.08); setTimeout(() => SFX.beep(659, 0.08), 80);
+        setTimeout(() => SFX.beep(784, 0.10), 160);
+        setTimeout(() => SFX.beep(1047, 0.14), 240);
+    }
+
+    const els = [bg, icon, header, name, desc];
+    scene.tweens.add({ targets: els, alpha: 1, duration: 350, ease: 'Power2' });
+    scene.tweens.add({ targets: els, y: '+= 6', duration: 350, yoyo: true, repeat: 1, delay: 400 });
+    scene.time.delayedCall(3000, () => {
+        scene.tweens.add({
+            targets: els, alpha: 0, duration: 400,
+            onComplete: () => els.forEach(e => e.destroy())
+        });
+    });
+}
+
 // ─── BRANCH LOTS — multi-location empire ──────────────────
 // Después de cierto progreso podés comprar lotes adicionales en otros
 // puntos de la ciudad. Cada uno genera income pasivo, modulado por día
@@ -1784,6 +1917,8 @@ function flagReopenManagement() {
     S.shouldReopenManagement = true;
     S.shouldOpenTab = S.managementTab || 'upgrades';
     closeManagementPanel();
+    // Achievements often trigger on purchase — check here too
+    checkAchievements();
 }
 
 function renderManagementPanel() {
@@ -2533,15 +2668,45 @@ function renderStatsTab(scene, contentY, panelW) {
     const W = CONFIG.width;
     const tableX = W/2 - panelW/2 + 24;
 
+    let ypos = contentY;
+
+    // ── ACHIEVEMENTS GALLERY ──────────────────────────────
+    const unlocked = getUnlockedAchievements();
+    const totalAchievements = ACHIEVEMENTS.length;
+    const unlockedCount = ACHIEVEMENTS.filter(a => unlocked[a.id]).length;
+    S.managementUI.push(scene.add.text(tableX, ypos, `🏆 LOGROS (${unlockedCount}/${totalAchievements})`, {
+        font: 'bold 13px monospace', color: '#fde047'
+    }));
+    ypos += 18;
+    // Grid: 9 per row, 3 rows fit 27 → enough for current set
+    const itemsPerRow = 13;
+    ACHIEVEMENTS.forEach((a, i) => {
+        const col = i % itemsPerRow;
+        const row = Math.floor(i / itemsPerRow);
+        const ix = tableX + col * 30;
+        const iy = ypos + row * 32;
+        const isUnlocked = !!unlocked[a.id];
+        // Circle background
+        S.managementUI.push(scene.add.circle(ix + 12, iy + 12, 13,
+            isUnlocked ? 0x064e3b : 0x1f2937).setStrokeStyle(1, isUnlocked ? 0xfde047 : 0x475569));
+        // Icon (grayed if locked)
+        const iconTxt = scene.add.text(ix + 12, iy + 12, a.icon, {
+            font: '14px sans-serif'
+        }).setOrigin(0.5);
+        if (!isUnlocked) iconTxt.setAlpha(0.3);
+        S.managementUI.push(iconTxt);
+        // Hover tooltip: show name on the bottom of the gallery
+        iconTxt.setInteractive({ useHandCursor: false });
+    });
+    ypos += Math.ceil(ACHIEVEMENTS.length / itemsPerRow) * 32 + 8;
+
     if (S.dailyStatsHistory.length === 0) {
-        S.managementUI.push(scene.add.text(tableX, contentY,
+        S.managementUI.push(scene.add.text(tableX, ypos,
             'Sin estadísticas aún. Termina al menos 1 día para ver trends.',
             { font: 'italic 13px monospace', color: '#94a3b8' }
         ));
         return;
     }
-
-    let ypos = contentY;
 
     // ── Leaderboard mini-card ──
     const lb = getLeaderboard();
@@ -3076,6 +3241,7 @@ function processExitViaTotem() {
         S.lifetimeRevenue += amount;
         S.carsServedToday++;
         S.lifetimeServed++;
+        checkAchievements();
         // Premium sparkle sound when revenue tier is high (app user OR valet/+)
         if (car.isAppUser || S.upgrades.valetAI || S.upgrades.spaceport) SFX.cashPremium();
         else SFX.cashRegister();
@@ -5686,8 +5852,9 @@ function renderEndOfDay() {
         endMoney: S.money, reputation: S.reputation,
     });
     if (S.dailyStatsHistory.length > 30) S.dailyStatsHistory.shift();
-    // Track best days / lifetime stats in leaderboard
+    // Track best days / lifetime stats in leaderboard + check achievements
     updateLeaderboard({ day: S.day, utility });
+    checkAchievements();
 
     const scene = S.scene;
     const W = CONFIG.width, H = CONFIG.height;
