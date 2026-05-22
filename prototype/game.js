@@ -59,6 +59,16 @@ const CONFIG = {
     vandalismCleanupCost: 4000,
     vandalismRepLoss: 4,
 
+    // Reputation / aesthetic upgrades
+    pavementCost: 30000, pavementRepBonus: 5,
+    linesCost: 15000,    linesRepBonus: 3,
+    lightsCost: 25000,   lightsRepBonus: 5, lightsPatienceBonusPct: 10,
+    guardCost: 45000,    guardRepBonus: 4,
+    greeneryCost: 20000, greeneryRepBonus: 3,
+
+    // Passing-by cars (street ambience)
+    passingCarMinMs: 4000, passingCarMaxMs: 9000,
+
     spawnMinMs: 3500, spawnMaxMs: 6500,  // slower spawn to prevent overlap
     patienceMs: 22000, repenaltyAngry: 5,
     exitPatienceMs: 16000, repenaltyEscape: 10,
