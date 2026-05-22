@@ -774,14 +774,26 @@ function createParkingSpaces(scene) {
 }
 
 function addSpace(scene, x, y, facing, col, isEV) {
-    const fillColor = isEV ? 0x14532d : COLORS.spaceEmpty;
-    // Lines & border: bright white if "lines" upgrade purchased, else muted
-    const borderColor = isEV ? 0x22c55e : (S.upgrades.lines ? 0xfafafa : COLORS.spaceBorder);
-    const borderWidth = S.upgrades.lines ? 2 : 2;
+    // EV spaces: dark green
+    // Paved + lines: gray with bright white borders
+    // Paved no lines: gray with muted borders
+    // Dirt (no pavement): brown-ish fill that blends with the lot
+    let fillColor, borderColor, labelColor;
+    if (isEV) {
+        fillColor = 0x14532d; borderColor = 0x22c55e; labelColor = '#86efac';
+    } else if (S.upgrades.pavement) {
+        fillColor = COLORS.spaceEmpty;
+        borderColor = S.upgrades.lines ? 0xfafafa : COLORS.spaceBorder;
+        labelColor = S.upgrades.lines ? '#fafafa' : '#9ca3af';
+    } else {
+        // Dirt era — spaces are just dashed outlines (no fill)
+        fillColor = 0x7d6b4a;  // lighter dirt patch
+        borderColor = 0x5c4f36; // brown stroke
+        labelColor = '#a8966b';
+    }
     const rect = scene.add.rectangle(x, y, L.spaceW, L.spaceH, fillColor)
-        .setStrokeStyle(borderWidth, borderColor);
+        .setStrokeStyle(2, borderColor);
     const labelText = isEV ? '🔌' : 'P';
-    const labelColor = isEV ? '#86efac' : (S.upgrades.lines ? '#fafafa' : '#9ca3af');
     const label = scene.add.text(x, y, labelText, {
         font: 'bold 16px monospace',
         color: labelColor
@@ -2747,10 +2759,10 @@ function updateInfoBoard() {
 
     // EV tariff
     if (S.upgrades.evCharger) {
-        $('info-ev-tariff').textContent = `$${(CONFIG.pricePerMinute * CONFIG.evMultiplier).toFixed(0)} / min  (2.5x)`;
+        $('info-ev-tariff').textContent = `$${(CONFIG.pricePerMinute * CONFIG.evMultiplier).toFixed(0)} / min`;
         $('info-ev-tariff').style.color = '#4ade80';
     } else {
-        $('info-ev-tariff').textContent = '(necesitas cargador 🔌)';
+        $('info-ev-tariff').textContent = '— sin cargador';
         $('info-ev-tariff').style.color = '#6b7280';
     }
 
@@ -2771,17 +2783,17 @@ function updateInfoBoard() {
     });
     const servEl = $('info-services');
     if (services.length === 0) {
-        servEl.innerHTML = '<span style="color:#6b7280;font-style:italic">Sin upgrades aún. Abrí Gestión (G) para comprar.</span>';
+        servEl.innerHTML = '<span class="empty-state">Sin upgrades aún.<br>Abrí Gestión (G).</span>';
     } else {
         servEl.innerHTML = services.map(s => `<span class="service-badge active">${s.label}</span>`).join('');
     }
 
     // Daily stats
     const utility = S.revenueToday - S.salariesPaidToday;
-    $('info-revenue-today').textContent = `$${Math.floor(S.revenueToday).toLocaleString('es-CL')}`;
-    $('info-salary-today').textContent = `-$${Math.floor(S.salariesPaidToday).toLocaleString('es-CL')}`;
+    $('info-revenue-today').textContent = `$${Math.round(S.revenueToday).toLocaleString('es-CL')}`;
+    $('info-salary-today').textContent = `-$${Math.round(S.salariesPaidToday).toLocaleString('es-CL')}`;
     const profitEl = $('info-profit-today');
-    profitEl.textContent = `$${Math.floor(utility).toLocaleString('es-CL')}`;
+    profitEl.textContent = `$${Math.round(utility).toLocaleString('es-CL')}`;
     profitEl.classList.toggle('negative', utility < 0);
     profitEl.style.color = utility >= 0 ? '#10b981' : '#f87171';
     $('info-served-today').textContent = String(S.carsServedToday);
@@ -2806,7 +2818,7 @@ function updateHUD() {
     const onDuty = S.employees.filter(e => isOnShift(e, hour)).length;
     S.hud.employees.setText(`👥 ${onDuty}/${S.employees.length}`);
 
-    S.hud.salary.setText(`💸 -$${Math.floor(S.salariesPaidToday).toLocaleString('es-CL')}`);
+    S.hud.salary.setText(`💸 -$${Math.round(S.salariesPaidToday).toLocaleString('es-CL')}`);
     const demand = getDemandMultiplier(S.timeMinutes / 60);
     S.hud.demand.setText(`📈 ${getDemandLabel(demand)}`);
 
@@ -2957,7 +2969,7 @@ function endDay() {
             const space = S.spaces[sub.spaceIndex];
             if (space && space.occupied === 'subscription') {
                 space.occupied = null;
-                space.sprite.setFillStyle(COLORS.spaceEmpty);
+                space.sprite.setFillStyle(space.isEV ? 0x14532d : (S.upgrades.pavement ? COLORS.spaceEmpty : 0x7d6b4a));
                 if (space.label) { space.label.setText('P'); space.label.setColor('#9ca3af'); }
             }
             flashEvent(`📋 Mensualista #${sub.spaceIndex + 1} se fue (contrato terminado)`);
