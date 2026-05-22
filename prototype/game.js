@@ -40,10 +40,9 @@ const CONFIG = {
     posCost: 200000,                 // Nivel 2 — premium upgrade
     posCobroDuration: 300,
 
-    // Barriers upgrade (Nivel 3 transition) — automatic gate scanner
-    barriersCost: 350000,            // Nivel 3 — major capex (ParkingApp+Redcomercio LPR system)
-    barrierScanMs: 400,              // gate scan + lift time (very fast, no cobrador needed)
-    barrierAutoTickMs: 700,          // how often the gate "checks" for queued cars
+    // Barriers upgrade (Nivel 3) — physical gates that the operator opens via POS
+    barriersCost: 350000,            // Nivel 3 — major capex (physical gate hardware)
+    barrierScanMs: 400,              // gate open + close animation duration
     barrierEscapeReductionPct: 90,   // % of would-be escapes prevented by physical gate
 
     // NEW — Cameras prevent robberies
@@ -1450,7 +1449,7 @@ function renderUpgradesTab(scene, contentY, panelW) {
             cost: CONFIG.barriersCost,
             label: `🚧 BARRERAS  $${CONFIG.barriersCost.toLocaleString('es-CL')}`,
             color: '#ea580c',
-            desc: 'Nivel 3 · acceso automático · -90% escapes',
+            desc: 'Nivel 3 · gate físico · -90% escapes',
             onClick: () => { purchaseBarriers(); renderManagementPanel(); },
         });
     } else if (S.upgrades.barriers) {
@@ -2118,7 +2117,7 @@ function showBarriersCelebration() {
     scene.tweens.add({ targets: title, scale: 1, duration: 600, ease: 'Back.easeOut' });
     ui.push(title);
 
-    ui.push(scene.add.text(W/2, 118, 'Nivel 3 — Acceso automatizado', {
+    ui.push(scene.add.text(W/2, 118, 'Nivel 3 — Acceso controlado', {
         font: 'italic 16px monospace', color: '#a5f3fc'
     }).setOrigin(0.5).setDepth(1001));
 
@@ -2141,17 +2140,17 @@ function showBarriersCelebration() {
         .setStrokeStyle(2, 0xfde047).setDepth(1001));
 
     const lines = [
-        '«El gate scanner ya está en línea.»',
+        '«Tus barreras ya están instaladas.»',
         '',
-        '🚧 Reconocimiento de patente (LPR)',
-        '💳 Cobro automático vía Redcomercio',
-        '⚡ Entrada/salida en <1s',
+        '🚧 Gate físico en entrada y salida',
+        '🎫 El cobrador retira ticket con POS',
+        '⬆️ La barrera abre cuando el POS confirma',
         '🚫 -90% escapes (barrera física)',
         '',
-        '«El cobrador queda como supervisor.',
-        ' Tu única labor: contar la plata.»',
+        '«Ya no se escapan sin pagar.',
+        ' Los autos esperan hasta que abras.»',
         '',
-        '«Esto es la era ParkingApp full.»',
+        '«Más adelante: LPR + autopago vía app.»',
     ];
     lines.forEach((line, i) => {
         const t = scene.add.text(dialogX + 16, dialogY + i * 19 + 10, line, {
@@ -2491,20 +2490,11 @@ function update(time, delta) {
         S.lifetimeRevenue += adIncome;
     }
 
-    // Barriers auto-tick: when barriers are installed, the gate automatically
-    // processes queued cars without requiring a player click. Still requires an
-    // employee on shift (the supervisor) to keep the system "manned".
-    if (S.upgrades.barriers && isOpen()) {
-        S.barrierTickTimer = (S.barrierTickTimer || 0) + delta;
-        if (S.barrierTickTimer >= CONFIG.barrierAutoTickMs) {
-            S.barrierTickTimer = 0;
-            const emp = findAvailableEmployee();
-            if (emp) {
-                if (S.exitQueue.some(c => c.state === 'exit-waiting')) attendExit(emp);
-                else if (S.queue.some(c => c.state === 'queueing')) attendEntry(emp);
-            }
-        }
-    }
+    // NOTE: Nivel 3 (Barreras) is still operator-driven — there's no LPR yet.
+    // The cobrador uses the POS to generate the ticket, and that triggers the
+    // gate to open. Cars must wait at the closed barrier until the operator
+    // acts. Auto-processing (LPR + Redcomercio direct charge) will come at a
+    // later level (e.g., Nivel 4 — Tótem autopago).
 
     S.spawnTimer += delta;
     if (S.spawnTimer >= S.nextSpawnIn) {
@@ -2845,17 +2835,16 @@ function attendEntry(emp) {
     const hasBooth = S.upgrades.booth;
     const hasPos = S.upgrades.pos;
     const hasBarriers = S.upgrades.barriers;
-    const cobroDur = hasBarriers ? CONFIG.barrierScanMs
-        : (hasPos ? CONFIG.posCobroDuration : (hasBooth ? CONFIG.boothCobroDuration : CONFIG.cobroDuration));
-
-    // Open the entry gate (animation runs in parallel with the scan delay)
-    if (hasBarriers) operateGate('entry');
+    // Operator still uses POS (no LPR yet at Nivel 3). cobroDur is POS time.
+    const cobroDur = hasPos ? CONFIG.posCobroDuration : (hasBooth ? CONFIG.boothCobroDuration : CONFIG.cobroDuration);
 
     const doPapeleta = () => {
-        if (hasBooth && !hasBarriers && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindowBusy);
-        const verb = hasBarriers ? 'escanea LPR' : (hasPos ? 'cobra con POS' : 'registra entrada');
-        flashEvent(`✍️ ${hasBarriers ? '🚧 Barrera' : emp.name} ${verb}${hasBooth && !hasBarriers ? ' (caseta)' : ''}...`);
+        if (hasBooth && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindowBusy);
+        const verb = hasPos ? 'genera ticket' : 'registra entrada';
+        flashEvent(`✍️ ${emp.name} ${verb}${hasBooth ? ' (caseta)' : ''}${hasBarriers ? ' → abre barrera' : ''}...`);
         S.scene.time.delayedCall(cobroDur, () => {
+            // POS scan complete → operator triggers the gate to open
+            if (hasBarriers) operateGate('entry');
             if (hasBooth && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindow);
 
             car.entryTimeMinutes = S.timeMinutes;
@@ -2887,7 +2876,10 @@ function attendEntry(emp) {
                     { angle: turnIntoSpaceAngle, duration: 200 },
                     { x: space.x, y: space.y, duration: 450 },
                   ];
-            driveCar(car, wps, () => {
+            // With barriers active, hold the car for ~400ms so the gate visibly
+            // opens before the car drives through.
+            const driveDelay = hasBarriers ? CONFIG.barrierScanMs : 0;
+            S.scene.time.delayedCall(driveDelay, () => driveCar(car, wps, () => {
                 car.state = 'parked';
                 S.parkedCars.push(car);
                 // If carwash station purchased, make this car clickable to add a wash
@@ -2895,9 +2887,9 @@ function attendEntry(emp) {
                     car.sprite.setInteractive({ useHandCursor: true });
                     car.sprite.on('pointerdown', () => triggerWash(car));
                 }
-            });
+            }));
 
-            if (hasBooth || hasBarriers) {
+            if (hasBooth) {
                 emp.busy = false;
                 updateEmployeeAppearance(emp);
                 updateEmployeeCardsHTML();
@@ -2918,7 +2910,7 @@ function attendEntry(emp) {
         });
     };
 
-    if (hasBooth || hasBarriers) {
+    if (hasBooth) {
         doPapeleta();
     } else {
         // Cobrador walks INSIDE the lot to the car at the entry vlane
@@ -2992,15 +2984,12 @@ function attendExit(emp) {
     const hasBooth = S.upgrades.booth;
     const hasPos = S.upgrades.pos;
     const hasBarriers = S.upgrades.barriers;
-    const cobroDur = hasBarriers ? CONFIG.barrierScanMs
-        : (hasPos ? CONFIG.posCobroDuration : (hasBooth ? CONFIG.boothCobroDuration : CONFIG.cobroDuration));
-
-    // Open the exit gate (animation runs in parallel with the scan delay)
-    if (hasBarriers) operateGate('exit');
+    // Operator still uses POS (no LPR yet at Nivel 3). cobroDur is POS time.
+    const cobroDur = hasPos ? CONFIG.posCobroDuration : (hasBooth ? CONFIG.boothCobroDuration : CONFIG.cobroDuration);
 
     const doCobro = () => {
-        if (hasBooth && !hasBarriers && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindowBusy);
-        flashEvent(`💵 ${hasBarriers ? '🚧 Barrera cobra automático' : emp.name + ' cobra salida'}${hasBooth && !hasBarriers ? ' (caseta)' : ''}...`);
+        if (hasBooth && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindowBusy);
+        flashEvent(`💵 ${emp.name} cobra salida${hasBooth ? ' (caseta)' : ''}${hasBarriers ? ' → abre barrera' : ''}...`);
         S.scene.time.delayedCall(cobroDur, () => {
             if (hasBooth && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindow);
 
@@ -3028,7 +3017,11 @@ function attendExit(emp) {
             SFX.cashRegister();
 
             S.exitQueue = S.exitQueue.filter(c => c.id !== car.id);
-            driveCar(car, [
+            // Operator triggers the exit gate to open after collecting payment
+            if (hasBarriers) operateGate('exit');
+            // Hold the car briefly so the gate visibly opens before driving through
+            const driveDelay = hasBarriers ? CONFIG.barrierScanMs : 0;
+            S.scene.time.delayedCall(driveDelay, () => driveCar(car, [
                 { x: L.exitVlaneX, y: L.exitWaitY - 20, duration: 300 },
                 { x: L.exitVlaneX, y: L.bypassLaneY, duration: 600 },
                 { angle: 0, duration: 200 },
@@ -3036,9 +3029,9 @@ function attendExit(emp) {
             ], () => {
                 car.sprite.destroy(); car.windows.destroy();
                 S.cars = S.cars.filter(c => c.id !== car.id);
-            });
+            }));
 
-            if (hasBooth || hasBarriers) {
+            if (hasBooth) {
                 emp.busy = false;
                 updateEmployeeAppearance(emp);
                 repositionExitQueue();
@@ -3057,7 +3050,7 @@ function attendExit(emp) {
         });
     };
 
-    if (hasBooth || hasBarriers) {
+    if (hasBooth) {
         doCobro();
     } else {
         S.scene.tweens.add({
@@ -3140,7 +3133,7 @@ function updateInfoBoard() {
     const title = $('page-title');
     if (title) {
         let levelText = 'Nivel 1: Papeleta';
-        if (S.upgrades.barriers) levelText = 'Nivel 3: Barreras automáticas';
+        if (S.upgrades.barriers) levelText = 'Nivel 3: Barreras';
         else if (S.upgrades.pos) levelText = 'Nivel 2: POS Digital';
         title.textContent = `🅿️ Parking Tycoon — ${levelText}`;
     }
