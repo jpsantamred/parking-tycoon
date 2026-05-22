@@ -91,6 +91,51 @@ function clearSave() {
     try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
 }
 
+// ─── EMPLOYEE LEVELING ─────────────────────────────────────
+// XP is awarded on each cobro. Level is derived from XP. Bonuses
+// boost XP immediately so the player can spend $5k to push someone
+// up a tier.
+function levelFromXp(xp) {
+    let lv = 1;
+    for (let i = 4; i >= 0; i--) {
+        if (xp >= CONFIG.levelThresholds[i]) { lv = i + 1; break; }
+    }
+    return lv;
+}
+
+function awardXp(empOrEntry, amount) {
+    // Accepts either a live employee (with .rosterEntry) or a roster entry directly.
+    const entry = empOrEntry.rosterEntry || empOrEntry;
+    if (!entry) return;
+    const before = levelFromXp(entry.xp || 0);
+    entry.xp = (entry.xp || 0) + amount;
+    const after = levelFromXp(entry.xp);
+    if (after > before) {
+        entry.level = after;
+        flashEvent(`🎉 ${entry.name} subió a Nivel ${after}! +${(CONFIG.levelSpeedBonus[after-1] * 100).toFixed(0)}% velocidad`);
+        if (SFX.beep) {
+            SFX.beep(880, 0.1, 'square', 0.08);
+            setTimeout(() => SFX.beep(1175, 0.15, 'square', 0.1), 100);
+        }
+        updateEmployeeCardsHTML();
+    }
+}
+
+function giveBonus(rosterId) {
+    const entry = S.employeeRoster.find(e => e.id === rosterId);
+    if (!entry) return false;
+    if (S.money < CONFIG.bonusCost) {
+        flashEvent('💸 Sin plata para pagar bono.');
+        return false;
+    }
+    S.money -= CONFIG.bonusCost;
+    flashEvent(`💰 Bono de $${CONFIG.bonusCost.toLocaleString('es-CL')} a ${entry.name}! +${CONFIG.bonusXp} XP`);
+    awardXp(entry, CONFIG.bonusXp);
+    updateEmployeeCardsHTML();
+    updateHUD();
+    return true;
+}
+
 const CONFIG = {
     width: 960, height: 540,
     startHour: 8, endHour: 22, timeSpeed: 14,
@@ -171,6 +216,17 @@ const CONFIG = {
     employeeSalary: 8000,
     employeeHoursPerShift: 8,
     severanceMultiplier: 5,
+
+    // Employee leveling — XP gained per action, level thresholds, perks
+    xpPerEntry: 1,
+    xpPerExit: 2,
+    levelThresholds: [0, 30, 90, 200, 400],         // XP needed for L1..L5
+    levelSpeedBonus: [0, 0.10, 0.18, 0.28, 0.40],   // cobro time reduction
+    // Autonomy: probability per game minute the employee attends a queue car
+    // without any click. Scales with level — Lv1/2 do nothing autonomously.
+    levelAutonomyPerMin: [0, 0, 0.04, 0.08, 0.15],
+    bonusCost: 5000,                                // pay $5k to give a bonus
+    bonusXp: 25,                                    // XP awarded by a bonus
 };
 
 // ─── DAYS OF WEEK ──────────────────────────────────────────
@@ -624,8 +680,14 @@ function ensureInitialRoster() {
             id: 'emp-' + Math.random().toString(36).slice(2),
             name: 'Tomás', shift: SHIFTS.wd_morning,
             salary: CONFIG.employeeSalary, hiredOnDay: 1,
+            xp: 0, level: 1,
         });
     }
+    // Migrate older roster entries (loaded from save) that don't have xp/level
+    S.employeeRoster.forEach(e => {
+        if (typeof e.xp !== 'number') e.xp = 0;
+        if (typeof e.level !== 'number') e.level = 1;
+    });
 }
 
 function create() {
@@ -1065,6 +1127,18 @@ function updateEmployeeCardsHTML() {
         const daysWorked = S.day - entry.hiredOnDay + 1;
         const totalPaid = entry.salary * daysWorked;
 
+        // ── Level + XP progress ──
+        const xp = entry.xp || 0;
+        const lv = entry.level || 1;
+        const isMaxLevel = lv >= 5;
+        const xpForCurrent = CONFIG.levelThresholds[lv - 1];
+        const xpForNext = isMaxLevel ? xpForCurrent : CONFIG.levelThresholds[lv];
+        const xpInLevel = xp - xpForCurrent;
+        const xpToNext = xpForNext - xpForCurrent;
+        const xpPct = isMaxLevel ? 100 : Math.min(100, Math.round((xpInLevel / xpToNext) * 100));
+        const speedPct = Math.round(CONFIG.levelSpeedBonus[lv - 1] * 100);
+        const autoLabel = CONFIG.levelAutonomyPerMin[lv - 1] > 0 ? '· 🤖 autónomo' : '';
+
         const card = document.createElement('div');
         card.className = `emp-card ${stateClass}`;
         card.dataset.empId = entry.id;
@@ -1075,17 +1149,38 @@ function updateEmployeeCardsHTML() {
             </div>
             <div class="emp-shift">${entry.shift.label} · <strong>${entry.shift.start}-${entry.shift.end}</strong></div>
             <div class="emp-days">${daysHTML}</div>
+            <div class="emp-level" style="margin-top:6px; font-size:11px; color:#fde047;">
+                ⭐ Lv ${lv}  <span style="color:#94a3b8;">·</span>
+                <span style="color:#86efac;">+${speedPct}% vel</span> ${autoLabel}
+            </div>
+            <div class="emp-xp" style="margin:3px 0 6px 0; height:6px; background:#1e293b; border-radius:3px; overflow:hidden; position:relative;">
+                <div style="height:100%; width:${xpPct}%; background:linear-gradient(90deg,#fbbf24,#fde047);"></div>
+                <span style="position:absolute; right:4px; top:-1px; font-size:9px; color:#cbd5e1;">${isMaxLevel ? 'MAX' : xp + '/' + xpForNext}</span>
+            </div>
             <div class="emp-stat-line"><span class="label">Sueldo:</span> <span class="val">$${entry.salary.toLocaleString('es-CL')}/día</span></div>
             <div class="emp-meta">
                 <span class="meta-item">Desde D${entry.hiredOnDay}</span>
-                <span class="meta-item">${daysWorked}d trabajados</span>
-                <span class="meta-item">$${totalPaid.toLocaleString('es-CL')} pagado</span>
+                <span class="meta-item">${daysWorked}d</span>
+                <span class="meta-item">$${totalPaid.toLocaleString('es-CL')} pago</span>
             </div>
+            ${isMaxLevel ? '' : `
+            <button class="bonus-btn" data-emp="${entry.id}" style="margin-top:6px; width:100%; padding:4px; background:#16a34a; color:#fff; border:none; border-radius:4px; font-family:monospace; font-size:10px; font-weight:bold; cursor:pointer;">
+                💰 Bono $${CONFIG.bonusCost.toLocaleString('es-CL')} (+${CONFIG.bonusXp} XP)
+            </button>`}
         `;
-        card.addEventListener('click', () => {
-            const target = S.employees.find(e => e.id === entry.id);
+        // Card click = attend; bonus button click = bono (stopPropagation)
+        card.addEventListener('click', (e) => {
+            if (e.target.classList.contains('bonus-btn')) return;
+            const target = S.employees.find(e2 => e2.id === entry.id);
             if (target) attemptCobroBy(target);
         });
+        const bonusBtn = card.querySelector('.bonus-btn');
+        if (bonusBtn) {
+            bonusBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                giveBonus(entry.id);
+            });
+        }
         strip.appendChild(card);
     });
 
@@ -1129,6 +1224,7 @@ function hireEmployee(shift = null) {
     const entry = {
         id: 'emp-' + Math.random().toString(36).slice(2),
         name, shift, salary: CONFIG.employeeSalary, hiredOnDay: S.day,
+        xp: 0, level: 1,
     };
     S.employeeRoster.push(entry);
     if (S.upgrades.booth) createEmployeeRemote(S.scene, entry, S.employees.length);
@@ -2736,6 +2832,22 @@ function update(time, delta) {
         }
     }
 
+    // Employee AUTONOMY tick: level 3+ employees auto-attend cars without
+    // requiring a player click. Probability scales with level. Gives the
+    // player breathing room when running multiple shifts.
+    S.employees.forEach(emp => {
+        if (emp.busy) return;
+        if (!isOnShift(emp, hourNow)) return;
+        const lv = (emp.rosterEntry && emp.rosterEntry.level) || 1;
+        const perMin = CONFIG.levelAutonomyPerMin[lv - 1];
+        if (perMin <= 0) return;
+        // Probability per ms = (perMin / 60000 game-ms) — but delta is real-ms.
+        // Game minutes elapsed this tick = gameMinutesAdvanced.
+        if (Math.random() < perMin * gameMinutesAdvanced) {
+            attemptCobroBy(emp);
+        }
+    });
+
     S.spawnTimer += delta;
     if (S.spawnTimer >= S.nextSpawnIn) {
         spawnCar();
@@ -3206,7 +3318,10 @@ function attendEntry(emp) {
     const hasPos = S.upgrades.pos;
     const hasBarriers = S.upgrades.barriers;
     // Operator still uses POS (no LPR yet at Nivel 3). cobroDur is POS time.
-    const cobroDur = hasPos ? CONFIG.posCobroDuration : (hasBooth ? CONFIG.boothCobroDuration : CONFIG.cobroDuration);
+    let cobroDur = hasPos ? CONFIG.posCobroDuration : (hasBooth ? CONFIG.boothCobroDuration : CONFIG.cobroDuration);
+    // Employee level speeds up cobro
+    const empLevel = (emp.rosterEntry && emp.rosterEntry.level) || 1;
+    cobroDur = cobroDur * (1 - CONFIG.levelSpeedBonus[empLevel - 1]);
 
     const doPapeleta = () => {
         if (hasBooth && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindowBusy);
@@ -3270,6 +3385,8 @@ function attendEntry(emp) {
                     });
                 });
             });
+            // Award XP to the employee who registered the entry
+            if (emp && emp.rosterEntry) awardXp(emp.rosterEntry, CONFIG.xpPerEntry);
 
             if (hasBooth) {
                 emp.busy = false;
@@ -3373,7 +3490,10 @@ function attendExit(emp) {
     const hasPos = S.upgrades.pos;
     const hasBarriers = S.upgrades.barriers;
     // Operator still uses POS (no LPR yet at Nivel 3). cobroDur is POS time.
-    const cobroDur = hasPos ? CONFIG.posCobroDuration : (hasBooth ? CONFIG.boothCobroDuration : CONFIG.cobroDuration);
+    let cobroDur = hasPos ? CONFIG.posCobroDuration : (hasBooth ? CONFIG.boothCobroDuration : CONFIG.cobroDuration);
+    // Employee level speeds up cobro
+    const empLevel = (emp.rosterEntry && emp.rosterEntry.level) || 1;
+    cobroDur = cobroDur * (1 - CONFIG.levelSpeedBonus[empLevel - 1]);
 
     const doCobro = () => {
         if (hasBooth && S.boothWindowSprite) S.boothWindowSprite.setFillStyle(COLORS.boothWindowBusy);
@@ -3403,6 +3523,8 @@ function attendExit(emp) {
             S.carsServedToday++;
             S.lifetimeServed++;
             SFX.cashRegister();
+            // Award XP to the employee who handled the exit cobro
+            if (emp && emp.rosterEntry) awardXp(emp.rosterEntry, CONFIG.xpPerExit);
 
             S.exitQueue = S.exitQueue.filter(c => c.id !== car.id);
             // Operator triggers the exit gate to open after collecting payment
