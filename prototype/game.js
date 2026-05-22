@@ -182,6 +182,35 @@ function giveBonus(rosterId) {
     return true;
 }
 
+// ─── MOBILE DEVICE DETECTION ──────────────────────────────
+// Lower-end phones can't handle the same particle/shadow load as desktop.
+// We detect coarse-pointer + small-viewport + UA hints to scale FX down.
+// Result is cached so we don't re-run regex on every spawn.
+let _isMobileCached = null;
+function isMobileDevice() {
+    if (_isMobileCached !== null) return _isMobileCached;
+    try {
+        const ua = navigator.userAgent || '';
+        const uaHit = /Android|iPhone|iPad|iPod|Mobile|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+        const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+        const smallScreen = Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 820;
+        _isMobileCached = uaHit || (coarse && smallScreen);
+    } catch (e) {
+        _isMobileCached = false;
+    }
+    return _isMobileCached;
+}
+// Multiplier we apply to ephemeral FX counts (confetti, sparkles, etc).
+// 1.0 desktop, 0.4 mobile — keeps things readable but ~60% lighter on GPU.
+function fxScale() { return isMobileDevice() ? 0.4 : 1.0; }
+function fxEnabled() { return !isMobileDevice(); }   // for purely decorative effects we can skip on mobile
+
+// Haptic feedback — no-op on web, real on Capacitor native wrap.
+// styles: 'LIGHT' (cobro), 'MEDIUM' (upgrade), 'HEAVY' (milestone / game won)
+function hapticBuzz(style) {
+    try { if (typeof window !== 'undefined' && window.gameVibrate) window.gameVibrate(style); } catch (e) {}
+}
+
 const CONFIG = {
     width: 960, height: 540,
     startHour: 8, endHour: 22, timeSpeed: 14,
@@ -1062,11 +1091,15 @@ const S = {
 const phaserConfig = {
     type: Phaser.AUTO, width: CONFIG.width, height: CONFIG.height,
     parent: 'game', backgroundColor: COLORS.bgOutside,
-    pixelArt: false, antialias: true, roundPixels: true,
+    // On mobile we drop antialias + cap the renderer DPR. Cheap GPU win.
+    pixelArt: false, antialias: !isMobileDevice(), roundPixels: true,
     scale: {
         mode: Phaser.Scale.FIT,            // canvas scales to fit viewport
         autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
     },
+    // Cap pixel ratio so we don't ask phones to draw at 3x native.
+    resolution: isMobileDevice() ? 1 : (window.devicePixelRatio || 1),
+    fps: { target: isMobileDevice() ? 45 : 60, forceSetTimeOut: false },
     scene: { preload, create, update }
 };
 let game = new Phaser.Game(phaserConfig);
@@ -3303,8 +3336,13 @@ function processExitViaTotem() {
         S.lifetimeServed++;
         checkAchievements();
         // Premium sparkle sound when revenue tier is high (app user OR valet/+)
-        if (car.isAppUser || S.upgrades.valetAI || S.upgrades.spaceport) SFX.cashPremium();
-        else SFX.cashRegister();
+        if (car.isAppUser || S.upgrades.valetAI || S.upgrades.spaceport) {
+            SFX.cashPremium();
+            hapticBuzz('MEDIUM');  // stronger pulse for premium
+        } else {
+            SFX.cashRegister();
+            hapticBuzz('LIGHT');
+        }
         // Floating $ amount above the car — visual juice
         showMoneyFloat(car.sprite.x, car.sprite.y, Math.floor(amount), car.isAppUser);
 
@@ -3368,18 +3406,26 @@ function drawAesthetics(scene) {
         ];
         lampPositions.forEach(p => {
             // === LIGHT POOL ON GROUND (drawn FIRST so post is on top) ===
+            // On mobile we drop the outer/mid pools (SCREEN blend is slow on phone GPUs)
+            // and skip the breathing tweens — keep just one static glow + bulb.
+            const mobile = isMobileDevice();
             // Big soft outer glow
-            const groundPool = scene.add.ellipse(p.x, p.y + 2, 90, 70, 0xfde047, 0.18)
-                .setBlendMode(Phaser.BlendModes.SCREEN);
-            // Mid pool — warmer
-            const midPool = scene.add.ellipse(p.x, p.y + 2, 60, 46, 0xfacc15, 0.22)
-                .setBlendMode(Phaser.BlendModes.SCREEN);
+            const groundPool = scene.add.ellipse(p.x, p.y + 2, 90, 70, 0xfde047, mobile ? 0.22 : 0.18);
+            if (!mobile) groundPool.setBlendMode(Phaser.BlendModes.SCREEN);
+            // Mid pool — warmer (skipped on mobile to halve overdraw)
+            let midPool = null;
+            if (!mobile) {
+                midPool = scene.add.ellipse(p.x, p.y + 2, 60, 46, 0xfacc15, 0.22)
+                    .setBlendMode(Phaser.BlendModes.SCREEN);
+            }
             // Inner hot spot — brightest
-            const hotSpot = scene.add.ellipse(p.x, p.y - 2, 32, 24, 0xfef08a, 0.32)
-                .setBlendMode(Phaser.BlendModes.SCREEN);
-            // Subtle breathing animation on the outer pool
-            scene.tweens.add({ targets: groundPool, alpha: { from: 0.18, to: 0.28 }, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-            scene.tweens.add({ targets: hotSpot, alpha: { from: 0.32, to: 0.45 }, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+            const hotSpot = scene.add.ellipse(p.x, p.y - 2, 32, 24, 0xfef08a, 0.32);
+            if (!mobile) hotSpot.setBlendMode(Phaser.BlendModes.SCREEN);
+            // Subtle breathing animation on the outer pool (desktop only)
+            if (!mobile) {
+                scene.tweens.add({ targets: groundPool, alpha: { from: 0.18, to: 0.28 }, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+                scene.tweens.add({ targets: hotSpot, alpha: { from: 0.32, to: 0.45 }, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+            }
 
             // === POLE + FIXTURE (above the light pool) ===
             // Pole (taller now)
@@ -3390,11 +3436,13 @@ function drawAesthetics(scene) {
             scene.add.rectangle(p.x, p.y - 8, 12, 5, 0x27272a).setStrokeStyle(1, 0x18181b);
             // Bulb (small glowing dot at the bottom of the fixture)
             const bulb = scene.add.circle(p.x, p.y - 6, 2.5, 0xfef9c3);
-            scene.tweens.add({ targets: bulb, alpha: { from: 1, to: 0.7 }, duration: 1500, yoyo: true, repeat: -1 });
-            // Small halo right around the bulb (keeps the fixture itself glowing)
-            const halo = scene.add.circle(p.x, p.y - 6, 8, 0xfde047, 0.5)
-                .setBlendMode(Phaser.BlendModes.SCREEN);
-            scene.tweens.add({ targets: halo, alpha: { from: 0.5, to: 0.7 }, duration: 1500, yoyo: true, repeat: -1 });
+            if (!mobile) scene.tweens.add({ targets: bulb, alpha: { from: 1, to: 0.7 }, duration: 1500, yoyo: true, repeat: -1 });
+            // Small halo right around the bulb (desktop only)
+            if (!mobile) {
+                const halo = scene.add.circle(p.x, p.y - 6, 8, 0xfde047, 0.5)
+                    .setBlendMode(Phaser.BlendModes.SCREEN);
+                scene.tweens.add({ targets: halo, alpha: { from: 0.5, to: 0.7 }, duration: 1500, yoyo: true, repeat: -1 });
+            }
         });
     }
 
@@ -3899,6 +3947,7 @@ function showLevelMilestone(opts) {
     const ui = [];
     S.paused = true;
     scene.tweens.pauseAll();
+    hapticBuzz('MEDIUM');
 
     // Dim backdrop
     ui.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.88).setDepth(1500));
@@ -3930,9 +3979,10 @@ function showLevelMilestone(opts) {
     scene.tweens.add({ targets: tagline, alpha: 1, duration: 400, delay: 600 });
     ui.push(tagline);
 
-    // Confetti burst
+    // Confetti burst — scaled down on mobile to keep frame rate up
     const colors = [0xfde047, 0x10b981, 0xa855f7, 0x3b82f6, 0xef4444, 0x06b6d4];
-    for (let i = 0; i < 20; i++) {
+    const confettiCount = Math.max(6, Math.round(20 * fxScale()));
+    for (let i = 0; i < confettiCount; i++) {
         const c = scene.add.rectangle(
             W/2 + (Math.random() - 0.5) * 200,
             H/2 - 30 + (Math.random() - 0.5) * 100,
@@ -3968,6 +4018,10 @@ function showGameWonCelebration() {
     const ui = [];
     S.paused = true;
     scene.tweens.pauseAll();
+    hapticBuzz('HEAVY');
+    // Triple-buzz fanfare for the winner
+    setTimeout(() => hapticBuzz('HEAVY'), 200);
+    setTimeout(() => hapticBuzz('HEAVY'), 500);
 
     ui.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.95).setDepth(2000));
 
@@ -4121,9 +4175,10 @@ function showPOSCelebration() {
     scene.tweens.add({ targets: glow, radius: 220, alpha: 0.35, duration: 800, yoyo: true, repeat: -1 });
     ui.push(glow);
 
-    // Confetti
+    // Confetti — half as many on mobile
     const colors = [0xfbbf24, 0x10b981, 0xa855f7, 0x3b82f6, 0xef4444, 0x06b6d4];
-    for (let i = 0; i < 40; i++) {
+    const confettiCount = Math.max(12, Math.round(40 * fxScale()));
+    for (let i = 0; i < confettiCount; i++) {
         const c = scene.add.rectangle(
             Math.random() * W, -30 + Math.random() * -100,
             6, 12,
@@ -5352,8 +5407,13 @@ function attendExit(emp) {
             S.carsServedToday++;
             S.lifetimeServed++;
             // Premium sparkle sound for app/valet/spaceport tier
-            if (car.isAppUser || S.upgrades.valetAI || S.upgrades.spaceport) SFX.cashPremium();
-            else SFX.cashRegister();
+            if (car.isAppUser || S.upgrades.valetAI || S.upgrades.spaceport) {
+                SFX.cashPremium();
+                hapticBuzz('MEDIUM');
+            } else {
+                SFX.cashRegister();
+                hapticBuzz('LIGHT');
+            }
             showMoneyFloat(car.sprite.x, car.sprite.y, Math.floor(amount), car.isAppUser);
             // Award XP to the employee who handled the exit cobro
             if (emp && emp.rosterEntry) awardXp(emp.rosterEntry, CONFIG.xpPerExit);

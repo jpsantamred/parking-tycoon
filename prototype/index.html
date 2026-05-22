@@ -504,7 +504,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.54 · prototype</div>
+            <div class="splash-version">v0.55 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -513,7 +513,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.54 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.55 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -686,6 +686,58 @@
                 togglePause();
             }
         });
+
+        // ── Capacitor native bridge (only active when wrapped) ──
+        // When running inside the Capacitor Android/iOS shell, hook into:
+        //   - Back button → pause / close management panel (Android)
+        //   - App pause/resume → mirror visibilitychange behavior
+        //   - Status bar style
+        // No-op when running as plain web (window.Capacitor is undefined).
+        document.addEventListener('DOMContentLoaded', () => {
+            const Cap = window.Capacitor;
+            if (!Cap || !Cap.isNativePlatform || !Cap.isNativePlatform()) return;
+            console.log('[Capacitor] Running native — wiring app hooks');
+            try {
+                const App = Cap.Plugins.App;
+                if (App && App.addListener) {
+                    App.addListener('backButton', () => {
+                        if (typeof S === 'undefined' || !S.scene) return;
+                        // If management panel is open, close it; otherwise pause/exit
+                        if (S.managementOpen && typeof toggleManagementPanel === 'function') {
+                            toggleManagementPanel();
+                        } else if (!S.paused && typeof togglePause === 'function') {
+                            togglePause();
+                        }
+                    });
+                    App.addListener('appStateChange', ({ isActive }) => {
+                        if (typeof S === 'undefined' || !S.scene) return;
+                        if (!isActive && !S.paused && !S.dayEnded && typeof togglePause === 'function') {
+                            togglePause();
+                        }
+                    });
+                }
+                const StatusBar = Cap.Plugins.StatusBar;
+                if (StatusBar && StatusBar.setBackgroundColor) {
+                    StatusBar.setBackgroundColor({ color: '#0f172a' }).catch(() => {});
+                }
+                const KeepAwake = Cap.Plugins.KeepAwake;
+                if (KeepAwake && KeepAwake.keepAwake) {
+                    KeepAwake.keepAwake().catch(() => {});
+                }
+            } catch (e) {
+                console.warn('[Capacitor] hook setup failed:', e);
+            }
+        });
+
+        // Expose a global vibrate() helper for game.js — no-op on web,
+        // real haptic feedback inside the native wrap.
+        window.gameVibrate = function (style) {
+            try {
+                const Hap = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics;
+                if (!Hap) return;
+                Hap.impact({ style: style || 'LIGHT' }).catch(() => {});
+            } catch (e) {}
+        };
     </script>
 </body>
 </html>

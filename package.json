@@ -1,0 +1,47 @@
+{
+  "name": "parking-tycoon",
+  "version": "0.55.0",
+  "description": "Parking Tycoon — de la papeleta a las naves espaciales. Wrapped with Capacitor for Android/iOS native builds.",
+  "private": true,
+  "scripts": {
+    "serve": "powershell -ExecutionPolicy Bypass -File serve.ps1",
+    "cap:init": "cap init \"Parking Tycoon\" cl.parkingapp.tycoon --web-dir=prototype",
+    "cap:android:add": "cap add android",
+    "cap:android:sync": "cap sync android",
+    "cap:android:open": "cap open android",
+    "cap:android:run": "cap run android",
+    "cap:ios:add": "cap add ios",
+    "cap:ios:sync": "cap sync ios",
+    "cap:ios:open": "cap open ios",
+    "cap:ios:run": "cap run ios",
+    "cap:sync": "cap sync"
+  },
+  "keywords": [
+    "phaser",
+    "game",
+    "tycoon",
+    "parking",
+    "capacitor",
+    "pwa"
+  ],
+  "author": "ParkingApp",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/app": "^6.0.1",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/haptics": "^6.0.1",
+    "@capacitor/ios": "^6.1.2",
+    "@capacitor/keep-awake": "^6.0.2",
+    "@capacitor/preferences": "^6.0.2",
+    "@capacitor/screen-orientation": "^6.0.2",
+    "@capacitor/splash-screen": "^6.0.2",
+    "@capacitor/status-bar": "^6.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

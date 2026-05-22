@@ -125,12 +125,24 @@ parking-tycoon/
 ├── GDD.md                  — Documento de diseño
 ├── ASSETS-NEEDED.md        — Inventario de sprites
 ├── README.md               — Este archivo
+├── CAPACITOR.md            — Guía para empaquetar Android/iOS
+├── capacitor.config.json   — Configuración nativa
+├── package.json            — Dependencias Capacitor
 ├── prototype/
 │   ├── index.html          — HTML + CSS + splash + onboarding + touch controls
-│   ├── game.js             — Lógica completa (~5000 líneas)
+│   ├── game.js             — Lógica completa (~6100 líneas)
+│   ├── manifest.json       — PWA manifest
+│   ├── sw.js               — Service Worker (offline-first)
+│   ├── icons/              — Iconos PWA (192/512/maskable)
 │   └── assets/             — Sprites PixelLab (.png)
 └── serve.ps1               — Mini HTTP server PowerShell
 ```
+
+## 📱 Mobile
+
+- **PWA**: Instalable desde Chrome/Safari mobile. Funciona offline después de la primera carga.
+- **Native wrap**: Capacitor 6 ready — `npm install && npx cap add android && npx cap open android`. Ver [CAPACITOR.md](CAPACITOR.md).
+- **Mobile perf**: detección automática de coarse-pointer + viewport pequeño → reduce confetti, skip SCREEN blend modes, cap renderer DPR, target 45 FPS.
 
 ## 🛠️ Stack
 
