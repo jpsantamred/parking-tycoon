@@ -562,7 +562,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.60 · prototype</div>
+            <div class="splash-version">v0.61 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -571,7 +571,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.60 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.61 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -692,6 +692,27 @@
                 }, 100);
             });
         }
+        // ?money=N (DEV) → set starting money. Only honored on fresh game.
+        if (__qs.has('money')) {
+            const m = parseInt(__qs.get('money'));
+            if (!isNaN(m)) {
+                window.__devStartMoney = m;
+                bootLog('?money=' + m + ' — will apply after splash');
+            }
+        }
+        // ?fps=1 (DEV) → show a corner FPS counter
+        if (__qs.has('fps')) {
+            window.addEventListener('load', () => {
+                const fps = document.createElement('div');
+                fps.id = 'fps-counter';
+                fps.style.cssText = 'position:fixed;top:50%;right:8px;background:#0008;color:#fde047;padding:4px 8px;font:bold 12px monospace;border-radius:4px;z-index:100;pointer-events:none;';
+                document.body.appendChild(fps);
+                setInterval(() => {
+                    const f = window.game?.loop?.actualFps;
+                    if (f != null) fps.textContent = 'FPS: ' + f.toFixed(0);
+                }, 500);
+            });
+        }
 
         // ─── Save / Load wiring ─────────────────────────
         function dismissSplash(showOnboarding) {
@@ -753,10 +774,17 @@
         });
 
         // EMPEZAR (new game) — always starts fresh (clears any save).
+        // Bug fix v0.61: previously clearSave() ran BEFORE peekSave() check, so
+        // the reload branch never fired (peekSave was already null). The result
+        // was that pressing "EMPEZAR NUEVA PARTIDA" from a corrupted Phaser
+        // scene (e.g. after game-over) kept stale game objects on screen.
         document.getElementById('splash-start').addEventListener('click', () => {
+            const hadSave = typeof peekSave === 'function' && !!peekSave();
+            const sceneAlreadyBooted = !!(window.game && window.game.scene && window.game.scene.scenes && window.game.scene.scenes[0] && window.game.scene.scenes[0].sys && window.game.scene.scenes[0].sys.isActive());
             if (typeof clearSave === 'function') clearSave();
-            // Page reload so S re-initializes to defaults (defensive: only if peekSave loaded)
-            if (typeof peekSave === 'function' && peekSave()) { location.reload(); return; }
+            // If we already played in this session OR there was a save, do a hard reload
+            // so the Phaser scene re-initializes from scratch.
+            if (hadSave || sceneAlreadyBooted) { location.reload(); return; }
             dismissSplash(true);
         });
 
