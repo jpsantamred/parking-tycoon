@@ -2019,6 +2019,7 @@ function openManagementPanel() {
         S.paused = true;
         S.scene.tweens.pauseAll();
     }
+    if (typeof syncBodyStateClasses === 'function') syncBodyStateClasses();
     renderManagementPanel();
 }
 
@@ -2030,6 +2031,7 @@ function closeManagementPanel() {
         S.paused = false;
         S.scene.tweens.resumeAll();
     }
+    if (typeof syncBodyStateClasses === 'function') syncBodyStateClasses();
 }
 
 // Called from purchase functions: schedule a re-open of the panel after
@@ -5746,6 +5748,10 @@ function syncBodyStateClasses() {
     if (typeof S !== 'undefined' && S) {
         cl.toggle('state-day-ended', !!S.dayEnded);
         cl.toggle('state-paused', !!S.paused);
+        // v0.83: track management panel open so CSS can hide the HTML touch
+        // bar while the canvas modal is up — otherwise taps on touch-attend,
+        // touch-hire etc. go through to the game behind the modal.
+        cl.toggle('state-management-open', !!S.managementOpen);
     }
 }
 
