@@ -4671,6 +4671,32 @@ function togglePause() {
         S.hud.pauseBtn.setBackgroundColor(S.paused ? '#10b981' : '#475569');
     }
     flashEvent(S.paused ? '⏸ Juego pausado.' : '▶ Reanudando...');
+    // v0.92: prominent canvas-center "PAUSADO" indicator. The small pause
+    // button in the HUD wasn't enough — players didn't realize they had
+    // accidentally hit P / Pausa and assumed the game had frozen.
+    updatePauseOverlay();
+    if (typeof syncBodyStateClasses === 'function') syncBodyStateClasses();
+}
+
+function updatePauseOverlay() {
+    if (!S.scene) return;
+    if (S.paused && !S.managementOpen && !S.dayEnded && !S.cinematicActive) {
+        if (!S.hud.pauseOverlay) {
+            const W = CONFIG.width, H = CONFIG.height;
+            const dim = S.scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.45).setDepth(900);
+            const text = S.scene.add.text(W/2, H/2, '⏸  PAUSADO', {
+                font: 'bold 48px monospace', color: '#fde047',
+                stroke: '#000', strokeThickness: 6
+            }).setOrigin(0.5).setDepth(901);
+            const hint = S.scene.add.text(W/2, H/2 + 50, 'Tocá Pausa o presioná P para continuar', {
+                font: 'italic 14px monospace', color: '#cbd5e1'
+            }).setOrigin(0.5).setDepth(901);
+            S.hud.pauseOverlay = [dim, text, hint];
+        }
+    } else if (S.hud.pauseOverlay) {
+        S.hud.pauseOverlay.forEach(o => { try { o.destroy(); } catch(e) {} });
+        S.hud.pauseOverlay = null;
+    }
 }
 
 // Cycle through 1x / 2x / 3x game speed. Scales game-time, tween speed,
@@ -4697,6 +4723,18 @@ function update(time, delta) {
     const gameMinutesAdvanced = (delta / 1000) * CONFIG.timeSpeed * (S.speedMultiplier || 1);
     S.timeMinutes += gameMinutesAdvanced;
     if (S.timeMinutes >= CONFIG.endHour * 60) { endDay(); return; }
+
+    // v0.92: mid-day auto-save. The end-of-day save (saveGame() called from
+    // the DÍA SIGUIENTE handler) is enough for normal play, but Android can
+    // kill backgrounded apps for memory and a player force-quitting mid-day
+    // loses everything since the last day boundary. Save every ~30 s of
+    // wall-clock to cap losses. Uses real time (not game time) so it fires
+    // even at 1x speed.
+    S.lastAutoSaveAt = S.lastAutoSaveAt || time;
+    if (time - S.lastAutoSaveAt > 30000) {
+        S.lastAutoSaveAt = time;
+        try { saveGame(); } catch (e) { /* don't crash update loop */ }
+    }
 
     const hourNow = S.timeMinutes / 60;
     const onShiftCount = S.employees.filter(e => isOnShift(e, hourNow)).length;
