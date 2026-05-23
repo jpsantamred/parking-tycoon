@@ -6491,11 +6491,11 @@ function renderEndOfDay() {
     // Shows revenue - salaries per day as a small bar series. Lets the
     // player see at a glance whether they're trending up or down without
     // having to open the Stats tab.
-    // v0.97: moved up — was at H-130 which overlapped the GESTIÓN /
-    // DÍA SIGUIENTE buttons at H-60 (button heights ~58 px means buttons
-    // span y 451-509, chart was at y 410-460 → 9 px overlap, bars hid
-    // behind purple background of GESTIÓN). New position: y 340-390, well
-    // above the buttons and below the random tip at y 290.
+    // v0.97: moved up to y=340 (was H-130=410, overlapped buttons at H-60).
+    // v0.98: right-aligned + filled the frame width — with only 2-3 days of
+    // history the bars used to cluster on the LEFT leaving empty space on
+    // the right (a bar appeared 'missing' to the user). Now newest day is
+    // always rightmost and the bars span the full chart frame.
     if (S.dailyStatsHistory.length >= 2) {
         const recent = S.dailyStatsHistory.slice(-7);
         const chartX = W / 2 - 110, chartY = 340;
@@ -6505,17 +6505,20 @@ function renderEndOfDay() {
             chartX + chartW/2, chartY + chartH/2, chartW, chartH,
             0x0f172a, 0.55
         ).setStrokeStyle(1, 0x334155));
-        S.endDayUI.push(scene.add.text(chartX, chartY - 14, '📈 Utilidad — últimos 7 días', {
+        S.endDayUI.push(scene.add.text(chartX, chartY - 14,
+            `📈 Utilidad — últimos ${recent.length} día${recent.length === 1 ? '' : 's'}`, {
             font: 'bold 11px monospace', color: '#fde047'
         }));
         const values = recent.map(d => (d.revenue || 0) - (d.salaries || 0));
         const maxAbs = Math.max(1, ...values.map(v => Math.abs(v)));
-        const barW = chartW / Math.max(7, recent.length) - 4;
+        // Slot count = actual number of days, so bars fill the frame.
+        const slotW = chartW / recent.length;
+        const barW = Math.min(28, slotW - 4);
         recent.forEach((d, i) => {
             const v = values[i];
             const ratio = v / maxAbs;
             const h = Math.abs(ratio) * (chartH / 2 - 2);
-            const bx = chartX + 2 + i * (chartW / Math.max(7, recent.length)) + barW / 2;
+            const bx = chartX + i * slotW + slotW / 2;
             const by = v >= 0
                 ? chartY + chartH / 2 - h / 2
                 : chartY + chartH / 2 + h / 2;
@@ -6523,6 +6526,10 @@ function renderEndOfDay() {
                 bx, by, barW, Math.max(2, h),
                 v >= 0 ? 0x10b981 : 0xef4444, 0.92
             ));
+            // Tiny day-number label under each bar for clarity (e.g. "D3").
+            S.endDayUI.push(scene.add.text(bx, chartY + chartH + 2, 'D' + (d.day || (i+1)), {
+                font: '8px monospace', color: '#64748b'
+            }).setOrigin(0.5, 0));
         });
         // zero-line
         S.endDayUI.push(scene.add.rectangle(
