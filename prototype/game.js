@@ -5624,12 +5624,28 @@ function refreshPageTitle() {
     if (title) title.textContent = `🅿️ Parking Tycoon — ${currentLevelLabel()}`;
 }
 
+// Body classlist mirror of game state — used by CSS to hide touch-actions
+// during modals so they don't overlap end-of-day / cinematic buttons.
+// User-reported bug v0.68: in landscape, the fixed-bottom touch buttons
+// covered the DÍA SIGUIENTE / GESTIÓN buttons of the FIN DEL DÍA modal,
+// making it impossible to advance. The fix: when the day-end modal is up,
+// the canvas's own buttons are the only valid input — hide the HTML overlay.
+function syncBodyStateClasses() {
+    if (typeof document === 'undefined') return;
+    const cl = document.body.classList;
+    if (typeof S !== 'undefined' && S) {
+        cl.toggle('state-day-ended', !!S.dayEnded);
+        cl.toggle('state-paused', !!S.paused);
+    }
+}
+
 // ─── HUD UPDATE ────────────────────────────────────────────
 function updateInfoBoard() {
     const $ = id => document.getElementById(id);
     if (!$('info-board')) return;
 
     refreshPageTitle();
+    syncBodyStateClasses();
 
     // Hours / status
     const onShiftCount = S.employees.filter(e => isOnShift(e, S.timeMinutes / 60)).length;
@@ -5919,6 +5935,7 @@ function endDay() {
     }
     S.dayEnded = true;
     S.paused = true;
+    syncBodyStateClasses();   // hide touch-actions while day-end modal is up
     // NOTE: defer pauseAll() until AFTER the fade tween is created+started.
     // If we pauseAll first, Phaser pauses the tween system as a whole in
     // some versions and the new fade tween never fires its onComplete.

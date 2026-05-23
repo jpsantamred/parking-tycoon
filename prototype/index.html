@@ -297,6 +297,11 @@
         #touch-actions button.primary:active { background: #15803d; }
         #touch-actions button.warn { background: #ca8a04; }
         #touch-actions button.danger { background: #dc2626; }
+        /* When the canvas shows the end-of-day modal (or any equivalent state
+           where Phaser has its own DÍA SIGUIENTE / GESTIÓN buttons), hide the
+           fixed-bottom touch-actions bar so it doesn't overlap and block the
+           canvas's buttons. Triggered by syncBodyStateClasses() in game.js. */
+        body.state-day-ended #touch-actions { display: none !important; }
 
         /* Mobile-only layout adjustments */
         @media (max-width: 800px), (pointer: coarse) {
@@ -305,6 +310,28 @@
             .subtitle { font-size: 10px; }
             .hint-row { display: none; }   /* keyboard hints irrelevant on touch */
             #touch-actions { display: flex; }
+            /* Allow the page to scroll vertically — earlier `overscroll-behavior: none`
+               on html/body was preventing the user from reaching the bottom
+               content on short landscape viewports. We re-enable contained
+               scroll (no rubber-band) so scrolling works without bouncing. */
+            html, body { overscroll-behavior-y: contain; }
+        }
+        /* Landscape phones (height < 500): the canvas's 16:9 aspect would force
+           a height taller than the viewport, pushing the touch buttons + cards
+           off-screen with no way to scroll past the fixed bar. Cap the canvas
+           height so it fits + everything below is reachable. */
+        @media (orientation: landscape) and (max-height: 500px) {
+            #game {
+                max-height: calc(100vh - 180px);   /* room for h1, toggles, touch bar */
+                display: flex;
+                justify-content: center;
+            }
+            #game canvas {
+                max-height: 100% !important;
+                width: auto !important;
+                max-width: 100%;
+            }
+        }
 
             /* User feedback: HORARIOS/TARIFAS/SERVICIOS/HOY were eating ~60%
                of vertical space on phones, shrinking the lot + Gestión panel
@@ -648,7 +675,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.68 · prototype</div>
+            <div class="splash-version">v0.69 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -657,7 +684,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.68 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.69 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -878,10 +905,10 @@
         // History:
         //   v0.x  : clearSave() ran BEFORE peekSave() check → reload never fired
         //           → stale endDayUI persisted after game-over.
-        //   v0.68 : added sceneAlreadyBooted check → BUT Phaser always boots the
+        //   v0.69 : added sceneAlreadyBooted check → BUT Phaser always boots the
         //           scene on page load, so this triggered reload on EVERY click,
         //           making the button feel "dead" on first run.
-        //   v0.68 (here): only reload when there's actually something stale to
+        //   v0.69 (here): only reload when there's actually something stale to
         //           reset — i.e. a save exists, OR the scene already advanced
         //           past day 1 / has end-day UI showing. Fresh first-boot just
         //           dismisses the splash like before.
