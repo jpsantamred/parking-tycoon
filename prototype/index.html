@@ -517,8 +517,15 @@
                 min-height: 38px;
                 line-height: 1.1;
             }
-            /* Music toggle stays accessible top-right but compact */
-            #music-toggle {
+            /* v0.80: music toggle moved INTO the Gestión panel header on
+               mobile (so it doesn't crowd the canvas). The HTML toggle is
+               kept for desktop / browser play, but hidden in landscape
+               immersive mode where it competed with the canvas top-right. */
+            #music-toggle { display: none !important; }
+            /* (unused in landscape, but keep the size declarations in case a
+               future change un-hides it) */
+            #music-toggle.__force-show {
+                display: block !important;
                 top: calc(4px + env(safe-area-inset-top, 0));
                 right: calc(4px + env(safe-area-inset-right, 0));
                 padding: 6px 8px;
@@ -588,15 +595,9 @@
             /* leave extra bottom padding so touch-actions doesn't cover the
                employee strip when scrolling */
             body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0)); }
-            /* Music toggle stays accessible — pulled in from safe-area too */
-            #music-toggle {
-                top: calc(4px + env(safe-area-inset-top, 0));
-                right: calc(4px + env(safe-area-inset-right, 0));
-                padding: 10px 14px;
-                font-size: 20px;
-                min-width: 44px;        /* WCAG / iOS HIG touch target */
-                min-height: 44px;
-            }
+            /* v0.80: hide HTML music toggle on touch devices — it lives in
+               the Gestión panel header now (canvas-side button next to ✕). */
+            #music-toggle { display: none !important; }
             /* Hide car tooltips on touch (no hover) */
             #car-tooltip { display: none !important; }
 
@@ -953,7 +954,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.79 · prototype</div>
+            <div class="splash-version">v0.80 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -962,7 +963,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.79 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.80 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">

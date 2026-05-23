@@ -2051,13 +2051,22 @@ function renderManagementPanel() {
 
     if (S.managementTab === undefined) S.managementTab = 'employees';
 
-    S.managementUI.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.92));
+    // v0.80: dim backdrop is now INTERACTIVE — tap outside the white panel
+    // to close. Same affordance the user asked for on the Tarifas/Equipo
+    // overlays in v0.79. The inner panel rectangle catches its own clicks
+    // (added below) so taps inside don't bubble through and close.
+    const backdrop = scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.92)
+        .setInteractive({ useHandCursor: true });
+    backdrop.on('pointerdown', closeManagementPanel);
+    S.managementUI.push(backdrop);
 
     const panelW = Math.min(880, W - 20);
     const panelH = H - 30;
-    S.managementUI.push(
-        scene.add.rectangle(W/2, H/2, panelW, panelH, 0x1e293b).setStrokeStyle(3, 0x7c3aed)
-    );
+    // The panel rectangle swallows clicks so they don't reach the backdrop.
+    const panelBg = scene.add.rectangle(W/2, H/2, panelW, panelH, 0x1e293b)
+        .setStrokeStyle(3, 0x7c3aed)
+        .setInteractive();   // empty handler — just absorbs the click
+    S.managementUI.push(panelBg);
 
     // ── HEADER ─────────────────────────────────────────────
     S.managementUI.push(scene.add.text(W/2 - panelW/2 + 24, 24, '🏗️ GESTIÓN', {
@@ -2075,6 +2084,34 @@ function renderManagementPanel() {
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
     closeBtn.on('pointerdown', closeManagementPanel);
     S.managementUI.push(closeBtn);
+
+    // ── MUSIC TOGGLE (v0.80) ──────────────────────────────
+    // User feedback: "podemos meter el boton para desactivar el sonido en el
+    // menu de gestion?" The HTML #music-toggle floats top-right of the
+    // screen and overlaps the canvas in landscape. Moved here so it's
+    // discoverable from the same place as the other game controls.
+    // Stays in sync with window.__musicMuted (the shared mute flag).
+    const musicMuted = !!window.__musicMuted;
+    const musicBtn = scene.add.text(W - 26 - 60, 24, musicMuted ? '🔇 Sonido' : '🎵 Sonido', {
+        font: 'bold 13px monospace', color: '#fff',
+        backgroundColor: musicMuted ? '#475569' : '#16a34a',
+        padding: { x: 10, y: 8 }
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    musicBtn.on('pointerdown', () => {
+        window.__musicMuted = !window.__musicMuted;
+        // Keep the HTML toggle in sync (in case it's still visible on desktop).
+        const htmlBtn = document.getElementById('music-toggle');
+        if (htmlBtn) htmlBtn.textContent = window.__musicMuted ? '🔇' : '🎵';
+        // Pause/resume the actual audio if the engine exposes it.
+        try {
+            if (typeof SFX !== 'undefined' && SFX) {
+                if (window.__musicMuted && typeof SFX.musicStop === 'function') SFX.musicStop();
+                else if (!window.__musicMuted && typeof SFX.musicStart === 'function') SFX.musicStart();
+            }
+        } catch (e) {}
+        renderManagementPanel();   // redraw to update the button label/color
+    });
+    S.managementUI.push(musicBtn);
 
     // ── TABS ───────────────────────────────────────────────
     const tabs = [
