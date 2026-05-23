@@ -6491,9 +6491,14 @@ function renderEndOfDay() {
     // Shows revenue - salaries per day as a small bar series. Lets the
     // player see at a glance whether they're trending up or down without
     // having to open the Stats tab.
+    // v0.97: moved up — was at H-130 which overlapped the GESTIÓN /
+    // DÍA SIGUIENTE buttons at H-60 (button heights ~58 px means buttons
+    // span y 451-509, chart was at y 410-460 → 9 px overlap, bars hid
+    // behind purple background of GESTIÓN). New position: y 340-390, well
+    // above the buttons and below the random tip at y 290.
     if (S.dailyStatsHistory.length >= 2) {
         const recent = S.dailyStatsHistory.slice(-7);
-        const chartX = W / 2 - 110, chartY = H - 130;
+        const chartX = W / 2 - 110, chartY = 340;
         const chartW = 220, chartH = 50;
         // axis frame
         S.endDayUI.push(scene.add.rectangle(
