@@ -146,16 +146,65 @@ parking-tycoon/
 
 ## 🛠️ Stack
 
-- **Phaser 3.70** (vía CDN)
+- **Phaser 3.70** (bundled in `vendor/phaser.min.js` — works offline + in Capacitor WebView)
 - HTML5 Canvas + JS vanilla
 - Sprites PixelLab AI (PNG)
 - Web Audio API para SFX + música ambient
+
+## 🆕 Cambios recientes (v0.74 → v0.95)
+
+20+ versiones de pulido sobre móvil / WebView Android:
+
+**UX / Layout**
+- `v0.74` botones Gestión + Contratar duplicados eliminados en mobile
+- `v0.77` clamp() + flex constraints adaptativos para cualquier ratio
+- `v0.88` **widescreen layout**: en landscape los paneles Tarifas (izq) + Equipo (der) son siempre visibles a los lados del lote — usa todo el espacio
+- `v0.91` subtítulo oculto en mobile para que el lienzo respire
+- `v0.94` ciclo de volumen 3 estados (🔇 / 🔉 / 🔊) en Gestión
+
+**Bugs grandes**
+- `v0.76` rotación: Android WebView no actualiza `100vh` en rotación; el JS fija altura explícita
+- `v0.78` "transición es un círculo sin nada": cinemáticas sin `setDepth()` ni `tweens.pauseAll()` que congelaba el manager
+- `v0.84` resume defensivo del tween manager al inicio de cada cinemática
+- `v0.89` autos sobre-puestos: bumpeo de queue spacing + reducción de escala camiones
+
+**Branding**
+- `v0.87` logo ParkingApp (cuadrado naranja redondeado + P blanca) reemplaza al 🅿️ generico
+- `v0.90` icono de launcher al brand: orange `#f97316` rounded square, 19 PNGs auto-generados (`scripts/generate-icons.ps1`)
+- `v0.93` `theme_color` del manifest también pasa a naranja
+
+**Gestión panel** (header buttons agregados sin desordenar):
+- `v0.80` 🎵 Sonido toggle
+- `v0.81` ❓ Ayuda re-abre tutorial
+- `v0.82` 🔁 Reiniciar partida con confirmación
+- `v0.94` Reiniciar ahora también flipea dificultad (Normal ↔ Hard)
+- `v0.92` overlay PAUSADO centrado cuando `S.paused`
+
+**Save/Load**
+- `v0.85`+`v0.86` toast `💾 Día guardado` después del intro diario
+- `v0.92` auto-save cada 30s de wall-clock (Android puede matar la app)
+
+**EOD**
+- `v0.95` mini-chart 7-días de utilidad (verde = profit, rojo = loss)
+
+## 🛠️ Build native (Android)
+
+```bash
+npm install
+npx cap sync android
+pwsh -File scripts/generate-icons.ps1     # instala iconos brand sobre los defaults
+pwsh -File scripts/generate-splash.ps1    # instala splash brand
+cd android && ./gradlew assembleDebug
+```
+
+APK queda en `android/app/build/outputs/apk/debug/app-debug.apk`.
 
 ## 🎯 Hecho con
 
 - [Claude Code](https://claude.com/claude-code) — pair programming completo
 - [PixelLab](https://pixellab.ai) — sprites pixel-art
+- [Capacitor 6](https://capacitorjs.com) — Android wrap
 
 ---
 
-**~76 commits · 9 niveles · 6 sucursales · 27 eventos · 27 achievements · 64 nombres chilenos · 1 imperio.**
+**~104 commits · 9 niveles · 6 sucursales · 27 eventos · 27 achievements · 64 nombres chilenos · 1 imperio.**
