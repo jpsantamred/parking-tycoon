@@ -826,7 +826,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.75 · prototype</div>
+            <div class="splash-version">v0.76 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -835,7 +835,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.75 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.76 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -1153,35 +1153,65 @@
             });
         });
 
-        // ── v0.75: Orientation change — refresh Phaser + close overlays ──
-        // Capacitor WebView does NOT always fire a `resize` event on rotation,
-        // so Phaser.Scale.FIT can stay stuck at the old aspect ratio. Force a
-        // refresh after the layout has settled. Also close any floating
-        // overlay (Tarifas/Equipo) so they don't get stranded out of position
-        // after the rotation.
+        // ── v0.76: Orientation change — re-size #game in JS + refresh Phaser ──
+        // Capacitor Android WebView has a known bug where `100vh` in CSS does
+        // NOT update on rotation until the page is reloaded. That meant my
+        // v0.75 CSS rule `height: calc(100vh - 56px ...)` stayed locked to
+        // the launch-time viewport, even though `window.innerHeight` reported
+        // the new dimensions. Phaser then dutifully scaled the canvas to the
+        // STALE parent size. Fix: explicitly set #game height in JS using
+        // `window.innerHeight` on every rotation, then call game.scale.refresh().
+        function applyGameSize() {
+            const gameDiv = document.getElementById('game');
+            if (!gameDiv) return;
+            const vw = window.innerWidth, vh = window.innerHeight;
+            const isLandImmersive = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+            const isDayEnd = document.body.classList.contains('state-day-ended');
+            if (isLandImmersive) {
+                // Touch bar slot is 56 px tall when visible; gone when day ended.
+                const reserveBottom = isDayEnd ? 0 : 56;
+                gameDiv.style.height = (vh - reserveBottom) + 'px';
+                gameDiv.style.width = vw + 'px';
+            } else {
+                // Portrait: clear inline styles so CSS takes over.
+                gameDiv.style.height = '';
+                gameDiv.style.width = '';
+            }
+        }
         function handleOrientationChange() {
-            // Close any floating overlays — their CSS depends on the current
-            // media query, which may have just changed.
+            // Close any floating overlays — their CSS media query may have
+            // just flipped, leaving them stranded out of position.
             document.querySelectorAll('#info-board.expanded, #employee-strip-wrapper.expanded')
                 .forEach(el => el.classList.remove('expanded'));
             document.querySelectorAll('#touch-actions button.info-toggle.active')
                 .forEach(b => b.classList.remove('active'));
-            // Force Phaser to recompute its FIT scale against the new viewport.
-            // Defer because the visualViewport API reports the OLD dimensions
-            // for ~100 ms after rotation in WebView.
-            setTimeout(() => {
+            // Re-size + refresh Phaser AT MULTIPLE TIMINGS. Android WebView
+            // can be slow to report the new viewport — we hit it 5 times.
+            const refresh = () => {
+                applyGameSize();
                 if (window.game && window.game.scale) {
                     try { window.game.scale.refresh(); } catch (e) {}
                 }
-            }, 250);
-            setTimeout(() => {
-                if (window.game && window.game.scale) {
-                    try { window.game.scale.refresh(); } catch (e) {}
-                }
-            }, 600);
+            };
+            refresh();
+            setTimeout(refresh, 100);
+            setTimeout(refresh, 350);
+            setTimeout(refresh, 700);
+            setTimeout(refresh, 1200);
         }
         window.addEventListener('orientationchange', handleOrientationChange);
         window.addEventListener('resize', handleOrientationChange);
+        // visualViewport API fires more reliably than `resize` on some
+        // WebView builds — listen there too.
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', handleOrientationChange);
+        }
+        // screen.orientation API is the most reliable signal on Android.
+        if (screen && screen.orientation && screen.orientation.addEventListener) {
+            screen.orientation.addEventListener('change', handleOrientationChange);
+        }
+        // Initial size on load (handles first paint, not just rotation).
+        window.addEventListener('load', applyGameSize);
 
         // ── PWA: Service worker registration ──────────────
         // Skip inside Capacitor native wrap — SW is web-only and the registration
