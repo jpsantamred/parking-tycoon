@@ -448,11 +448,9 @@
                scroll (no rubber-band) so scrolling works without bouncing. */
             html, body { overscroll-behavior-y: contain; }
         }
-        /* Splash in landscape needs to shrink — its content (logo + title +
-           tagline + story + buttons + leaderboard + version + credits) is
-           ~508 CSS px tall, more than the 372 px landscape viewport. Without
-           this rule the logo and title get clipped above the visible area. */
-        @media (orientation: landscape) and (max-height: 500px) {
+        /* Splash in landscape — only shrink on PHONE landscape (max-height
+           500). Tablets in landscape have enough room for the full splash. */
+        @media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
             #splash {
                 padding: 8px 16px;
                 align-items: flex-start;
@@ -493,7 +491,13 @@
            AND the toggle row. Keep only the game canvas + a compact
            bottom-row touch bar. Player gets ~95% of the screen as the lot.
            Cards/employee detail are reachable by rotating to portrait. */
-        @media (orientation: landscape) and (max-height: 500px) {
+        /* v1.02: broader trigger — was (max-height: 500px) which only fired
+           on phones in landscape. Tablets in landscape (768-1280 tall) and
+           large landscape phones (>500 px tall) were falling back to the
+           desktop layout. Now any touch device in landscape uses the
+           side-panel layout. Desktop with mouse keeps the original
+           top-bar-of-cards layout. */
+        @media (orientation: landscape) and (pointer: coarse) {
             /* v0.88 — Widescreen layout. User feedback: "en widescreen
                podemos poner las tarjetas de empleados al lado ya que no
                usamos la pantalla completa". The canvas is 16:9 — on a 944×372
@@ -527,9 +531,11 @@
                 display: grid !important;
                 grid-template-columns: 1fr !important;
                 gap: 4px !important;
-                width: 180px !important;
-                max-width: 180px !important;
-                flex: 0 0 180px;
+                /* v1.02: scale with viewport — 160 px on small phones,
+                   up to 280 px on tablets. clamp() bridges smoothly. */
+                width: clamp(160px, 22vw, 280px) !important;
+                max-width: 280px !important;
+                flex: 0 0 clamp(160px, 22vw, 280px);
                 margin: 0 !important;
                 /* Height is set in JS via applyGameSize() — see v0.88. Don't
                    put it here or the cascade overrides the inline style. */
@@ -552,17 +558,20 @@
                 z-index: auto;
                 align-content: start;   /* don't stretch cells; pack to top */
             }
+            /* v1.02: clamp() instead of fixed 9 px / 5-7 px padding so the
+               cards scale up on tablets without growing ridiculous on
+               small phones. vmin keeps them honest in both axes. */
             #info-board .info-section {
-                padding: 5px 7px;
+                padding: clamp(4px, 0.8vmin, 8px) clamp(6px, 1vmin, 10px);
                 border-radius: 6px;
             }
             #info-board .info-section h3 {
-                font-size: 9px;
+                font-size: clamp(9px, 1.4vmin, 12px);
                 margin-bottom: 3px;
                 letter-spacing: 0.5px;
             }
             #info-board .info-row {
-                font-size: 9px;
+                font-size: clamp(9px, 1.3vmin, 12px);
                 line-height: 1.4;
             }
             /* ── Center: the game canvas — fills whatever's left ── */
@@ -588,8 +597,9 @@
             /* ── Right side panel: Equipo (employee cards) ── */
             #employee-strip-wrapper {
                 display: block !important;
-                width: 180px;
-                flex: 0 0 180px;
+                /* v1.02: scale-with-viewport — see #info-board. */
+                width: clamp(160px, 22vw, 280px);
+                flex: 0 0 clamp(160px, 22vw, 280px);
                 margin: 0;
                 /* Height is set in JS — see #info-board. Override the mobile
                    `max-height: 0` collapse rule (line 647) which would
@@ -623,21 +633,23 @@
                 overflow-y: visible;     /* parent wrapper does the scrolling */
                 padding-bottom: 0;
             }
+            /* v1.02: scale via clamp() so tablets get readable text without
+               making small phones cramped. */
             #employee-strip .emp-card {
                 width: 100% !important;
                 max-width: 100%;
                 box-sizing: border-box;
-                padding: 6px 8px;
-                font-size: 11px;
+                padding: clamp(5px, 1vmin, 9px) clamp(6px, 1.2vmin, 11px);
+                font-size: clamp(10px, 1.4vmin, 13px);
             }
-            #employee-strip .emp-card .emp-name { font-size: 12px; }
-            #employee-strip .emp-card .emp-status { font-size: 9px; padding: 1px 4px; }
-            #employee-strip .emp-card .emp-shift { font-size: 10px; }
-            /* Tiny day pills so all 7 (L M X J V S D) fit in 144 px of usable card width */
+            #employee-strip .emp-card .emp-name { font-size: clamp(11px, 1.6vmin, 14px); }
+            #employee-strip .emp-card .emp-status { font-size: clamp(8px, 1.2vmin, 11px); padding: 1px 4px; }
+            #employee-strip .emp-card .emp-shift { font-size: clamp(9px, 1.3vmin, 12px); }
+            /* Day pills scale too so all 7 fit in any column width 160-280 */
             #employee-strip .emp-card .emp-days span,
             #employee-strip .emp-card .emp-day {
-                min-width: 14px;
-                font-size: 9px;
+                min-width: clamp(14px, 2.4vmin, 20px);
+                font-size: clamp(9px, 1.2vmin, 11px);
                 padding: 1px 2px;
             }
             /* Add a subtle "more below" hint via inset shadow when scrollable */
@@ -1154,7 +1166,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v1.01 · prototype</div>
+            <div class="splash-version">v1.02 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1167,7 +1179,7 @@
          which refreshPageTitle() updates via .textContent (safe), while the
          mark is its own span so the textContent swap doesn't blow it away. -->
     <h1 id="page-title"><span class="brand-mini" aria-hidden="true">P</span><span id="page-title-text"> Parking Tycoon — Nivel 1: Papeleta</span></h1>
-    <div class="subtitle">v1.01 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v1.02 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -1485,7 +1497,7 @@
                 if (!target) return;
                 // Mutual-exclusion in landscape: only one floating overlay at
                 // a time so they don't stack on top of each other.
-                const isLandscapeImmersive = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+                const isLandscapeImmersive = window.matchMedia('(orientation: landscape) and (pointer: coarse)').matches;
                 if (isLandscapeImmersive && !target.classList.contains('expanded')) {
                     document.querySelectorAll('#info-board.expanded, #employee-strip-wrapper.expanded').forEach(el => {
                         if (el !== target) el.classList.remove('expanded');
@@ -1541,7 +1553,7 @@
             const empStrip = document.getElementById('employee-strip-wrapper');
             if (!gameDiv) return;
             const vh = window.innerHeight;
-            const isLandImmersive = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+            const isLandImmersive = window.matchMedia('(orientation: landscape) and (pointer: coarse)').matches;
             const isDayEnd = document.body.classList.contains('state-day-ended');
             if (isLandImmersive) {
                 // Touch bar slot is 56 px tall when visible; gone when day ended.
