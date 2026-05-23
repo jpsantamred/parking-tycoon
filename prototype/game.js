@@ -1982,7 +1982,11 @@ function createHireButton(scene) {
 }
 
 function createManagementButton(scene) {
-    const btn = scene.add.text(CONFIG.width - 150, CONFIG.height - 56, '🏗️ GESTIÓN (G)', {
+    // Right-aligned, sitting LEFT of the Cobrador button. The Cobrador button is
+    // ~142 px wide at right-edge x=940, so it spans (798, 940). We push GESTIÓN's
+    // right edge to 790 (width-170) so there's an 8-px gap. Tightened from -150
+    // to -170 in v0.63 after audit caught a 12-px overlap with "+ Cobrador (H)".
+    const btn = scene.add.text(CONFIG.width - 170, CONFIG.height - 56, '🏗️ GESTIÓN (G)', {
         font: 'bold 14px monospace', color: '#fff',
         backgroundColor: '#7c3aed', padding: { x: 12, y: 8 }
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
@@ -3660,6 +3664,7 @@ function purchaseBooth() {
     if (S.money < CONFIG.boothCost) return;
     S.money -= CONFIG.boothCost;
     S.upgrades.booth = true;
+    refreshPageTitle();
     flashEvent('🛂 ¡Caseta instalada! Cobradores ahora son tarjetas + 33% más rápido.');
     flagReopenManagement();
     S.scene.scene.restart();
@@ -3768,6 +3773,7 @@ function purchasePOS() {
     if (S.money < CONFIG.posCost) return;
     S.money -= CONFIG.posCost;
     S.upgrades.pos = true;
+    refreshPageTitle();
     closeManagementPanel();
     showPOSCelebration();
 }
@@ -3781,6 +3787,7 @@ function purchaseBarriers() {
     if (S.money < CONFIG.barriersCost) return;
     S.money -= CONFIG.barriersCost;
     S.upgrades.barriers = true;
+    refreshPageTitle();
     closeManagementPanel();
     showBarriersCelebration();
 }
@@ -3794,6 +3801,7 @@ function purchaseEntryTotem() {
     if (S.money < CONFIG.entryTotemCost) return;
     S.money -= CONFIG.entryTotemCost;
     S.upgrades.entryTotem = true;
+    refreshPageTitle();
     SFX.purchase();
     showLevelMilestone({
         icon: '🎫', color: 0x0891b2,
@@ -3812,6 +3820,7 @@ function purchaseExitTotem() {
     if (S.money < CONFIG.exitTotemCost) return;
     S.money -= CONFIG.exitTotemCost;
     S.upgrades.exitTotem = true;
+    refreshPageTitle();
     SFX.purchase();
     showLevelMilestone({
         icon: '💳', color: 0x16a34a,
@@ -3830,6 +3839,7 @@ function purchaseParkingApp() {
     if (S.money < CONFIG.parkingAppCost) return;
     S.money -= CONFIG.parkingAppCost;
     S.upgrades.parkingApp = true;
+    refreshPageTitle();
     SFX.purchase();
     showLevelMilestone({
         icon: '📱', color: 0x3b82f6,
@@ -3848,6 +3858,7 @@ function purchaseValetAI() {
     if (S.money < CONFIG.valetAICost) return;
     S.money -= CONFIG.valetAICost;
     S.upgrades.valetAI = true;
+    refreshPageTitle();
     S.reputation = Math.min(100, S.reputation + CONFIG.valetAIRepBonus);
     SFX.purchase();
     showLevelMilestone({
@@ -3867,6 +3878,7 @@ function purchaseMultiLevel() {
     if (S.money < CONFIG.multiLevelCost) return;
     S.money -= CONFIG.multiLevelCost;
     S.upgrades.multiLevel = true;
+    refreshPageTitle();
     SFX.purchase();
     showLevelMilestone({
         icon: '🏢', color: 0x0284c7,
@@ -3885,6 +3897,7 @@ function purchaseDrone() {
     if (S.money < CONFIG.droneCost) return;
     S.money -= CONFIG.droneCost;
     S.upgrades.drone = true;
+    refreshPageTitle();
     S.reputation = Math.min(100, S.reputation + CONFIG.droneRepBonus);
     SFX.purchase();
     showLevelMilestone({
@@ -3942,6 +3955,7 @@ function purchaseSpaceport() {
     if (S.money < CONFIG.spaceportCost) return;
     S.money -= CONFIG.spaceportCost;
     S.upgrades.spaceport = true;
+    refreshPageTitle();
     S.reputation = Math.min(100, S.reputation + CONFIG.spaceportRepBonus);
     flashEvent('🚀 ¡SPACEPORT! Has llegado a las naves espaciales. ¡Ganaste el juego!');
     SFX.purchase();
@@ -5548,27 +5562,35 @@ function boredLeave(car) {
     repositionQueue();
 }
 
+// Compute the current "Nivel X" label from upgrade state. Pure function so
+// it's safe to call anytime (from update loop AND right after a purchase).
+function currentLevelLabel() {
+    if (S.upgrades.spaceport) return 'Nivel 9: 🚀 SPACEPORT';
+    if (S.upgrades.drone) return 'Nivel 8: Drones';
+    if (S.upgrades.multiLevel) return 'Nivel 7: Parking Vertical';
+    if (S.upgrades.valetAI) return 'Nivel 6: Valet AI';
+    if (S.upgrades.parkingApp) return 'Nivel 5: ParkingApp';
+    if (S.upgrades.exitTotem) return 'Nivel 4: Autopago';
+    if (S.upgrades.entryTotem) return 'Nivel 3 final: Tótem auto-ticket';
+    if (S.upgrades.barriers) return 'Nivel 3: Barreras';
+    if (S.upgrades.pos) return 'Nivel 2: POS Digital';
+    if (S.upgrades.booth) return 'Nivel 1: Caseta';
+    return 'Nivel 1: Papeleta';
+}
+// Update the HTML page title to reflect current level. Cheap, side-effect-only.
+// Called from updateInfoBoard (every frame) AND from each purchaseX() so the
+// title updates immediately even while the game is paused for a cinematic.
+function refreshPageTitle() {
+    const title = document.getElementById('page-title');
+    if (title) title.textContent = `🅿️ Parking Tycoon — ${currentLevelLabel()}`;
+}
+
 // ─── HUD UPDATE ────────────────────────────────────────────
 function updateInfoBoard() {
     const $ = id => document.getElementById(id);
     if (!$('info-board')) return;
 
-    // Update the page title to reflect the current "nivel"
-    const title = $('page-title');
-    if (title) {
-        let levelText = 'Nivel 1: Papeleta';
-        if (S.upgrades.spaceport) levelText = 'Nivel 9: 🚀 SPACEPORT';
-        else if (S.upgrades.drone) levelText = 'Nivel 8: Drones';
-        else if (S.upgrades.multiLevel) levelText = 'Nivel 7: Parking Vertical';
-        else if (S.upgrades.valetAI) levelText = 'Nivel 6: Valet AI';
-        else if (S.upgrades.parkingApp) levelText = 'Nivel 5: ParkingApp';
-        else if (S.upgrades.exitTotem) levelText = 'Nivel 4: Autopago';
-        else if (S.upgrades.entryTotem) levelText = 'Nivel 3 final: Tótem auto-ticket';
-        else if (S.upgrades.barriers) levelText = 'Nivel 3: Barreras';
-        else if (S.upgrades.pos) levelText = 'Nivel 2: POS Digital';
-        else if (S.upgrades.booth) levelText = 'Nivel 1: Caseta';
-        title.textContent = `🅿️ Parking Tycoon — ${levelText}`;
-    }
+    refreshPageTitle();
 
     // Hours / status
     const onShiftCount = S.employees.filter(e => isOnShift(e, S.timeMinutes / 60)).length;

@@ -523,15 +523,32 @@
     <!-- ── ONBOARDING TIP (Día 1) ──────────────────────── -->
     <div id="onboarding" style="display:none; position:fixed; left:50%; bottom:80px; transform:translateX(-50%); background:#0f172aee; border:2px solid #fbbf24; border-radius:10px; padding:18px 24px; max-width:560px; z-index:1000; box-shadow:0 8px 30px rgba(0,0,0,0.5); font-family:monospace;">
         <div style="font-size:16px; font-weight:bold; color:#fbbf24; margin-bottom:10px;">💡 Día 1 — Cómo jugar</div>
-        <div style="font-size:13px; color:#cbd5e1; line-height:1.7;">
+        <!-- Desktop hints (keyboard shortcuts) -->
+        <div id="onboarding-desktop" style="font-size:13px; color:#cbd5e1; line-height:1.7;">
             • <kbd style="background:#1e293b; padding:2px 6px; border-radius:3px; color:#fde047;">Espacio</kbd> o <kbd style="background:#1e293b; padding:2px 6px; border-radius:3px; color:#fde047;">click</kbd> en el cobrador para atender el primer auto.<br>
             • Los autos en cola pierden paciencia rápido — atendelos antes de que se aburran.<br>
             • Cobras al SALIR: $30/min × tiempo en el lote. Quedate atento a la <strong>cola roja</strong> de exit (🅿️→).<br>
             • Abrí <kbd style="background:#1e293b; padding:2px 6px; border-radius:3px; color:#fde047;">G</kbd> Gestión para comprar caseta, contratar más gente y mejorar.<br>
             • <kbd style="background:#1e293b; padding:2px 6px; border-radius:3px; color:#fde047;">P</kbd> pausa el juego cuando lo necesites.
         </div>
-        <button id="onboarding-close" style="margin-top:14px; background:#16a34a; color:#fff; border:none; padding:8px 18px; border-radius:6px; font-family:monospace; font-weight:bold; cursor:pointer; font-size:13px;">▶ Entendido</button>
+        <!-- Mobile/touch hints (shown via media query when coarse pointer) -->
+        <div id="onboarding-mobile" style="display:none; font-size:13px; color:#cbd5e1; line-height:1.7;">
+            • Tocá el botón <strong style="color:#fb923c;">🛂 Atender</strong> abajo para que el cobrador atienda el primer auto.<br>
+            • Los autos en cola pierden paciencia rápido — atendelos antes de que se aburran.<br>
+            • Cobrás al SALIR: $30/min × tiempo en el lote. Mirá la cola roja de exit (🅿️→).<br>
+            • Botón <strong style="color:#a78bfa;">⚙️ Gestión</strong> abre el panel para comprar caseta, contratar y mejorar.<br>
+            • Botón <strong style="color:#fbbf24;">⏸ Pausa</strong> congela el juego.<br>
+            • También podés tocar directamente al cobrador o a su tarjeta.
+        </div>
+        <button id="onboarding-close" style="margin-top:14px; background:#16a34a; color:#fff; border:none; padding:12px 24px; border-radius:6px; font-family:monospace; font-weight:bold; cursor:pointer; font-size:14px; min-height:44px;">▶ Entendido</button>
     </div>
+    <style>
+        /* Touch devices: swap desktop hints for mobile hints */
+        @media (pointer: coarse), (max-width: 800px) {
+            #onboarding-desktop { display: none !important; }
+            #onboarding-mobile { display: block !important; }
+        }
+    </style>
 
     <!-- ── SPLASH SCREEN ──────────────────────────────── -->
     <div id="splash">
@@ -562,7 +579,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.62 · prototype</div>
+            <div class="splash-version">v0.63 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -571,7 +588,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.62 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.63 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -777,10 +794,10 @@
         // History:
         //   v0.x  : clearSave() ran BEFORE peekSave() check → reload never fired
         //           → stale endDayUI persisted after game-over.
-        //   v0.62 : added sceneAlreadyBooted check → BUT Phaser always boots the
+        //   v0.63 : added sceneAlreadyBooted check → BUT Phaser always boots the
         //           scene on page load, so this triggered reload on EVERY click,
         //           making the button feel "dead" on first run.
-        //   v0.62 (here): only reload when there's actually something stale to
+        //   v0.63 (here): only reload when there's actually something stale to
         //           reset — i.e. a save exists, OR the scene already advanced
         //           past day 1 / has end-day UI showing. Fresh first-boot just
         //           dismisses the splash like before.

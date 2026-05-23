@@ -1,0 +1,1354 @@
+{
+  "issues": [],
+  "milestones": [
+    {
+      "level": "N1-Papeleta",
+      "fps": "53.6",
+      "heap": 10,
+      "objectCount": 293,
+      "interactiveCount": 6,
+      "overlaps": [],
+      "interactives": [
+        {
+          "type": "Zone",
+          "text": "",
+          "x": 200,
+          "y": 178,
+          "w": 50,
+          "h": 60,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "⏸ PAUSA (P)",
+          "x": 940,
+          "y": 10,
+          "w": 129,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "⏩ 1x",
+          "x": 830,
+          "y": 10,
+          "w": 66,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "+ Cobrador (H)",
+          "x": 940,
+          "y": 484,
+          "w": 142,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "🏗️ GESTIÓN (G)",
+          "x": 790,
+          "y": 484,
+          "w": 143,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Image",
+          "text": "",
+          "x": 420,
+          "y": 235,
+          "w": 51,
+          "h": 51,
+          "depth": 0,
+          "visible": true
+        }
+      ],
+      "upgrades": [],
+      "money": 78466,
+      "day": 1,
+      "rep": 100
+    },
+    {
+      "level": "N1.5-Booth",
+      "fps": "53.0",
+      "heap": 10,
+      "objectCount": 351,
+      "interactiveCount": 15,
+      "overlaps": [],
+      "interactives": [
+        {
+          "type": "Text",
+          "text": "⏸ PAUSA (P)",
+          "x": 940,
+          "y": 10,
+          "w": 129,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "⏩ 1x",
+          "x": 830,
+          "y": 10,
+          "w": 66,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "+ Cobrador (H)",
+          "x": 940,
+          "y": 484,
+          "w": 142,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "🏗️ GESTIÓN (G)",
+          "x": 790,
+          "y": 484,
+          "w": 143,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "✕",
+          "x": 934,
+          "y": 24,
+          "w": 48,
+          "h": 38,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 👥 Equipo ",
+          "x": 64,
+          "y": 84,
+          "w": 107,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 🛠️ Upgrades ",
+          "x": 194,
+          "y": 84,
+          "w": 123,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📍 Lotes ",
+          "x": 324,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📊 Stats ",
+          "x": 454,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana L-V 8-16 ",
+          "x": 224,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Tarde L-V 14-22 ",
+          "x": 424,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana S-D 8-16 ",
+          "x": 224,
+          "y": 260,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        }
+      ],
+      "upgrades": [
+        "booth"
+      ],
+      "money": 4939985,
+      "day": 1,
+      "rep": 100
+    },
+    {
+      "level": "N2-POS",
+      "fps": "53.5",
+      "heap": 10,
+      "objectCount": 343,
+      "interactiveCount": 5,
+      "overlaps": [],
+      "interactives": [
+        {
+          "type": "Text",
+          "text": "⏸ PAUSA (P)",
+          "x": 940,
+          "y": 10,
+          "w": 129,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "⏩ 1x",
+          "x": 830,
+          "y": 10,
+          "w": 66,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "+ Cobrador (H)",
+          "x": 940,
+          "y": 484,
+          "w": 142,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "🏗️ GESTIÓN (G)",
+          "x": 790,
+          "y": 484,
+          "w": 143,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "▶   ¡VAMOS!   ▶",
+          "x": 480,
+          "y": 490,
+          "w": 267,
+          "h": 54,
+          "depth": 0,
+          "visible": true
+        }
+      ],
+      "upgrades": [
+        "booth",
+        "pos"
+      ],
+      "money": 4800000,
+      "day": 1,
+      "rep": 100
+    },
+    {
+      "level": "N3-Barriers",
+      "fps": "54.1",
+      "heap": 10,
+      "objectCount": 363,
+      "interactiveCount": 6,
+      "overlaps": [],
+      "interactives": [
+        {
+          "type": "Text",
+          "text": "⏸ PAUSA (P)",
+          "x": 940,
+          "y": 10,
+          "w": 129,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "⏩ 1x",
+          "x": 830,
+          "y": 10,
+          "w": 66,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "+ Cobrador (H)",
+          "x": 940,
+          "y": 484,
+          "w": 142,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "🏗️ GESTIÓN (G)",
+          "x": 790,
+          "y": 484,
+          "w": 143,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "▶   ¡VAMOS!   ▶",
+          "x": 480,
+          "y": 490,
+          "w": 267,
+          "h": 54,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "▶   ¡VAMOS!   ▶",
+          "x": 480,
+          "y": 490,
+          "w": 267,
+          "h": 54,
+          "depth": 1001,
+          "visible": true
+        }
+      ],
+      "upgrades": [
+        "booth",
+        "pos",
+        "barriers"
+      ],
+      "money": 4650000,
+      "day": 1,
+      "rep": 100
+    },
+    {
+      "level": "N3-EntryTotem",
+      "fps": "55.9",
+      "heap": 10,
+      "objectCount": 383,
+      "interactiveCount": 15,
+      "overlaps": [],
+      "interactives": [
+        {
+          "type": "Text",
+          "text": "⏸ PAUSA (P)",
+          "x": 940,
+          "y": 10,
+          "w": 129,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "⏩ 1x",
+          "x": 830,
+          "y": 10,
+          "w": 66,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "+ Cobrador (H)",
+          "x": 940,
+          "y": 484,
+          "w": 142,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "🏗️ GESTIÓN (G)",
+          "x": 790,
+          "y": 484,
+          "w": 143,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "✕",
+          "x": 934,
+          "y": 24,
+          "w": 48,
+          "h": 38,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 👥 Equipo ",
+          "x": 64,
+          "y": 84,
+          "w": 107,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 🛠️ Upgrades ",
+          "x": 194,
+          "y": 84,
+          "w": 123,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📍 Lotes ",
+          "x": 324,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📊 Stats ",
+          "x": 454,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana L-V 8-16 ",
+          "x": 224,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Tarde L-V 14-22 ",
+          "x": 424,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana S-D 8-16 ",
+          "x": 224,
+          "y": 260,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        }
+      ],
+      "upgrades": [
+        "booth",
+        "pos",
+        "barriers",
+        "entryTotem"
+      ],
+      "money": 4879991,
+      "day": 1,
+      "rep": 100
+    },
+    {
+      "level": "N4-ExitTotem",
+      "fps": "56.0",
+      "heap": 10,
+      "objectCount": 394,
+      "interactiveCount": 15,
+      "overlaps": [],
+      "interactives": [
+        {
+          "type": "Text",
+          "text": "⏸ PAUSA (P)",
+          "x": 940,
+          "y": 10,
+          "w": 129,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "⏩ 1x",
+          "x": 830,
+          "y": 10,
+          "w": 66,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "+ Cobrador (H)",
+          "x": 940,
+          "y": 484,
+          "w": 142,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "🏗️ GESTIÓN (G)",
+          "x": 790,
+          "y": 484,
+          "w": 143,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "✕",
+          "x": 934,
+          "y": 24,
+          "w": 48,
+          "h": 38,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 👥 Equipo ",
+          "x": 64,
+          "y": 84,
+          "w": 107,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 🛠️ Upgrades ",
+          "x": 194,
+          "y": 84,
+          "w": 123,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📍 Lotes ",
+          "x": 324,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📊 Stats ",
+          "x": 454,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana L-V 8-16 ",
+          "x": 224,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Tarde L-V 14-22 ",
+          "x": 424,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana S-D 8-16 ",
+          "x": 224,
+          "y": 260,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        }
+      ],
+      "upgrades": [
+        "booth",
+        "pos",
+        "barriers",
+        "entryTotem",
+        "exitTotem"
+      ],
+      "money": 4719991,
+      "day": 1,
+      "rep": 100
+    },
+    {
+      "level": "N5-ParkingApp",
+      "fps": "55.2",
+      "heap": 10,
+      "objectCount": 394,
+      "interactiveCount": 15,
+      "overlaps": [],
+      "interactives": [
+        {
+          "type": "Text",
+          "text": "⏸ PAUSA (P)",
+          "x": 940,
+          "y": 10,
+          "w": 129,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "⏩ 1x",
+          "x": 830,
+          "y": 10,
+          "w": 66,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "+ Cobrador (H)",
+          "x": 940,
+          "y": 484,
+          "w": 142,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "🏗️ GESTIÓN (G)",
+          "x": 790,
+          "y": 484,
+          "w": 143,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "✕",
+          "x": 934,
+          "y": 24,
+          "w": 48,
+          "h": 38,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 👥 Equipo ",
+          "x": 64,
+          "y": 84,
+          "w": 107,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 🛠️ Upgrades ",
+          "x": 194,
+          "y": 84,
+          "w": 123,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📍 Lotes ",
+          "x": 324,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📊 Stats ",
+          "x": 454,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana L-V 8-16 ",
+          "x": 224,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Tarde L-V 14-22 ",
+          "x": 424,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana S-D 8-16 ",
+          "x": 224,
+          "y": 260,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        }
+      ],
+      "upgrades": [
+        "booth",
+        "pos",
+        "barriers",
+        "entryTotem",
+        "exitTotem",
+        "parkingApp"
+      ],
+      "money": 4600023,
+      "day": 1,
+      "rep": 100
+    },
+    {
+      "level": "N6-ValetAI",
+      "fps": "51.0",
+      "heap": 10,
+      "objectCount": 394,
+      "interactiveCount": 15,
+      "overlaps": [],
+      "interactives": [
+        {
+          "type": "Text",
+          "text": "⏸ PAUSA (P)",
+          "x": 940,
+          "y": 10,
+          "w": 129,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "⏩ 1x",
+          "x": 830,
+          "y": 10,
+          "w": 66,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "+ Cobrador (H)",
+          "x": 940,
+          "y": 484,
+          "w": 142,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "🏗️ GESTIÓN (G)",
+          "x": 790,
+          "y": 484,
+          "w": 143,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "✕",
+          "x": 934,
+          "y": 24,
+          "w": 48,
+          "h": 38,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 👥 Equipo ",
+          "x": 64,
+          "y": 84,
+          "w": 107,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 🛠️ Upgrades ",
+          "x": 194,
+          "y": 84,
+          "w": 123,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📍 Lotes ",
+          "x": 324,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📊 Stats ",
+          "x": 454,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana L-V 8-16 ",
+          "x": 224,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Tarde L-V 14-22 ",
+          "x": 424,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana S-D 8-16 ",
+          "x": 224,
+          "y": 260,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        }
+      ],
+      "upgrades": [
+        "booth",
+        "pos",
+        "barriers",
+        "entryTotem",
+        "exitTotem",
+        "parkingApp",
+        "valetAI"
+      ],
+      "money": 4400023,
+      "day": 1,
+      "rep": 100
+    },
+    {
+      "level": "N7-Vertical",
+      "fps": "53.6",
+      "heap": 10,
+      "objectCount": 397,
+      "interactiveCount": 15,
+      "overlaps": [],
+      "interactives": [
+        {
+          "type": "Text",
+          "text": "⏸ PAUSA (P)",
+          "x": 940,
+          "y": 10,
+          "w": 129,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "⏩ 1x",
+          "x": 830,
+          "y": 10,
+          "w": 66,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "+ Cobrador (H)",
+          "x": 940,
+          "y": 484,
+          "w": 142,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "🏗️ GESTIÓN (G)",
+          "x": 790,
+          "y": 484,
+          "w": 143,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "✕",
+          "x": 934,
+          "y": 24,
+          "w": 48,
+          "h": 38,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 👥 Equipo ",
+          "x": 64,
+          "y": 84,
+          "w": 107,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 🛠️ Upgrades ",
+          "x": 194,
+          "y": 84,
+          "w": 123,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📍 Lotes ",
+          "x": 324,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📊 Stats ",
+          "x": 454,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana L-V 8-16 ",
+          "x": 224,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Tarde L-V 14-22 ",
+          "x": 424,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana S-D 8-16 ",
+          "x": 224,
+          "y": 260,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        }
+      ],
+      "upgrades": [
+        "booth",
+        "pos",
+        "barriers",
+        "entryTotem",
+        "exitTotem",
+        "parkingApp",
+        "valetAI",
+        "multiLevel"
+      ],
+      "money": 4000114,
+      "day": 1,
+      "rep": 100
+    },
+    {
+      "level": "N8-Drone",
+      "fps": "54.2",
+      "heap": 10,
+      "objectCount": 415,
+      "interactiveCount": 15,
+      "overlaps": [],
+      "interactives": [
+        {
+          "type": "Text",
+          "text": "⏸ PAUSA (P)",
+          "x": 940,
+          "y": 10,
+          "w": 129,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "⏩ 1x",
+          "x": 830,
+          "y": 10,
+          "w": 66,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "+ Cobrador (H)",
+          "x": 940,
+          "y": 484,
+          "w": 142,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "🏗️ GESTIÓN (G)",
+          "x": 790,
+          "y": 484,
+          "w": 143,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "✕",
+          "x": 934,
+          "y": 24,
+          "w": 48,
+          "h": 38,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 👥 Equipo ",
+          "x": 64,
+          "y": 84,
+          "w": 107,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 🛠️ Upgrades ",
+          "x": 194,
+          "y": 84,
+          "w": 123,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📍 Lotes ",
+          "x": 324,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📊 Stats ",
+          "x": 454,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana L-V 8-16 ",
+          "x": 224,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Tarde L-V 14-22 ",
+          "x": 424,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana S-D 8-16 ",
+          "x": 224,
+          "y": 260,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        }
+      ],
+      "upgrades": [
+        "booth",
+        "pos",
+        "barriers",
+        "entryTotem",
+        "exitTotem",
+        "parkingApp",
+        "valetAI",
+        "multiLevel",
+        "drone"
+      ],
+      "money": 3000408,
+      "day": 1,
+      "rep": 100
+    },
+    {
+      "level": "N9-Spaceport",
+      "fps": "56.7",
+      "heap": 10,
+      "objectCount": 429,
+      "interactiveCount": 16,
+      "overlaps": [],
+      "interactives": [
+        {
+          "type": "Text",
+          "text": "⏸ PAUSA (P)",
+          "x": 940,
+          "y": 10,
+          "w": 129,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "⏩ 1x",
+          "x": 830,
+          "y": 10,
+          "w": 66,
+          "h": 31,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "+ Cobrador (H)",
+          "x": 940,
+          "y": 484,
+          "w": 142,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "🏗️ GESTIÓN (G)",
+          "x": 790,
+          "y": 484,
+          "w": 143,
+          "h": 35,
+          "depth": 0,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": "✕",
+          "x": 934,
+          "y": 24,
+          "w": 48,
+          "h": 38,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 👥 Equipo ",
+          "x": 64,
+          "y": 84,
+          "w": 107,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 🛠️ Upgrades ",
+          "x": 194,
+          "y": 84,
+          "w": 123,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📍 Lotes ",
+          "x": 324,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " 📊 Stats ",
+          "x": 454,
+          "y": 84,
+          "w": 99,
+          "h": 33,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana L-V 8-16 ",
+          "x": 224,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Tarde L-V 14-22 ",
+          "x": 424,
+          "y": 224,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        },
+        {
+          "type": "Text",
+          "text": " Mañana S-D 8-16 ",
+          "x": 224,
+          "y": 260,
+          "w": 129,
+          "h": 27,
+          "depth": 200,
+          "visible": true
+        }
+      ],
+      "upgrades": [
+        "booth",
+        "pos",
+        "barriers",
+        "entryTotem",
+        "exitTotem",
+        "parkingApp",
+        "valetAI",
+        "multiLevel",
+        "drone",
+        "spaceport"
+      ],
+      "money": 0,
+      "day": 1,
+      "rep": 100
+    }
+  ]
+}
