@@ -1025,9 +1025,19 @@ const CAR_COLORS = [
 ];
 
 // ─── STATE ─────────────────────────────────────────────────
-const __initialMoney = (typeof localStorage !== 'undefined' &&
-    localStorage.getItem('parking-tycoon-difficulty') === 'hard')
-    ? 30000 : CONFIG.startMoney;
+// `?money=N` URL override (DEV) lets us boot with custom starting cash.
+// Honored only when not loading a save.
+const __urlMoneyOverride = (() => {
+    try {
+        const m = new URLSearchParams(location.search).get('money');
+        const n = m ? parseInt(m, 10) : NaN;
+        return isFinite(n) && n > 0 ? n : null;
+    } catch (e) { return null; }
+})();
+const __initialMoney = __urlMoneyOverride
+    ?? ((typeof localStorage !== 'undefined' &&
+        localStorage.getItem('parking-tycoon-difficulty') === 'hard')
+        ? 30000 : CONFIG.startMoney);
 const S = {
     money: __initialMoney, day: 1, dayOfWeek: 0, reputation: 100,
     timeMinutes: CONFIG.startHour * 60,

@@ -142,10 +142,30 @@ async function summary() {
     })`);
 }
 
+async function dismissAnyModal() {
+    return evalJs(`(() => {
+        const list = window.game?.scene?.scenes?.[0]?.children?.list || [];
+        // Match buttons that close/dismiss/continue any modal — both literal
+        // ▶ continue and ⏰ later (cinematic skip) and × close.
+        const re = /Lo pienso|Cerrar|Entendido|Saltar|Siguiente vez|SIGUE|Continuar|×|Skip|Dismiss/i;
+        const t = list.find(c => c.type === 'Text' && re.test(c.text || '') && c.input?.enabled);
+        if (t) { try { t.emit('pointerdown'); return 'dismissed: ' + t.text; } catch (e) {} }
+        return null;
+    })()`);
+}
+
 (async () => {
     await connect();
     watchConsoleErrors();
     console.log('Connected. Starting playtest...');
+
+    // First make sure splash is dismissed
+    await evalJs(`
+        if (document.getElementById('splash')?.style.display !== 'none') {
+            document.getElementById('splash-start').click();
+        }
+    `);
+    await new Promise(r => setTimeout(r, 1000));
 
     // Boost initial state for faster gameplay
     await evalJs(`
@@ -167,11 +187,23 @@ async function summary() {
         log.push({ ...stats, bought });
         console.log(`Day ${stats.day}: served=${stats.served} rev=$${stats.revenue} util=$${stats.utility} money=$${stats.money} rep=${stats.rep} bought=${JSON.stringify(bought)} heap=${stats.jsHeapMB}MB obj=${stats.objects} tweens=${stats.tweens}`);
 
-        // Advance to next day
+        // Advance to next day — first try to dismiss any cinematic blocking
+        for (let retries = 0; retries < 3; retries++) {
+            const dismissed = await dismissAnyModal();
+            if (dismissed) {
+                console.log('  (dismissed: ' + dismissed + ')');
+                await new Promise(r => setTimeout(r, 500));
+            } else break;
+        }
         const advanced = await nextDay();
         if (!advanced) {
-            console.log('Could not advance day — button not found');
-            break;
+            console.log('Could not advance day — button not found (probably modal blocking)');
+            // Try again after a beat
+            await new Promise(r => setTimeout(r, 1000));
+            await dismissAnyModal();
+            await new Promise(r => setTimeout(r, 500));
+            const retry = await nextDay();
+            if (!retry) { console.log('Still cannot advance. Stopping.'); break; }
         }
         // Brief wait for scene restart
         await new Promise(r => setTimeout(r, 1500));
