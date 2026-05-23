@@ -2016,7 +2016,12 @@ function openManagementPanel() {
     S.managementOpen = true;
     if (!S.paused && !S.dayEnded) {
         S.paused = true;
-        S.scene.tweens.pauseAll();
+        // v0.91: removed `S.scene.tweens.pauseAll()` — same root cause as
+        // v0.78/v0.84. Leaving the tween manager paused was bleeding into
+        // any cinematic spawned by a purchase (showPOSCelebration etc).
+        // Game logic stops because of S.paused; tween manager keeps ticking
+        // (cars finish their in-flight tweens but new movement won't start
+        // because update() returns early when paused).
     }
     if (typeof syncBodyStateClasses === 'function') syncBodyStateClasses();
     renderManagementPanel();
@@ -2028,7 +2033,9 @@ function closeManagementPanel() {
     S.managementOpen = false;
     if (!S.dayEnded) {
         S.paused = false;
-        S.scene.tweens.resumeAll();
+        // v0.91: no resumeAll needed since openManagementPanel no longer
+        // pauses the tween manager. (Defensive resumeAll left in cinematic
+        // functions still guards against any other path that pauses.)
     }
     if (typeof syncBodyStateClasses === 'function') syncBodyStateClasses();
 }
@@ -4081,7 +4088,9 @@ function showLevelMilestone(opts) {
     // hides any moving game-world sprites behind it. See showPOSCelebration.
     // v0.84: force resume — same defensive measure as showPOSCelebration.
     S.paused = true;
+    S.cinematicActive = true;          // v0.91
     try { scene.tweens.resumeAll(); } catch (e) {}
+    if (typeof syncBodyStateClasses === 'function') syncBodyStateClasses();
     hapticBuzz('MEDIUM');
 
     // Dim backdrop
@@ -4144,7 +4153,8 @@ function showLevelMilestone(opts) {
     btn.on('pointerdown', () => {
         ui.forEach(o => { try { o.destroy(); } catch(e) {} });
         S.paused = false;
-        // v0.78: no resumeAll, didn't pauseAll.
+        S.cinematicActive = false;     // v0.91
+        if (typeof syncBodyStateClasses === 'function') syncBodyStateClasses();
         if (opts.onClose) opts.onClose();
     });
     ui.push(btn);
@@ -4221,7 +4231,9 @@ function showBarriersCelebration() {
     // v0.78: see showPOSCelebration — don't pauseAll, it kills our own tweens.
     // v0.84: force resume in case manager was left paused upstream.
     S.paused = true;
+    S.cinematicActive = true;          // v0.91
     try { scene.tweens.resumeAll(); } catch (e) {}
+    if (typeof syncBodyStateClasses === 'function') syncBodyStateClasses();
 
     SFX.purchase();
     setTimeout(() => beep && beep(800, 0.12, 'square', 0.07), 200);
@@ -4291,7 +4303,8 @@ function showBarriersCelebration() {
     btn.on('pointerdown', () => {
         ui.forEach(o => { try { o.destroy(); } catch(e) {} });
         S.paused = false;
-        // v0.78: no resumeAll, didn't pauseAll.
+        S.cinematicActive = false;     // v0.91
+        if (typeof syncBodyStateClasses === 'function') syncBodyStateClasses();
         flashEvent('🚧 Barreras operativas — autos se procesan solos.');
         S.scene.scene.restart();
     });
@@ -4314,7 +4327,9 @@ function showPOSCelebration() {
     // (e.g. management panel open at purchase time → scene.restart), our
     // tweens still wouldn't run. Force resume here so cinematics are reliable.
     S.paused = true;
+    S.cinematicActive = true;          // v0.91: hides HTML touch bar
     try { scene.tweens.resumeAll(); } catch (e) {}
+    if (typeof syncBodyStateClasses === 'function') syncBodyStateClasses();
 
     // Fanfare sound — ascending chord
     SFX.purchase();
@@ -4418,6 +4433,8 @@ function showPOSCelebration() {
     btn.on('pointerdown', () => {
         ui.forEach(o => { try { o.destroy(); } catch(e) {} });
         S.paused = false;
+        S.cinematicActive = false;     // v0.91
+        if (typeof syncBodyStateClasses === 'function') syncBodyStateClasses();
         // v0.78: no resumeAll needed since we didn't pauseAll.
         flashEvent('💳 POS operativo. Te paga sus beneficios en una semana.');
         // Restart so the booth re-renders with the POS terminal
@@ -5765,6 +5782,10 @@ function syncBodyStateClasses() {
         // bar while the canvas modal is up — otherwise taps on touch-attend,
         // touch-hire etc. go through to the game behind the modal.
         cl.toggle('state-management-open', !!S.managementOpen);
+        // v0.91: same problem for cinematics (POS celebration, level
+        // milestone, Ana intro). The HTML touch bar floats at z-index 70
+        // above the canvas and was still tappable during a cinematic.
+        cl.toggle('state-cinematic', !!S.cinematicActive);
     }
 }
 
