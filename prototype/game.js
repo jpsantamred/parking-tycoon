@@ -983,14 +983,13 @@ const L = {
     queueHeadInsideX: 420,          // == entryVlaneX
     queueHeadInsideY: 235,          // head car position just south of fence opening
     queueStreetY: 130,              // == entryLaneY (cars on the street)
-    // v0.75: sprite scale went 1.6→1.9 in v0.73 but spacing stayed at 55 —
-    // cars visibly overlapped when 3+ piled up. Bump to 68 (entry) and 52
-    // (exit) so there's a real gap between bumpers.
-    queueStreetSpacing: 68,         // horizontal spacing on the street
+    // v0.89: v0.75 bumped from 55 to 68 but trucks (scale 2.4 ≈ 67 px wide)
+    // still touched bumpers. 80/64 gives a clear visual gap even for trucks.
+    queueStreetSpacing: 80,         // horizontal spacing on the street
 
     // Exit waiting (after swap, exit vlane is on the right)
     exitWaitX: 540,                 // == exitVlaneX
-    exitWaitY: 245, exitQueueSpacing: 52,
+    exitWaitY: 245, exitQueueSpacing: 64,
 
     placeholderCx: 480, placeholderCy: 255, placeholderW: 70, placeholderH: 70,
 
@@ -5065,7 +5064,11 @@ function spawnQueueCar() {
     let scale = 1.9;           // was 1.6
     let randomTint = null;
     if (isTruck) {
-        scale = 2.4;           // bigger sprite = truck/SUV (was 2.0)
+        scale = 2.1;           // bigger sprite = truck/SUV (was 2.4; reduced
+                               // in v0.89 — trucks at 2.4 visibly overlapped
+                               // adjacent spaces (85 px column pitch, ~67 px
+                               // truck width left only 18 px clearance, and
+                               // tinted edges/shadows ate that.)
         randomTint = Phaser.Math.RND.pick([0x71717a, 0x44403c, 0x57534e, 0x1f2937]);
     } else if (isMoto) {
         scale = 1.3;           // smaller = motorcycle (was 1.0)
