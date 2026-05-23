@@ -510,7 +510,11 @@
                 padding-bottom: env(safe-area-inset-bottom, 0);
                 display: flex;
                 flex-direction: row;
-                align-items: stretch;
+                /* v1.04: center-align so the 16:9 canvas sits in the middle of
+                   the tall column instead of stretching to vh. Side panels
+                   keep their explicit height so they're not affected by
+                   align-items change. */
+                align-items: center;
                 gap: 4px;
                 /* v1.01: use safe-area-inset only — was hard-coded 6 px each
                    side, which wasted 12 px of landscape width on devices
@@ -596,15 +600,22 @@
             /* ── Center: the game canvas — fills whatever's left ── */
             #game {
                 flex: 1 1 auto;
-                /* JS sets explicit height in applyGameSize() — see v0.76.
-                   We don't set width here; flex computes it from the row.
-                   No CSS height fallback because the inline JS style would
-                   lose the cascade fight if we set it here too. */
+                /* v1.04: use aspect-ratio so the game div is exactly canvas
+                   shape (16:9). Then the body's align-items: center centers
+                   the canvas vertically in the column — no more empty space
+                   above + below the canvas. JS no longer needs to set height
+                   in landscape (cleared in applyGameSize). */
+                aspect-ratio: 16 / 9;
+                max-height: calc(100vh - 60px - env(safe-area-inset-bottom, 0));
                 margin: 0;
                 border: none;
                 background: #0f172a;
                 overflow: hidden;
                 order: 2;
+                align-self: center;
+            }
+            body.state-day-ended #game {
+                max-height: calc(100vh - env(safe-area-inset-bottom, 0));
             }
             #game canvas {
                 display: block !important;
@@ -1185,7 +1196,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v1.03 · prototype</div>
+            <div class="splash-version">v1.04 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1198,7 +1209,7 @@
          which refreshPageTitle() updates via .textContent (safe), while the
          mark is its own span so the textContent swap doesn't blow it away. -->
     <h1 id="page-title"><span class="brand-mini" aria-hidden="true">P</span><span id="page-title-text"> Parking Tycoon — Nivel 1: Papeleta</span></h1>
-    <div class="subtitle">v1.03 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v1.04 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -1221,8 +1232,8 @@
         <button class="overlay-close" data-target="info-board" aria-label="Cerrar">✕</button>
         <div class="info-section">
             <h3>⏰ HORARIOS</h3>
-            <div class="info-row"><span>Lun-Vie:</span><span id="info-weekday-hours">08-22 (depende del personal)</span></div>
-            <div class="info-row"><span>Sáb-Dom:</span><span id="info-weekend-hours">depende del personal</span></div>
+            <div class="info-row"><span>Lun-Vie:</span><span id="info-weekday-hours">08-22 · según turno</span></div>
+            <div class="info-row"><span>Sáb-Dom:</span><span id="info-weekend-hours">según turno</span></div>
             <div class="info-row"><span>Hoy:</span><span id="info-today-status">—</span></div>
         </div>
         <div class="info-section">
@@ -1575,16 +1586,15 @@
             const isLandImmersive = window.matchMedia('(orientation: landscape) and (pointer: coarse)').matches;
             const isDayEnd = document.body.classList.contains('state-day-ended');
             if (isLandImmersive) {
-                // Touch bar slot is 56 px tall when visible; gone when day ended.
-                // Force height in JS to bypass the Android WebView 100vh bug.
+                // v1.04: don't set game div height — CSS aspect-ratio: 16/9
+                // sizes it from the flex-computed width. align-items: center
+                // on body centers the canvas vertically in the column.
+                gameDiv.style.height = '';
+                gameDiv.style.width = '';
+                // Side panels DO need explicit height — same Android 100vh bug
+                // as v0.76. Without this they shrink to fit-content.
                 const reserveBottom = isDayEnd ? 0 : 60;
                 const panelH = (vh - reserveBottom) + 'px';
-                gameDiv.style.height = panelH;
-                // v0.88: do NOT set width — let the side-panel flex layout
-                // compute it. The previous `vw` value made #game eat the
-                // whole viewport and pushed the side panels off-screen.
-                gameDiv.style.width = '';
-                // Side panels need explicit height too — same Android 100vh bug.
                 if (infoBoard) infoBoard.style.height = panelH;
                 if (empStrip)  empStrip.style.height  = panelH;
             } else {

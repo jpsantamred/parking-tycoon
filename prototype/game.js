@@ -6505,7 +6505,11 @@ function renderEndOfDay() {
     // history the bars used to cluster on the LEFT leaving empty space on
     // the right (a bar appeared 'missing' to the user). Now newest day is
     // always rightmost and the bars span the full chart frame.
-    if (S.dailyStatsHistory.length >= 2) {
+    // v1.04: show the chart from day 1 (>= 1 entry) instead of >= 2 — on
+    // Day 1 EOD the modal had a big empty gap between 'Próximo día' and
+    // the buttons because the chart was hidden. A single bar reads as
+    // 'your first day' just fine.
+    if (S.dailyStatsHistory.length >= 1) {
         const recent = S.dailyStatsHistory.slice(-7);
         const chartX = W / 2 - 110, chartY = 340;
         const chartW = 220, chartH = 50;
