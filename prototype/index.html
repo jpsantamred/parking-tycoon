@@ -319,6 +319,43 @@
             color: #86efac;
             border-color: #16a34a;
         }
+        /* v0.79: floating-overlay close button. Hidden by default; only
+           shown when the overlay is expanded in landscape immersive mode
+           (rule below). Big tap target. */
+        .overlay-close {
+            display: none;
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 36px;
+            height: 36px;
+            background: #1e293b;
+            color: #f87171;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 81;
+            line-height: 1;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .overlay-close:active { background: #475569; transform: scale(0.92); }
+
+        /* v0.79: shared backdrop behind landscape floating overlays. Tap
+           anywhere on it to close. */
+        #overlay-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(1px);
+            -webkit-backdrop-filter: blur(1px);
+            z-index: 79;
+        }
+        body.has-floating-overlay #overlay-backdrop { display: block; }
+
         /* When the canvas shows the end-of-day modal (or any equivalent state
            where Phaser has its own DÍA SIGUIENTE / GESTIÓN buttons), hide the
            fixed-bottom touch-actions bar so it doesn't overlap and block the
@@ -417,10 +454,19 @@
                 background: rgba(15, 23, 42, 0.96);
                 border: 1px solid #475569;
                 border-radius: 10px;
-                padding: 10px;
+                /* v0.79: extra top padding makes room for the X close button
+                   without overlapping the EQUIPO / TARIFAS heading. */
+                padding: 40px 10px 10px 10px;
                 box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6);
             }
             #employee-strip-wrapper.expanded {
+                display: block;
+            }
+            /* v0.79: show the X close button when the overlay is expanded
+               in landscape immersive. In portrait the cards just collapse —
+               no overlay metaphor, no close button. */
+            #info-board.expanded .overlay-close,
+            #employee-strip-wrapper.expanded .overlay-close {
                 display: block;
             }
             /* Info-toggle buttons in the touch bar stay VISIBLE in landscape
@@ -907,7 +953,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.78 · prototype</div>
+            <div class="splash-version">v0.79 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -916,7 +962,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.78 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.79 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -930,8 +976,13 @@
     <!-- v0.73: merged into #touch-actions below so we don't have two bars. -->
     <div id="mobile-info-toggles" style="display:none"></div>
 
+    <!-- v0.79: shared backdrop for landscape floating overlays. Tap to close. -->
+    <div id="overlay-backdrop"></div>
+
     <!-- ── INFO BOARD (tarifario + horarios + servicios + hoy) ─── -->
     <div id="info-board">
+        <!-- v0.79: X close button — only shown when this is a landscape floating overlay. -->
+        <button class="overlay-close" data-target="info-board" aria-label="Cerrar">✕</button>
         <div class="info-section">
             <h3>⏰ HORARIOS</h3>
             <div class="info-row"><span>Lun-Vie:</span><span id="info-weekday-hours">08-22 (depende del personal)</span></div>
@@ -959,6 +1010,8 @@
     </div>
 
     <div id="employee-strip-wrapper">
+        <!-- v0.79: X close button — same as #info-board. -->
+        <button class="overlay-close" data-target="employee-strip-wrapper" aria-label="Cerrar">✕</button>
         <div id="employee-strip-title">
             <span>👥 EQUIPO</span>
             <span class="count-pill" id="emp-count-pill">0/0</span>
@@ -1207,6 +1260,19 @@
         // the consolidated #touch-actions .info-toggle buttons (Tarifas/Equipo
         // were moved into the touch bar in v0.73). Whichever the user taps,
         // the linked panel toggles `.expanded`.
+        // v0.79: also toggles a body class so the backdrop + X close button
+        // appear/disappear together.
+        function syncOverlayBackdrop() {
+            const anyOpen = document.querySelector('#info-board.expanded, #employee-strip-wrapper.expanded');
+            document.body.classList.toggle('has-floating-overlay', !!anyOpen);
+        }
+        function closeAllFloatingOverlays() {
+            document.querySelectorAll('#info-board.expanded, #employee-strip-wrapper.expanded')
+                .forEach(el => el.classList.remove('expanded'));
+            document.querySelectorAll('#touch-actions button.info-toggle.active')
+                .forEach(b => b.classList.remove('active'));
+            syncOverlayBackdrop();
+        }
         document.querySelectorAll('#mobile-info-toggles button, #touch-actions button.info-toggle').forEach(btn => {
             btn.addEventListener('click', () => {
                 const targetId = btn.getAttribute('data-target');
@@ -1225,6 +1291,7 @@
                 }
                 target.classList.toggle('expanded');
                 btn.classList.toggle('active', target.classList.contains('expanded'));
+                syncOverlayBackdrop();
                 // Smooth scroll the expanded panel into view (portrait only —
                 // in landscape it's a fixed overlay and scroll would jump the
                 // page).
@@ -1233,6 +1300,27 @@
                 }
             });
         });
+
+        // v0.79: X close buttons inside each overlay. Stop propagation so
+        // the click doesn't bubble to the panel itself (where we don't have
+        // a handler, but for defensive coding).
+        document.querySelectorAll('.overlay-close').forEach(closeBtn => {
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const targetId = closeBtn.getAttribute('data-target');
+                const target = document.getElementById(targetId);
+                if (target) target.classList.remove('expanded');
+                // Untoggle the matching touch-bar button.
+                document.querySelectorAll(`#touch-actions button.info-toggle[data-target="${targetId}"]`)
+                    .forEach(b => b.classList.remove('active'));
+                syncOverlayBackdrop();
+            });
+        });
+
+        // v0.79: tap the backdrop (anywhere outside the overlay panels) to
+        // close whichever overlay is open. Pure CSS would require :has() with
+        // limited browser support; a click handler is simpler and reliable.
+        document.getElementById('overlay-backdrop').addEventListener('click', closeAllFloatingOverlays);
 
         // ── v0.76: Orientation change — re-size #game in JS + refresh Phaser ──
         // Capacitor Android WebView has a known bug where `100vh` in CSS does
@@ -1266,6 +1354,8 @@
                 .forEach(el => el.classList.remove('expanded'));
             document.querySelectorAll('#touch-actions button.info-toggle.active')
                 .forEach(b => b.classList.remove('active'));
+            // v0.79: also clear the backdrop body class.
+            document.body.classList.remove('has-floating-overlay');
             // Re-size + refresh Phaser AT MULTIPLE TIMINGS. Android WebView
             // can be slow to report the new viewport — we hit it 5 times.
             const refresh = () => {
