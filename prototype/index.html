@@ -225,11 +225,12 @@
             background: #1e293b;
             border: 1px solid #334155;
             border-radius: 6px;
-            padding: 10px 12px;
+            /* v0.77: adaptive padding scales with viewport while staying readable. */
+            padding: clamp(6px, 1.6vmin, 10px) clamp(8px, 1.8vmin, 12px);
         }
         .info-section h3 {
             color: #fbbf24;
-            font-size: 12px;
+            font-size: clamp(10px, 2.2vmin, 12px);
             margin-bottom: 6px;
             font-weight: bold;
             letter-spacing: 1px;
@@ -237,7 +238,7 @@
         .info-row {
             display: flex;
             justify-content: space-between;
-            font-size: 11px;
+            font-size: clamp(10px, 2vmin, 11px);
             color: #cbd5e1;
             line-height: 1.6;
         }
@@ -291,10 +292,11 @@
             border-radius: 8px;
             font-family: monospace;
             font-weight: bold;
-            font-size: 14px;
-            padding: 12px 14px;
-            min-width: 56px;
-            min-height: 50px;
+            /* v0.77: clamp keeps buttons usable on small phones AND tablets. */
+            font-size: clamp(11px, 2.5vmin, 14px);
+            padding: clamp(6px, 1.5vmin, 12px) clamp(8px, 2vmin, 14px);
+            min-width: clamp(44px, 8vmin, 56px);
+            min-height: clamp(40px, 7vmin, 50px);
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
             user-select: none;
@@ -768,32 +770,111 @@
 
     <!-- ── ONBOARDING TIP (Día 1) ──────────────────────── -->
     <div id="onboarding-backdrop" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.55); z-index:999; backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);"></div>
-    <div id="onboarding" style="display:none; position:fixed; left:50%; top:50%; transform:translate(-50%, -50%); background:#0f172aee; border:2px solid #fbbf24; border-radius:10px; padding:18px 24px; max-width:560px; max-height:90vh; overflow-y:auto; z-index:1000; box-shadow:0 8px 30px rgba(0,0,0,0.7); font-family:monospace;">
-        <div style="font-size:16px; font-weight:bold; color:#fbbf24; margin-bottom:10px;">💡 Día 1 — Cómo jugar</div>
-        <!-- Desktop hints (keyboard shortcuts) -->
-        <div id="onboarding-desktop" style="font-size:13px; color:#cbd5e1; line-height:1.7;">
-            • <kbd style="background:#1e293b; padding:2px 6px; border-radius:3px; color:#fde047;">Espacio</kbd> o <kbd style="background:#1e293b; padding:2px 6px; border-radius:3px; color:#fde047;">click</kbd> en el cobrador para atender el primer auto.<br>
-            • Los autos en cola pierden paciencia rápido — atendelos antes de que se aburran.<br>
-            • Cobras al SALIR: $30/min × tiempo en el lote. Quedate atento a la <strong>cola roja</strong> de exit (🅿️→).<br>
-            • Abrí <kbd style="background:#1e293b; padding:2px 6px; border-radius:3px; color:#fde047;">G</kbd> Gestión para comprar caseta, contratar más gente y mejorar.<br>
-            • <kbd style="background:#1e293b; padding:2px 6px; border-radius:3px; color:#fde047;">P</kbd> pausa el juego cuando lo necesites.
+    <!-- v0.77: adaptive sizing. width = min(92vw, 560px) so it shrinks on
+         narrow phones, height = min(85vh, content). Flex column with the
+         button STICKY at the bottom so it's always reachable even when the
+         body scrolls. Padding + font scale via clamp() so landscape phones
+         (height ≤500 px) get tighter spacing automatically. -->
+    <div id="onboarding">
+        <div class="onb-title">💡 Día 1 — Cómo jugar</div>
+        <div class="onb-body">
+            <!-- Desktop hints (keyboard shortcuts) -->
+            <div id="onboarding-desktop">
+                • <kbd>Espacio</kbd> o <kbd>click</kbd> en el cobrador para atender el primer auto.<br>
+                • Los autos en cola pierden paciencia rápido — atendelos antes de que se aburran.<br>
+                • Cobras al SALIR: $30/min × tiempo en el lote. Quedate atento a la <strong>cola roja</strong> de exit (🅿️→).<br>
+                • Abrí <kbd>G</kbd> Gestión para comprar caseta, contratar más gente y mejorar.<br>
+                • <kbd>P</kbd> pausa el juego cuando lo necesites.
+            </div>
+            <!-- Mobile/touch hints (shown via media query when coarse pointer) -->
+            <div id="onboarding-mobile">
+                • Tocá el botón <strong style="color:#fb923c;">🛂 Atender</strong> abajo para que el cobrador atienda el primer auto.<br>
+                • Los autos en cola pierden paciencia rápido — atendelos antes de que se aburran.<br>
+                • Cobrás al SALIR: $30/min × tiempo en el lote. Mirá la cola roja de exit (🅿️→).<br>
+                • Botón <strong style="color:#a78bfa;">⚙️ Gestión</strong> abre el panel para comprar caseta, contratar y mejorar.<br>
+                • Botón <strong style="color:#fbbf24;">⏸ Pausa</strong> congela el juego.<br>
+                • También podés tocar directamente al cobrador o a su tarjeta.
+            </div>
         </div>
-        <!-- Mobile/touch hints (shown via media query when coarse pointer) -->
-        <div id="onboarding-mobile" style="display:none; font-size:13px; color:#cbd5e1; line-height:1.7;">
-            • Tocá el botón <strong style="color:#fb923c;">🛂 Atender</strong> abajo para que el cobrador atienda el primer auto.<br>
-            • Los autos en cola pierden paciencia rápido — atendelos antes de que se aburran.<br>
-            • Cobrás al SALIR: $30/min × tiempo en el lote. Mirá la cola roja de exit (🅿️→).<br>
-            • Botón <strong style="color:#a78bfa;">⚙️ Gestión</strong> abre el panel para comprar caseta, contratar y mejorar.<br>
-            • Botón <strong style="color:#fbbf24;">⏸ Pausa</strong> congela el juego.<br>
-            • También podés tocar directamente al cobrador o a su tarjeta.
-        </div>
-        <button id="onboarding-close" style="margin-top:14px; background:#16a34a; color:#fff; border:none; padding:12px 24px; border-radius:6px; font-family:monospace; font-weight:bold; cursor:pointer; font-size:14px; min-height:44px;">▶ Entendido</button>
+        <button id="onboarding-close">▶ Entendido</button>
     </div>
     <style>
+        /* v0.77: adaptive onboarding modal */
+        #onboarding {
+            display: none;
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: #0f172aee;
+            border: 2px solid #fbbf24;
+            border-radius: 10px;
+            /* Width: never wider than 92vw, never wider than 560px. */
+            width: min(92vw, 560px);
+            /* Height: leave room for safe areas + a little breathing room. */
+            max-height: min(85vh, calc(100vh - env(safe-area-inset-top, 0) - env(safe-area-inset-bottom, 0) - 16px));
+            z-index: 1000;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+            font-family: monospace;
+            /* Vertical flex so the button can be sticky-bottom. */
+            flex-direction: column;
+            /* Adaptive padding: shrink on small landscape phones. */
+            padding: clamp(10px, 2.5vmin, 18px) clamp(14px, 3vmin, 24px);
+            gap: 8px;
+        }
+        /* Visible state is toggled via .is-open class for robust selector. */
+        #onboarding.is-open { display: flex; }
+        #onboarding .onb-title {
+            font-size: clamp(14px, 3.5vmin, 16px);
+            font-weight: bold;
+            color: #fbbf24;
+            flex-shrink: 0;
+        }
+        #onboarding .onb-body {
+            font-size: clamp(11px, 2.6vmin, 13px);
+            color: #cbd5e1;
+            line-height: 1.55;
+            overflow-y: auto;            /* scroll if content exceeds height */
+            -webkit-overflow-scrolling: touch;
+            min-height: 0;               /* let flex shrink it */
+            flex: 1 1 auto;
+        }
+        #onboarding kbd {
+            background: #1e293b;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #fde047;
+        }
+        #onboarding-close {
+            background: #16a34a;
+            color: #fff;
+            border: none;
+            padding: clamp(8px, 2vmin, 12px) clamp(18px, 4vmin, 24px);
+            border-radius: 6px;
+            font-family: monospace;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: clamp(13px, 3vmin, 14px);
+            min-height: 40px;
+            flex-shrink: 0;              /* button never compresses */
+            align-self: stretch;         /* full-width button */
+        }
         /* Touch devices: swap desktop hints for mobile hints */
+        #onboarding-mobile { display: none; }
         @media (pointer: coarse), (max-width: 800px) {
             #onboarding-desktop { display: none !important; }
             #onboarding-mobile { display: block !important; }
+        }
+        /* Landscape short viewport: 2-column layout for the bullet list so
+           the modal fits without scrolling. */
+        @media (orientation: landscape) and (max-height: 500px) {
+            #onboarding {
+                width: min(92vw, 720px);
+            }
+            #onboarding-desktop, #onboarding-mobile {
+                column-count: 2;
+                column-gap: 18px;
+            }
         }
     </style>
 
@@ -826,7 +907,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.76 · prototype</div>
+            <div class="splash-version">v0.77 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -835,7 +916,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.76 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.77 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -997,7 +1078,7 @@
                         S.paused = true;
                     }
                     document.getElementById('onboarding-backdrop').style.display = 'block';
-                    document.getElementById('onboarding').style.display = 'block';
+                    document.getElementById('onboarding').classList.add('is-open');
                     window.__onboardingShown = true;
                 }
                 // Kick off ambient music (must happen after a user gesture)
@@ -1091,7 +1172,7 @@
         });
 
         document.getElementById('onboarding-close').addEventListener('click', () => {
-            document.getElementById('onboarding').style.display = 'none';
+            document.getElementById('onboarding').classList.remove('is-open');
             const bd = document.getElementById('onboarding-backdrop');
             if (bd) bd.style.display = 'none';
             // Resume the game iff we paused it specifically for the tutorial.
