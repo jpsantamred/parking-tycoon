@@ -834,6 +834,20 @@
             background: #7c2d12;
             color: #fdba74;
         }
+        /* v0.93: when a cobrador is off-shift, make the status pill obvious
+           — it's the single biggest source of "why aren't customers being
+           served?" confusion. Red text on a faint red wash + bigger pill. */
+        .emp-card.off-shift {
+            opacity: 0.78;
+        }
+        .emp-card.off-shift .emp-status {
+            background: #450a0a;
+            color: #fca5a5;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 3px 8px;
+            border: 1px solid #b91c1c;
+        }
         .emp-shift {
             color: #cbd5e1;
             font-size: 12px;
@@ -1060,7 +1074,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.92 · prototype</div>
+            <div class="splash-version">v0.93 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1069,7 +1083,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.92 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.93 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
