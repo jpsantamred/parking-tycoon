@@ -4597,7 +4597,7 @@ function update(time, delta) {
         // Probability per ms = (perMin / 60000 game-ms) — but delta is real-ms.
         // Game minutes elapsed this tick = gameMinutesAdvanced.
         if (Math.random() < perMin * gameMinutesAdvanced) {
-            attemptCobroBy(emp);
+            attemptCobroBy(emp, true);   // silent — autopilot, don't spam toasts
         }
     });
 
@@ -5050,26 +5050,30 @@ function attemptCobroAnyone() {
     attemptCobroBy(emp);
 }
 
-function attemptCobroBy(emp) {
+// Second arg `silent` (autopilot calls with true) suppresses the noisy
+// "ocupado" / "fuera de turno" / "Nada en cola" toasts that would otherwise
+// flood the screen — those are intended for direct player clicks only.
+function attemptCobroBy(emp, silent) {
     if (S.dayEnded) return;
-    if (emp.busy) { flashEvent(`🛂 ${emp.name} ocupado!`); return; }
+    if (emp.busy) { if (!silent) flashEvent(`🛂 ${emp.name} ocupado!`); return; }
     if (!isOnShift(emp, S.timeMinutes / 60)) {
-        flashEvent(`💤 ${emp.name} fuera de turno (${emp.shift.label}).`); return;
+        if (!silent) flashEvent(`💤 ${emp.name} fuera de turno (${emp.shift.label}).`);
+        return;
     }
     // Nivel 4: exit totem auto-charges. Cobrador can't intercept.
     if (!S.upgrades.exitTotem && S.exitQueue.some(c => c.state === 'exit-waiting')) {
         attendExit(emp); return;
     }
     if (S.upgrades.exitTotem && S.exitQueue.some(c => c.state === 'exit-waiting')) {
-        flashEvent('💳 El tótem cobra las salidas automáticamente.');
+        if (!silent) flashEvent('💳 El tótem cobra las salidas automáticamente.');
         return;
     }
     if (!S.upgrades.entryTotem && S.queue.length > 0) { attendEntry(emp); return; }
     if (S.upgrades.entryTotem && S.queue.length > 0) {
-        flashEvent('🎫 El tótem se encarga de las entradas.');
+        if (!silent) flashEvent('🎫 El tótem se encarga de las entradas.');
         return;
     }
-    flashEvent('💭 Nada en cola.');
+    if (!silent) flashEvent('💭 Nada en cola.');
 }
 
 // ─── ENTRY VIA TOTEM (Final Nivel 3) ───────────────────────

@@ -16,6 +16,32 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        /* ── GLOBAL MOBILE / PWA HARDENING ──────────────── */
+        html, body {
+            /* Stop iOS / Android from rubber-band scrolling the WebView when the
+               user drags inside the game canvas. Critical for native wraps. */
+            overscroll-behavior: none;
+            /* Block iOS double-tap-to-zoom and text selection inside the game */
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* But DO allow text selection in the splash story / leaderboard,
+           because those are info the user may want to copy. */
+        .splash-story, #splash-leaderboard, .splash-credits {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+        /* Honor the iPhone notch / Android punch-hole — Capacitor wrap shows
+           edge-to-edge content, so we add padding inside the safe area. */
+        body {
+            padding-top: env(safe-area-inset-top, 0);
+            padding-bottom: env(safe-area-inset-bottom, 0);
+            padding-left: env(safe-area-inset-left, 0);
+            padding-right: env(safe-area-inset-right, 0);
+        }
+
         /* ── SPLASH SCREEN ─────────────────────────────── */
         #splash {
             position: fixed;
@@ -28,6 +54,9 @@
             font-family: 'Courier New', monospace;
             color: #fff;
             animation: splashFadeIn 0.5s ease;
+            /* Allow scrolling on small phones so the story + buttons fit */
+            overflow-y: auto;
+            padding: env(safe-area-inset-top, 20px) 20px env(safe-area-inset-bottom, 20px);
         }
         @keyframes splashFadeIn {
             from { opacity: 0; }
@@ -268,11 +297,40 @@
             .info-row { font-size: 10px; }
             /* leave extra bottom padding so touch-actions doesn't cover the
                employee strip when scrolling */
-            body { padding-bottom: 100px; }
-            /* Music toggle stays accessible */
-            #music-toggle { top: 4px; right: 4px; padding: 8px; font-size: 18px; }
+            body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0)); }
+            /* Music toggle stays accessible — pulled in from safe-area too */
+            #music-toggle {
+                top: calc(4px + env(safe-area-inset-top, 0));
+                right: calc(4px + env(safe-area-inset-right, 0));
+                padding: 10px 14px;
+                font-size: 20px;
+                min-width: 44px;        /* WCAG / iOS HIG touch target */
+                min-height: 44px;
+            }
             /* Hide car tooltips on touch (no hover) */
             #car-tooltip { display: none !important; }
+
+            /* Splash adapts to mobile: bigger CTA, more breathing room. The
+               story shrinks so the EMPEZAR button is reachable above the
+               fold even on small phones. */
+            .splash-logo { font-size: 56px; margin-bottom: 8px; }
+            .splash-title { font-size: 32px; letter-spacing: 2px; }
+            .splash-tagline { font-size: 13px; margin-bottom: 18px; }
+            .splash-story {
+                padding: 14px;
+                font-size: 13px;
+                line-height: 1.5;
+                margin-bottom: 20px;
+            }
+            .splash-button {
+                padding: 18px 32px;
+                font-size: 20px;
+                width: 100%;
+                max-width: 320px;
+                min-height: 56px;          /* Apple HIG: 44pt min, we use 56 for thumb-reach */
+            }
+            #splash-leaderboard { font-size: 10px; padding: 8px; }
+            .splash-version, .splash-credits { font-size: 9px; }
         }
 
         /* ── Employee Cards Strip ────────────────────────── */
@@ -504,7 +562,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.58 · prototype</div>
+            <div class="splash-version">v0.60 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -513,7 +571,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.58 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.60 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -609,6 +667,30 @@
         }
         if (typeof peekSave !== 'function') {
             showFatalOverlay('game.js no cargo', 'game.js no definio peekSave. Probables causas:\n- 404 al cargar el archivo\n- error de syntax en game.js\n- WebView bloqueo el script\n\nBoot log:\n' + window.__bootLog.join('\n') + '\n\nObjetos en window:\n' + Object.keys(window).filter(k => /game|peek|save|CONFIG|S$/i.test(k)).join(', '), '');
+        }
+
+        // ─── Dev shortcuts via URL params ─────────────────
+        // ?skip=1      → auto-skip splash on load (for fast iteration)
+        // ?continue=1  → auto-continue saved game (used by PWA shortcut)
+        // ?money=N     → set starting money (DEV only)
+        const __qs = new URLSearchParams(location.search);
+        if (__qs.has('skip')) {
+            bootLog('?skip=1 — auto-dismissing splash');
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    const btn = document.getElementById('splash-start');
+                    if (btn) btn.click();
+                }, 100);
+            });
+        }
+        if (__qs.has('continue')) {
+            bootLog('?continue=1 — auto-loading save');
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    const btn = document.getElementById('splash-continue');
+                    if (btn && btn.style.display !== 'none') btn.click();
+                }, 100);
+            });
         }
 
         // ─── Save / Load wiring ─────────────────────────
