@@ -507,9 +507,13 @@
                 display: flex;
                 flex-direction: row;
                 align-items: stretch;
-                gap: 6px;
-                padding-left: 6px;
-                padding-right: 6px;
+                gap: 4px;
+                /* v1.01: use safe-area-inset only — was hard-coded 6 px each
+                   side, which wasted 12 px of landscape width on devices
+                   without a notch (Android). Phones WITH a notch in landscape
+                   still get the notch-side inset honored. */
+                padding-left: env(safe-area-inset-left, 0);
+                padding-right: env(safe-area-inset-right, 0);
                 min-height: 100vh;
             }
             h1#page-title, .subtitle, .hint-row, #mobile-info-toggles {
@@ -523,9 +527,9 @@
                 display: grid !important;
                 grid-template-columns: 1fr !important;
                 gap: 4px !important;
-                width: 160px !important;
-                max-width: 160px !important;
-                flex: 0 0 160px;
+                width: 180px !important;
+                max-width: 180px !important;
+                flex: 0 0 180px;
                 margin: 0 !important;
                 /* Height is set in JS via applyGameSize() — see v0.88. Don't
                    put it here or the cascade overrides the inline style. */
@@ -584,8 +588,8 @@
             /* ── Right side panel: Equipo (employee cards) ── */
             #employee-strip-wrapper {
                 display: block !important;
-                width: 160px;
-                flex: 0 0 160px;
+                width: 180px;
+                flex: 0 0 180px;
                 margin: 0;
                 /* Height is set in JS — see #info-board. Override the mobile
                    `max-height: 0` collapse rule (line 647) which would
@@ -756,9 +760,17 @@
                 color: #86efac;
                 border-color: #16a34a;
             }
-            /* leave extra bottom padding so touch-actions doesn't cover the
-               employee strip when scrolling */
-            body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0)); }
+            /* v1.01: this 110px scroll padding is portrait-only — in
+               landscape the panels are fixed-height side columns that
+               handle their own internal scroll, so the body shouldn't
+               grow taller than the viewport. The leak was eating ~50 px
+               of usable landscape width because body.offsetHeight > vh
+               forced the WebView to letterbox horizontally. */
+            @media (orientation: portrait) {
+                /* leave extra bottom padding so touch-actions doesn't cover
+                   the employee strip when scrolling */
+                body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0)); }
+            }
             /* v0.80: hide HTML music toggle on touch devices — it lives in
                the Gestión panel header now (canvas-side button next to ✕). */
             #music-toggle { display: none !important; }
@@ -1142,7 +1154,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v1.00 · prototype</div>
+            <div class="splash-version">v1.01 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1155,7 +1167,7 @@
          which refreshPageTitle() updates via .textContent (safe), while the
          mark is its own span so the textContent swap doesn't blow it away. -->
     <h1 id="page-title"><span class="brand-mini" aria-hidden="true">P</span><span id="page-title-text"> Parking Tycoon — Nivel 1: Papeleta</span></h1>
-    <div class="subtitle">v1.00 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v1.01 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
