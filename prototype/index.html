@@ -373,7 +373,7 @@
         }
 
         /* ── LANDSCAPE MODE — immersive layout ────────────────────
-           User feedback v0.71: "puedes optimizarlo para modo horizontal"
+           User feedback v0.73: "puedes optimizarlo para modo horizontal"
            Strategy: every CSS pixel that's not the lot is a distraction.
            Hide the title, subtitle, hint row, info-board, employee strip,
            AND the toggle row. Keep only the game canvas + a compact
@@ -409,7 +409,8 @@
             #game {
                 width: 100vw;
                 max-width: 100vw;
-                height: calc(100vh - 64px - env(safe-area-inset-bottom, 0));
+                /* v0.73: shrunk reservation 64→56 px so the canvas gets more vertical room. */
+                height: calc(100vh - 56px - env(safe-area-inset-bottom, 0));
                 margin: 0;
                 border: none;
                 background: #0f172a;
@@ -423,19 +424,21 @@
                 width: auto !important;
                 max-width: 100% !important;
             }
-            /* Compact touch bar — smaller padding, smaller text labels */
+            /* Compact touch bar — v0.73 shrunk further: 56 px total height so
+               the lot canvas gets more space. */
             #touch-actions {
                 bottom: env(safe-area-inset-bottom, 0);
-                padding: 4px 6px;
+                padding: 2px 6px;
                 gap: 4px;
                 border-radius: 8px 8px 0 0;
                 border-bottom: 0;
             }
             #touch-actions button {
-                padding: 6px 10px;
-                font-size: 11px;
-                min-width: 48px;
-                min-height: 44px;
+                padding: 4px 8px;
+                font-size: 10px;
+                min-width: 44px;
+                min-height: 38px;
+                line-height: 1.1;
             }
             /* Music toggle stays accessible top-right but compact */
             #music-toggle {
@@ -728,7 +731,7 @@
         <button id="touch-gestion" title="Gestión (G)">⚙️<br><span style="font-size:9px;">Gestión</span></button>
         <button id="touch-hire" class="warn" title="Contratar (H)">➕<br><span style="font-size:9px;">Contratar</span></button>
         <button id="touch-pause" title="Pausa (P)">⏸<br><span style="font-size:9px;">Pausa</span></button>
-        <!-- v0.71: Tarifas + Equipo toggles moved here. Hidden in landscape
+        <!-- v0.73: Tarifas + Equipo toggles moved here. Hidden in landscape
              (where info-board is hidden anyway). Visible in portrait. -->
         <button id="touch-info-toggle" class="info-toggle" data-target="info-board" title="Tarifas & Horarios">ⓘ<br><span style="font-size:9px;">Tarifas</span></button>
         <button id="touch-equipo-toggle" class="info-toggle" data-target="employee-strip-wrapper" title="Equipo">👥<br><span style="font-size:9px;">Equipo</span></button>
@@ -794,7 +797,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.71 · prototype</div>
+            <div class="splash-version">v0.73 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -803,7 +806,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.71 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.73 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -814,7 +817,7 @@
         <div><kbd>P</kbd> Pausa</div>
     </div>
 
-    <!-- v0.71: merged into #touch-actions below so we don't have two bars. -->
+    <!-- v0.73: merged into #touch-actions below so we don't have two bars. -->
     <div id="mobile-info-toggles" style="display:none"></div>
 
     <!-- ── INFO BOARD (tarifario + horarios + servicios + hoy) ─── -->
@@ -1021,10 +1024,10 @@
         // History:
         //   v0.x  : clearSave() ran BEFORE peekSave() check → reload never fired
         //           → stale endDayUI persisted after game-over.
-        //   v0.71 : added sceneAlreadyBooted check → BUT Phaser always boots the
+        //   v0.73 : added sceneAlreadyBooted check → BUT Phaser always boots the
         //           scene on page load, so this triggered reload on EVERY click,
         //           making the button feel "dead" on first run.
-        //   v0.71 (here): only reload when there's actually something stale to
+        //   v0.73 (here): only reload when there's actually something stale to
         //           reset — i.e. a save exists, OR the scene already advanced
         //           past day 1 / has end-day UI showing. Fresh first-boot just
         //           dismisses the splash like before.

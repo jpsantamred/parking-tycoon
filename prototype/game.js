@@ -1545,7 +1545,7 @@ function drawBooth(scene) {
     sprites.push(scene.add.rectangle(cx, cy - h/2 + 26, 1, 22, 0x78350f, 0.6));
 
     // Cobrador inside window
-    const cobrador = scene.add.image(cx, cy - h/2 + 28, 'tomas_south').setScale(0.55);
+    const cobrador = scene.add.image(cx, cy - h/2 + 28, 'tomas_south').setScale(0.75); // was 0.55, v0.73
     sprites.push(cobrador);
     scene.tweens.add({
         targets: cobrador, y: { from: cobrador.y, to: cobrador.y - 2 },
@@ -1710,8 +1710,9 @@ function createEmployeeSprite(scene, rosterEntry, idx) {
     const homeX = L.employeeNoBoothStartX + idx * L.employeeNoBoothSpacing;
     const homeY = L.employeeNoBoothY;
 
-    // Cobrador image (Tomás sprite, scale to ~32px tall)
-    const sprite = scene.add.image(homeX, homeY, 'tomas_south').setScale(0.85);
+    // Cobrador image (Tomás sprite) — v0.73 bumped 0.85 → 1.15 so the
+    // character is more visible on mobile. Hit-area scales with the sprite.
+    const sprite = scene.add.image(homeX, homeY, 'tomas_south').setScale(1.15);
 
     // Legacy circle/emoji kept as invisible aliases for tween targets
     const circle = scene.add.rectangle(homeX, homeY, 1, 1, 0).setAlpha(0);
@@ -3520,7 +3521,7 @@ function drawAesthetics(scene) {
 
     // Guard patrol — bright yellow vest + dark cap, clearly distinguishable from thief
     if (S.upgrades.guard) {
-        const guard = scene.add.image(L.lotLeft + 30, L.lotBottom - 30, 'tomas_east').setScale(0.75);
+        const guard = scene.add.image(L.lotLeft + 30, L.lotBottom - 30, 'tomas_east').setScale(1.0); // was 0.75 v0.73
         guard.setTint(0xfde047);   // bright yellow safety vest
         S.guardSprite = guard;
         // Dark cap (police-style) — small dark ellipse on top of head
@@ -4947,17 +4948,18 @@ function spawnQueueCar() {
     // ParkingApp customers (Nivel 5) — premium tariff + loyalty patience
     const isAppUser = S.upgrades.parkingApp && Math.random() * 100 < CONFIG.parkingAppUserChance;
     // Vehicle variety — random size class: 15% trucks (bigger), 8% motos (smaller)
+    // v0.73: scales bumped ~20% so cars are more readable on mobile.
+    // User feedback: "que los monitos y autitos se vean más grandes".
     const vehicleRoll = Math.random();
     const isTruck = vehicleRoll < 0.15;
     const isMoto = !isTruck && vehicleRoll < 0.23;
-    let scale = 1.6;
+    let scale = 1.9;           // was 1.6
     let randomTint = null;
     if (isTruck) {
-        scale = 2.0;           // bigger sprite = truck/SUV
-        // Trucks get a darker shade (custom tint shifts)
+        scale = 2.4;           // bigger sprite = truck/SUV (was 2.0)
         randomTint = Phaser.Math.RND.pick([0x71717a, 0x44403c, 0x57534e, 0x1f2937]);
     } else if (isMoto) {
-        scale = 1.0;           // smaller = motorcycle
+        scale = 1.3;           // smaller = motorcycle (was 1.0)
         randomTint = Phaser.Math.RND.pick([0xfbbf24, 0xef4444, 0x10b981, 0x3b82f6]);
     } else if (Math.random() < 0.30) {
         // 30% of regular cars get a slight tint variation for visual diversity
