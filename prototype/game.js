@@ -2938,26 +2938,37 @@ function renderStatsTab(scene, contentY, panelW) {
 
 // Small ParkingApp logo badge (blue rounded square with white "P")
 // scale ≈ 1 → ~14x14 px; scale ≈ 0.6 → ~8x8 px (tiny sticker)
+// ─── BRAND BADGES ─────────────────────────────────────────
+// v0.72: colors updated to match the official ParkingApp + Redcomercio
+// branding (both are orange #f97316-ish, not blue/red as before).
+// User shared the real logos in chat — these vector approximations
+// match the visual identity until we ship the PNG assets.
+const BRAND_ORANGE = 0xf97316;       // matches the orange in both logos
+const BRAND_ORANGE_DARK = 0xc2410c;  // for strokes / shadows
+const BRAND_ORANGE_LIGHT = 0xfb923c; // highlight
+
 function drawParkingAppBadge(scene, x, y, scale) {
     const s = scale || 1;
     const sprites = [];
-    // Blue rounded body (slight gradient via 2 rectangles)
-    sprites.push(scene.add.rectangle(x, y, 14*s, 14*s, 0x3b82f6).setStrokeStyle(1, 0x1e40af));
-    sprites.push(scene.add.rectangle(x, y - 2*s, 12*s, 4*s, 0x60a5fa, 0.6));   // highlight
-    // White "P"
-    sprites.push(scene.add.text(x, y, 'P', {
-        font: `bold ${Math.round(11*s)}px monospace`, color: '#ffffff'
+    // Orange rounded body (square aspect ~ 14×16, the real logo is taller)
+    sprites.push(scene.add.rectangle(x, y, 14*s, 16*s, BRAND_ORANGE).setStrokeStyle(1, BRAND_ORANGE_DARK));
+    sprites.push(scene.add.rectangle(x, y - 3*s, 12*s, 4*s, BRAND_ORANGE_LIGHT, 0.6));   // highlight
+    // White "P" — the iconic part of the ParkingApp logo
+    sprites.push(scene.add.text(x, y - 1*s, 'P', {
+        font: `bold ${Math.round(13*s)}px monospace`, color: '#ffffff'
     }).setOrigin(0.5));
     return sprites;
 }
 
-// Small Redcomercio badge (red square with "RC")
+// Small Redcomercio badge: orange square outline with orange "R" inside,
+// matching the real Redcomercio brand identity.
 function drawRedcomercioBadge(scene, x, y, scale) {
     const s = scale || 1;
     const sprites = [];
-    sprites.push(scene.add.rectangle(x, y, 16*s, 10*s, 0xdc2626).setStrokeStyle(1, 0x7f1d1d));
-    sprites.push(scene.add.text(x, y, 'RC', {
-        font: `bold ${Math.round(7*s)}px monospace`, color: '#ffffff'
+    // White square with thick orange border (matches Redcomercio logo)
+    sprites.push(scene.add.rectangle(x, y, 14*s, 14*s, 0xffffff).setStrokeStyle(2*s, BRAND_ORANGE));
+    sprites.push(scene.add.text(x, y, 'R', {
+        font: `bold ${Math.round(11*s)}px monospace`, color: '#f97316', stroke: '#c2410c', strokeThickness: 0.5*s
     }).setOrigin(0.5));
     return sprites;
 }

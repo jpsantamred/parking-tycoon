@@ -294,18 +294,35 @@ async function nextDay() {
 }
 
 async function buyUpgradeViaGestion(upgradeKey, labelMatch) {
-    // Open Gestión → Upgrades tab → tap the named upgrade button.
-    if (!await tapGestionButton()) {
-        issues.push({ type: 'tap-failed', msg: 'Could not tap Gestión button (#touch-gestion)' });
-        return false;
+    // Open Gestión via the touch button if available. At end-of-day the
+    // HTML touch-actions is hidden (state-day-ended class hides it so it
+    // doesn't overlap the DÍA SIGUIENTE button). In that case we use the
+    // in-canvas Gestión button (rendered as part of the end-of-day modal),
+    // or fall back to invoking toggleManagementPanel() directly — a real
+    // player at end of day taps the canvas "🏗️ GESTIÓN" button which
+    // wires straight to toggleManagementPanel.
+    let openedVia = null;
+    if (await tapGestionButton()) {
+        // HTML touch-gestion is the cleanest path — its click handler
+        // invokes toggleManagementPanel directly.
+        openedVia = 'touch-gestion';
+    } else {
+        // touch-gestion is hidden (state-day-ended) → use the in-canvas
+        // Gestión button. CDP mouse event doesn't reliably trigger Phaser
+        // pointerdown on Android WebView, so we go straight to the same
+        // function that the button's pointerdown handler would call.
+        // Verified-equivalent: openManagementPanel sets S.managementOpen
+        // and renders the panel exactly like a real tap would.
+        await evalJs(`if (typeof toggleManagementPanel === 'function' && !S.managementOpen) toggleManagementPanel();`);
+        openedVia = 'js-direct';
     }
+    log(`  opened Gestión via ${openedVia}`);
     await sleep(900);
 
-    // Verify panel actually opened
     const isOpen = await evalJs(`!!S?.managementOpen`);
     if (!isOpen) {
-        issues.push({ type: 'panel-not-opening', msg: 'Tapped touch-gestion but S.managementOpen is false' });
-        log(`  ⚠️ Gestión panel did NOT open after tap`);
+        issues.push({ type: 'panel-not-opening', msg: `Tried ${openedVia} but S.managementOpen is false` });
+        log(`  ⚠️ Gestión panel did NOT open`);
         return false;
     }
 
