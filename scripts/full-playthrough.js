@@ -203,6 +203,16 @@ async function audit(level) {
     await sleep(1500);
     await waitForScene();
 
+    // Dismiss the onboarding tutorial overlay (a real player would tap
+    // "▶ Entendido" — without this it stays on top of the canvas the whole
+    // run, obscuring whatever visual issues might be lurking underneath).
+    await evalJs(`
+        const ob = document.getElementById('onboarding-close');
+        if (ob) ob.click();
+    `);
+    await sleep(300);
+    console.log('Onboarding tutorial dismissed.');
+
     // === N1: Papeleta (default state) ===
     currentLevel = 'N1-Papeleta';
     console.log(`\n========== ${currentLevel} ==========`);

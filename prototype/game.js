@@ -5564,18 +5564,20 @@ function boredLeave(car) {
 
 // Compute the current "Nivel X" label from upgrade state. Pure function so
 // it's safe to call anytime (from update loop AND right after a purchase).
+// Labels kept short so the H1 fits in one line on a 360-CSS-px phone viewport
+// after "🅿️ Parking Tycoon — " prefix (~20 chars).
 function currentLevelLabel() {
-    if (S.upgrades.spaceport) return 'Nivel 9: 🚀 SPACEPORT';
-    if (S.upgrades.drone) return 'Nivel 8: Drones';
-    if (S.upgrades.multiLevel) return 'Nivel 7: Parking Vertical';
-    if (S.upgrades.valetAI) return 'Nivel 6: Valet AI';
-    if (S.upgrades.parkingApp) return 'Nivel 5: ParkingApp';
-    if (S.upgrades.exitTotem) return 'Nivel 4: Autopago';
-    if (S.upgrades.entryTotem) return 'Nivel 3 final: Tótem auto-ticket';
-    if (S.upgrades.barriers) return 'Nivel 3: Barreras';
-    if (S.upgrades.pos) return 'Nivel 2: POS Digital';
-    if (S.upgrades.booth) return 'Nivel 1: Caseta';
-    return 'Nivel 1: Papeleta';
+    if (S.upgrades.spaceport) return 'N9: 🚀 SPACEPORT';
+    if (S.upgrades.drone) return 'N8: Drones';
+    if (S.upgrades.multiLevel) return 'N7: Vertical';
+    if (S.upgrades.valetAI) return 'N6: Valet AI';
+    if (S.upgrades.parkingApp) return 'N5: ParkingApp';
+    if (S.upgrades.exitTotem) return 'N4: Autopago';
+    if (S.upgrades.entryTotem) return 'N3+: Tótem';
+    if (S.upgrades.barriers) return 'N3: Barreras';
+    if (S.upgrades.pos) return 'N2: POS';
+    if (S.upgrades.booth) return 'N1: Caseta';
+    return 'N1: Papeleta';
 }
 // Update the HTML page title to reflect current level. Cheap, side-effect-only.
 // Called from updateInfoBoard (every frame) AND from each purchaseX() so the

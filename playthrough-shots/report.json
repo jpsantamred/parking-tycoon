@@ -3,8 +3,8 @@
   "milestones": [
     {
       "level": "N1-Papeleta",
-      "fps": "53.6",
-      "heap": 10,
+      "fps": "54.1",
+      "heap": 11,
       "objectCount": 293,
       "interactiveCount": 6,
       "overlaps": [],
@@ -71,14 +71,14 @@
         }
       ],
       "upgrades": [],
-      "money": 78466,
+      "money": 78419,
       "day": 1,
       "rep": 100
     },
     {
       "level": "N1.5-Booth",
-      "fps": "53.0",
-      "heap": 10,
+      "fps": "54.6",
+      "heap": 11,
       "objectCount": 351,
       "interactiveCount": 15,
       "overlaps": [],
@@ -213,8 +213,8 @@
     },
     {
       "level": "N2-POS",
-      "fps": "53.5",
-      "heap": 10,
+      "fps": "55.1",
+      "heap": 11,
       "objectCount": 343,
       "interactiveCount": 5,
       "overlaps": [],
@@ -280,8 +280,8 @@
     },
     {
       "level": "N3-Barriers",
-      "fps": "54.1",
-      "heap": 10,
+      "fps": "55.1",
+      "heap": 11,
       "objectCount": 363,
       "interactiveCount": 6,
       "overlaps": [],
@@ -358,8 +358,8 @@
     },
     {
       "level": "N3-EntryTotem",
-      "fps": "55.9",
-      "heap": 10,
+      "fps": "53.3",
+      "heap": 11,
       "objectCount": 383,
       "interactiveCount": 15,
       "overlaps": [],
@@ -497,8 +497,8 @@
     },
     {
       "level": "N4-ExitTotem",
-      "fps": "56.0",
-      "heap": 10,
+      "fps": "55.1",
+      "heap": 11,
       "objectCount": 394,
       "interactiveCount": 15,
       "overlaps": [],
@@ -637,8 +637,8 @@
     },
     {
       "level": "N5-ParkingApp",
-      "fps": "55.2",
-      "heap": 10,
+      "fps": "54.3",
+      "heap": 11,
       "objectCount": 394,
       "interactiveCount": 15,
       "overlaps": [],
@@ -772,14 +772,14 @@
         "exitTotem",
         "parkingApp"
       ],
-      "money": 4600023,
+      "money": 4600015,
       "day": 1,
       "rep": 100
     },
     {
       "level": "N6-ValetAI",
-      "fps": "51.0",
-      "heap": 10,
+      "fps": "55.7",
+      "heap": 11,
       "objectCount": 394,
       "interactiveCount": 15,
       "overlaps": [],
@@ -914,14 +914,14 @@
         "parkingApp",
         "valetAI"
       ],
-      "money": 4400023,
+      "money": 4400015,
       "day": 1,
       "rep": 100
     },
     {
       "level": "N7-Vertical",
-      "fps": "53.6",
-      "heap": 10,
+      "fps": "55.2",
+      "heap": 11,
       "objectCount": 397,
       "interactiveCount": 15,
       "overlaps": [],
@@ -1057,14 +1057,14 @@
         "valetAI",
         "multiLevel"
       ],
-      "money": 4000114,
+      "money": 4000163,
       "day": 1,
       "rep": 100
     },
     {
       "level": "N8-Drone",
-      "fps": "54.2",
-      "heap": 10,
+      "fps": "56.5",
+      "heap": 11,
       "objectCount": 415,
       "interactiveCount": 15,
       "overlaps": [],
@@ -1207,8 +1207,8 @@
     },
     {
       "level": "N9-Spaceport",
-      "fps": "56.7",
-      "heap": 10,
+      "fps": "56.2",
+      "heap": 11,
       "objectCount": 429,
       "interactiveCount": 16,
       "overlaps": [],

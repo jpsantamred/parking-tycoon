@@ -158,7 +158,18 @@
             min-height: 100vh;
             padding: 8px;
         }
-        h1 { font-size: 18px; margin-bottom: 2px; color: #fbbf24; }
+        h1 {
+            font-size: 18px;
+            margin-bottom: 2px;
+            color: #fbbf24;
+            /* Single line on desktop; truncate with ellipsis if anyone makes a
+               longer level name in the future. */
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+        }
         .subtitle { color: #94a3b8; margin-bottom: 8px; font-size: 12px; }
         #game {
             border: 2px solid #4a5568;
@@ -579,7 +590,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.63 · prototype</div>
+            <div class="splash-version">v0.64 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -588,7 +599,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.63 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.64 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -794,10 +805,10 @@
         // History:
         //   v0.x  : clearSave() ran BEFORE peekSave() check → reload never fired
         //           → stale endDayUI persisted after game-over.
-        //   v0.63 : added sceneAlreadyBooted check → BUT Phaser always boots the
+        //   v0.64 : added sceneAlreadyBooted check → BUT Phaser always boots the
         //           scene on page load, so this triggered reload on EVERY click,
         //           making the button feel "dead" on first run.
-        //   v0.63 (here): only reload when there's actually something stale to
+        //   v0.64 (here): only reload when there's actually something stale to
         //           reset — i.e. a save exists, OR the scene already advanced
         //           past day 1 / has end-day UI showing. Fresh first-boot just
         //           dismisses the splash like before.
