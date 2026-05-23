@@ -497,7 +497,14 @@
            desktop layout. Now any touch device in landscape uses the
            side-panel layout. Desktop with mouse keeps the original
            top-bar-of-cards layout. */
-        @media (orientation: landscape) and (pointer: coarse) {
+        /* v1.05: side-panel layout ONLY on very-wide landscape (phones,
+           aspect-ratio > 16:10 ≈ 1.6). For more-square landscape (tablets,
+           foldables, aspect-ratio < 16:10) use the stacked layout — see
+           below. Aspect-ratio media query catches:
+             - iPhone 14 Pro Max landscape: 932×430 = 2.17 → side panels
+             - Pixel Fold landscape:        851×795 = 1.07 → stacked
+             - iPad landscape:              1024×768 = 1.33 → stacked   */
+        @media (orientation: landscape) and (pointer: coarse) and (min-aspect-ratio: 16/10) {
             /* v0.88 — Widescreen layout. User feedback: "en widescreen
                podemos poner las tarjetas de empleados al lado ya que no
                usamos la pantalla completa". The canvas is 16:9 — on a 944×372
@@ -537,9 +544,15 @@
                 gap: 4px !important;
                 /* v1.02: scale with viewport — 160 px on small phones,
                    up to 280 px on tablets. clamp() bridges smoothly. */
-                width: clamp(160px, 22vw, 280px) !important;
-                max-width: 280px !important;
-                flex: 0 0 clamp(160px, 22vw, 280px);
+                /* v1.05: shrink panels so canvas gets more width — text on
+                   the 16:9 canvas was unreadable at column widths < 600 px.
+                   Was clamp(160, 22vw, 280). Now clamp(140, 17vw, 220) which
+                   on a Fold (851 vw) gives 145 px panels and a 540 px game
+                   column (canvas 540x304 instead of 465x261 — 20% more area
+                   per side, fonts render ~14% larger). */
+                width: clamp(140px, 17vw, 220px) !important;
+                max-width: 220px !important;
+                flex: 0 0 clamp(140px, 17vw, 220px);
                 margin: 0 !important;
                 /* Height is set in JS via applyGameSize() — see v0.88. Don't
                    put it here or the cascade overrides the inline style. */
@@ -627,9 +640,9 @@
             /* ── Right side panel: Equipo (employee cards) ── */
             #employee-strip-wrapper {
                 display: block !important;
-                /* v1.02: scale-with-viewport — see #info-board. */
-                width: clamp(160px, 22vw, 280px);
-                flex: 0 0 clamp(160px, 22vw, 280px);
+                /* v1.05: see #info-board — narrower panels for canvas room */
+                width: clamp(140px, 17vw, 220px);
+                flex: 0 0 clamp(140px, 17vw, 220px);
                 margin: 0;
                 /* Height is set in JS — see #info-board. Override the mobile
                    `max-height: 0` collapse rule (line 647) which would
@@ -742,6 +755,123 @@
                 font-size: 14px;
                 min-width: 36px;
                 min-height: 36px;
+            }
+        }
+
+        /* v1.05: STACKED layout for tablet / fold / less-wide landscape.
+           User feedback: "para este tipo de layout dejamos el parking arriba
+           bien grande y las tarjetas abajo". On a Fold (851×795) the side-
+           panel layout left the canvas at 465×261 — too small to read text.
+           Stacked uses the FULL viewport width for the canvas (16:9 means
+           e.g. 851×478) and tucks Tarifas + Equipo cards in a row below. */
+        @media (orientation: landscape) and (pointer: coarse) and (max-aspect-ratio: 16/10) {
+            body {
+                padding: 0;
+                padding-bottom: env(safe-area-inset-bottom, 0);
+                padding-left: env(safe-area-inset-left, 0);
+                padding-right: env(safe-area-inset-right, 0);
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                min-height: 100vh;
+            }
+            h1#page-title, .subtitle, .hint-row, #mobile-info-toggles {
+                display: none !important;
+            }
+            /* Canvas: full viewport width, 16:9 aspect, capped at 60% of vh
+               so cards still have room below. */
+            #game {
+                width: 100%;
+                max-width: 100%;
+                aspect-ratio: 16 / 9;
+                /* Reserve ~36% of vh for the cards + touch bar below. */
+                max-height: min(64vh, calc(100vh - 220px));
+                margin: 0;
+                border: none;
+                background: #0f172a;
+                overflow: hidden;
+                order: 1;
+                flex: 0 0 auto;
+            }
+            #game canvas {
+                display: block !important;
+                margin: 0 auto !important;
+                height: 100% !important;
+                width: auto !important;
+                max-width: 100% !important;
+            }
+            body.state-day-ended #game { max-height: calc(100vh - 16px); }
+            /* Info board: 4 cards in a row across the bottom area. */
+            #info-board {
+                display: grid !important;
+                grid-template-columns: repeat(4, 1fr) !important;
+                gap: 6px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 6px !important;
+                max-height: none !important;
+                overflow: visible !important;
+                order: 2;
+                flex: 0 0 auto;
+                /* Reset side-panel floating-overlay artifacts */
+                position: static;
+                left: auto; right: auto; bottom: auto;
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                z-index: auto;
+            }
+            /* Bring back the horizontal row layout for info-row inside each
+               card — we have room now. Undo the v1.03 vertical stack which
+               was needed only for narrow side panels. */
+            #info-board .info-row {
+                flex-direction: row !important;
+                align-items: baseline !important;
+            }
+            #info-board .info-section { padding: 6px 8px; }
+            #info-board .info-section h3 { font-size: clamp(10px, 1.6vmin, 13px); }
+            #info-board .info-row { font-size: clamp(10px, 1.5vmin, 12px); }
+            /* Employee strip: horizontal scroll row below the info-board. */
+            #employee-strip-wrapper {
+                display: block !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 6px !important;
+                max-height: none !important;
+                overflow: visible !important;
+                order: 3;
+                flex: 0 0 auto;
+                background: rgba(15, 23, 42, 0.5);
+                border: 1px solid #334155;
+                border-radius: 8px;
+                position: static;
+                left: auto; right: auto; bottom: auto;
+                box-shadow: none;
+                z-index: auto;
+            }
+            #employee-strip {
+                display: flex !important;
+                flex-direction: row !important;
+                gap: 8px;
+                overflow-x: auto !important;
+                overflow-y: hidden;
+            }
+            #employee-strip .emp-card {
+                width: 220px !important;
+                max-width: 220px;
+                flex: 0 0 220px;
+            }
+            /* Tarifas / Equipo touch-bar toggles redundant (cards always visible) */
+            .overlay-close { display: none !important; }
+            #touch-actions #touch-info-toggle,
+            #touch-actions #touch-equipo-toggle { display: none !important; }
+            #overlay-backdrop { display: none !important; }
+            /* Touch bar: stay fixed at bottom but compact */
+            #touch-actions {
+                bottom: env(safe-area-inset-bottom, 0);
+                padding: 4px 8px;
+                gap: 6px;
             }
         }
 
@@ -1196,7 +1326,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v1.04 · prototype</div>
+            <div class="splash-version">v1.05 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1209,7 +1339,7 @@
          which refreshPageTitle() updates via .textContent (safe), while the
          mark is its own span so the textContent swap doesn't blow it away. -->
     <h1 id="page-title"><span class="brand-mini" aria-hidden="true">P</span><span id="page-title-text"> Parking Tycoon — Nivel 1: Papeleta</span></h1>
-    <div class="subtitle">v1.04 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v1.05 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -1583,24 +1713,23 @@
             const empStrip = document.getElementById('employee-strip-wrapper');
             if (!gameDiv) return;
             const vh = window.innerHeight;
-            const isLandImmersive = window.matchMedia('(orientation: landscape) and (pointer: coarse)').matches;
+            // v1.05: two distinct landscape-coarse layouts
+            //   - WIDE landscape (aspect > 16:10): side panels — needs JS panel heights
+            //   - SQUARE-ISH landscape (tablet/fold): stacked — CSS handles everything
+            const isWideLand = window.matchMedia('(orientation: landscape) and (pointer: coarse) and (min-aspect-ratio: 16/10)').matches;
+            const isSquareishLand = window.matchMedia('(orientation: landscape) and (pointer: coarse) and (max-aspect-ratio: 16/10)').matches;
             const isDayEnd = document.body.classList.contains('state-day-ended');
-            if (isLandImmersive) {
-                // v1.04: don't set game div height — CSS aspect-ratio: 16/9
-                // sizes it from the flex-computed width. align-items: center
-                // on body centers the canvas vertically in the column.
-                gameDiv.style.height = '';
-                gameDiv.style.width = '';
-                // Side panels DO need explicit height — same Android 100vh bug
-                // as v0.76. Without this they shrink to fit-content.
+            // Always clear game-div inline styles — CSS aspect-ratio handles it.
+            gameDiv.style.height = '';
+            gameDiv.style.width = '';
+            if (isWideLand) {
+                // Side panels need explicit height — Android 100vh CSS bug.
                 const reserveBottom = isDayEnd ? 0 : 60;
                 const panelH = (vh - reserveBottom) + 'px';
                 if (infoBoard) infoBoard.style.height = panelH;
                 if (empStrip)  empStrip.style.height  = panelH;
             } else {
-                // Portrait: clear inline styles so CSS takes over.
-                gameDiv.style.height = '';
-                gameDiv.style.width = '';
+                // Square-ish landscape (stacked) OR portrait — clear panel heights.
                 if (infoBoard) infoBoard.style.height = '';
                 if (empStrip)  empStrip.style.height  = '';
             }
