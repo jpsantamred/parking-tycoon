@@ -1293,7 +1293,10 @@ function startAmbientMusic() {
                 osc.frequency.value = freq * 2;
                 const g = ctx.createGain();
                 g.gain.value = 0;
-                g.gain.linearRampToValueAtTime(0.035, ctx.currentTime + 0.15);
+                // v0.94: scale peak gain by window.__musicVolume (0..1).
+                // Default 1 if unset, so existing players hear no change.
+                const vol = window.__musicVolume == null ? 1 : window.__musicVolume;
+                g.gain.linearRampToValueAtTime(0.035 * vol, ctx.currentTime + 0.15);
                 g.gain.linearRampToValueAtTime(0.0, ctx.currentTime + 1.4);
                 osc.connect(g); g.connect(ctx.destination);
                 osc.start();
@@ -2093,31 +2096,38 @@ function renderManagementPanel() {
     closeBtn.on('pointerdown', closeManagementPanel);
     S.managementUI.push(closeBtn);
 
-    // ── MUSIC TOGGLE (v0.80) ──────────────────────────────
-    // User feedback: "podemos meter el boton para desactivar el sonido en el
-    // menu de gestion?" The HTML #music-toggle floats top-right of the
-    // screen and overlaps the canvas in landscape. Moved here so it's
-    // discoverable from the same place as the other game controls.
-    // Stays in sync with window.__musicMuted (the shared mute flag).
-    const musicMuted = !!window.__musicMuted;
-    const musicBtn = scene.add.text(W - 26 - 60, 24, musicMuted ? '🔇 Sonido' : '🎵 Sonido', {
+    // ── SOUND CYCLE (v0.94 — was v0.80 mute toggle) ─────────
+    // 3 states: OFF (muted) -> LOW (0.5x) -> FULL (1x) -> OFF…
+    // window.__musicMuted stays for backwards compat with the music ticker;
+    // window.__musicVolume scales the gain when un-muted.
+    const sVol = window.__musicMuted ? 0 : (window.__musicVolume == null ? 1 : window.__musicVolume);
+    let sLabel, sBg;
+    if (sVol === 0)        { sLabel = '🔇 Sonido'; sBg = '#475569'; }
+    else if (sVol < 0.75)  { sLabel = '🔉 Sonido'; sBg = '#0891b2'; }
+    else                   { sLabel = '🔊 Sonido'; sBg = '#16a34a'; }
+    const musicBtn = scene.add.text(W - 26 - 60, 24, sLabel, {
         font: 'bold 13px monospace', color: '#fff',
-        backgroundColor: musicMuted ? '#475569' : '#16a34a',
+        backgroundColor: sBg,
         padding: { x: 10, y: 8 }
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
     musicBtn.on('pointerdown', () => {
-        window.__musicMuted = !window.__musicMuted;
-        // Keep the HTML toggle in sync (in case it's still visible on desktop).
+        // Cycle: OFF -> LOW -> FULL -> OFF
+        const cur = window.__musicMuted ? 0 : (window.__musicVolume == null ? 1 : window.__musicVolume);
+        let next;
+        if (cur === 0)        next = 0.5;       // off -> low
+        else if (cur < 0.75)  next = 1.0;       // low -> full
+        else                  next = 0;         // full -> off
+        window.__musicMuted = (next === 0);
+        window.__musicVolume = next;
         const htmlBtn = document.getElementById('music-toggle');
-        if (htmlBtn) htmlBtn.textContent = window.__musicMuted ? '🔇' : '🎵';
-        // Pause/resume the actual audio if the engine exposes it.
+        if (htmlBtn) htmlBtn.textContent = window.__musicMuted ? '🔇' : (next < 0.75 ? '🔉' : '🔊');
         try {
             if (typeof SFX !== 'undefined' && SFX) {
                 if (window.__musicMuted && typeof SFX.musicStop === 'function') SFX.musicStop();
                 else if (!window.__musicMuted && typeof SFX.musicStart === 'function') SFX.musicStart();
             }
         } catch (e) {}
-        renderManagementPanel();   // redraw to update the button label/color
+        renderManagementPanel();
     });
     S.managementUI.push(musicBtn);
 
@@ -2149,7 +2159,25 @@ function renderManagementPanel() {
         padding: { x: 10, y: 8 }
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
     restartBtn.on('pointerdown', () => {
-        if (confirm('¿Borrar partida actual y empezar de cero? Tu progreso se perderá.')) {
+        // v0.94: also let the player change difficulty when restarting —
+        // previously locked at splash, no way to switch mid-game without
+        // re-launching and clearing save manually.
+        const isHard = (typeof isHardMode === 'function') && isHardMode();
+        const msg = `¿Borrar partida actual y empezar de cero?
+
+Aceptar    -> reinicia en modo ${isHard ? 'NORMAL (más fácil)' : 'HARD (más difícil)'}
+Cancelar   -> mantiene la partida actual
+
+(Para mantener el modo ${isHard ? 'HARD' : 'NORMAL'} actual y reiniciar, podés usar el botón en el splash.)
+
+Tu progreso se perderá.`;
+        if (confirm(msg)) {
+            // Flip difficulty
+            const newDiff = isHard ? 'normal' : 'hard';
+            try {
+                if (typeof setDifficulty === 'function') setDifficulty(newDiff);
+                else localStorage.setItem('parkingtycoon_difficulty', newDiff);
+            } catch (e) {}
             if (typeof clearSave === 'function') clearSave();
             location.reload();
         }
