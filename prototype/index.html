@@ -74,11 +74,47 @@
             max-width: 600px;
             padding: 30px;
         }
+        /* v0.87: replace the generic 🅿️ emoji with a CSS-built ParkingApp
+           brand logo — orange rounded square + white bold P, matching the
+           brand identity in BRAND_LOGOS_README.md. When a real
+           parkingapp-logo.png is dropped in assets/ this CSS can be swapped
+           for an <img>. */
         .splash-logo {
-            font-size: 72px;
-            margin-bottom: 12px;
-            filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.5));
+            width: 96px;
+            height: 96px;
+            margin: 0 auto 12px;
+            background: #f97316;                /* ParkingApp orange */
+            border-radius: 22px;                /* matches real logo corner radius */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 24px rgba(249, 115, 22, 0.55),
+                        0 4px 14px rgba(0, 0, 0, 0.4);
             animation: splashBounce 2s ease-in-out infinite;
+            font-family: 'Arial Black', 'Helvetica Neue', sans-serif;
+            font-size: 72px;
+            font-weight: 900;
+            color: #fff;
+            line-height: 1;
+            /* Slight overshoot on the P so it visually centers like a real
+               type weight. */
+            text-shadow: 0 2px 0 rgba(0, 0, 0, 0.15);
+        }
+        .splash-logo::before {
+            content: 'P';
+            /* nudge to optical center — Arial Black P descender is heavy left */
+            margin-top: -4px;
+        }
+        /* Small "powered by Redcomercio" tagline strip under the logo block —
+           subtle, only visible on full splash. */
+        .splash-logo-credit {
+            font-size: 9px;
+            color: #94a3b8;
+            font-style: italic;
+            text-align: center;
+            margin-top: -8px;
+            margin-bottom: 14px;
+            letter-spacing: 0.5px;
         }
         @keyframes splashBounce {
             0%, 100% { transform: translateY(0); }
@@ -399,7 +435,9 @@
                 padding: 6px 20px;
                 max-width: 720px;     /* wider in landscape so we use the room */
             }
-            .splash-logo { font-size: 36px; margin-bottom: 0; }
+            /* v0.87: scale the new CSS-built logo block for short landscape */
+            .splash-logo { width: 48px; height: 48px; font-size: 36px; border-radius: 12px; margin-bottom: 0; }
+            .splash-logo-credit { display: none; }
             .splash-title { font-size: 22px; letter-spacing: 1px; margin-bottom: 4px; }
             .splash-tagline { font-size: 11px; margin-bottom: 8px; }
             .splash-story {
@@ -608,7 +646,8 @@
             /* Splash adapts to mobile: bigger CTA, more breathing room. The
                story shrinks so the EMPEZAR button is reachable above the
                fold even on small phones. */
-            .splash-logo { font-size: 56px; margin-bottom: 8px; }
+            /* v0.87: scale the new CSS logo block for portrait mobile */
+            .splash-logo { width: 72px; height: 72px; font-size: 56px; border-radius: 16px; margin-bottom: 8px; }
             .splash-title { font-size: 32px; letter-spacing: 2px; }
             .splash-tagline { font-size: 13px; margin-bottom: 18px; }
             .splash-story {
@@ -932,7 +971,8 @@
     <!-- ── SPLASH SCREEN ──────────────────────────────── -->
     <div id="splash">
         <div class="splash-content">
-            <div class="splash-logo">🅿️</div>
+            <div class="splash-logo" aria-label="ParkingApp"></div>
+            <div class="splash-logo-credit">powered by Redcomercio</div>
             <h1 class="splash-title">PARKING TYCOON</h1>
             <div class="splash-tagline">De la papeleta a las naves espaciales</div>
 
@@ -958,7 +998,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.86 · prototype</div>
+            <div class="splash-version">v0.87 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -967,7 +1007,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.86 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.87 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
