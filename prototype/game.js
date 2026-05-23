@@ -983,11 +983,14 @@ const L = {
     queueHeadInsideX: 420,          // == entryVlaneX
     queueHeadInsideY: 235,          // head car position just south of fence opening
     queueStreetY: 130,              // == entryLaneY (cars on the street)
-    queueStreetSpacing: 55,         // horizontal spacing on the street
+    // v0.75: sprite scale went 1.6→1.9 in v0.73 but spacing stayed at 55 —
+    // cars visibly overlapped when 3+ piled up. Bump to 68 (entry) and 52
+    // (exit) so there's a real gap between bumpers.
+    queueStreetSpacing: 68,         // horizontal spacing on the street
 
     // Exit waiting (after swap, exit vlane is on the right)
     exitWaitX: 540,                 // == exitVlaneX
-    exitWaitY: 245, exitQueueSpacing: 40,
+    exitWaitY: 245, exitQueueSpacing: 52,
 
     placeholderCx: 480, placeholderCy: 255, placeholderW: 70, placeholderH: 70,
 

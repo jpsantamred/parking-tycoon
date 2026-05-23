@@ -322,6 +322,13 @@
            fixed-bottom touch-actions bar so it doesn't overlap and block the
            canvas's buttons. Triggered by syncBodyStateClasses() in game.js. */
         body.state-day-ended #touch-actions { display: none !important; }
+        /* v0.75: also force-close any landscape Tarifas/Equipo floating
+           overlays when the day ends — they were covering the FIN DEL DÍA
+           modal. The day-end modal must be the topmost UI. */
+        body.state-day-ended #info-board.expanded,
+        body.state-day-ended #employee-strip-wrapper.expanded {
+            display: none !important;
+        }
 
         /* Mobile-only layout adjustments */
         @media (max-width: 800px), (pointer: coarse) {
@@ -431,6 +438,12 @@
                 border: none;
                 background: #0f172a;
                 overflow: hidden;
+            }
+            /* v0.75: when the touch bar is hidden (end-of-day, post-win), let
+               the canvas reclaim its 56 px so the modal renders large enough
+               to read. */
+            body.state-day-ended #game {
+                height: calc(100vh - env(safe-area-inset-bottom, 0));
             }
             #game canvas {
                 /* Center horizontally if 16:9 canvas is narrower than viewport */
@@ -813,7 +826,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.74 · prototype</div>
+            <div class="splash-version">v0.75 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -822,7 +835,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.74 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.75 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -1139,6 +1152,36 @@
                 }
             });
         });
+
+        // ── v0.75: Orientation change — refresh Phaser + close overlays ──
+        // Capacitor WebView does NOT always fire a `resize` event on rotation,
+        // so Phaser.Scale.FIT can stay stuck at the old aspect ratio. Force a
+        // refresh after the layout has settled. Also close any floating
+        // overlay (Tarifas/Equipo) so they don't get stranded out of position
+        // after the rotation.
+        function handleOrientationChange() {
+            // Close any floating overlays — their CSS depends on the current
+            // media query, which may have just changed.
+            document.querySelectorAll('#info-board.expanded, #employee-strip-wrapper.expanded')
+                .forEach(el => el.classList.remove('expanded'));
+            document.querySelectorAll('#touch-actions button.info-toggle.active')
+                .forEach(b => b.classList.remove('active'));
+            // Force Phaser to recompute its FIT scale against the new viewport.
+            // Defer because the visualViewport API reports the OLD dimensions
+            // for ~100 ms after rotation in WebView.
+            setTimeout(() => {
+                if (window.game && window.game.scale) {
+                    try { window.game.scale.refresh(); } catch (e) {}
+                }
+            }, 250);
+            setTimeout(() => {
+                if (window.game && window.game.scale) {
+                    try { window.game.scale.refresh(); } catch (e) {}
+                }
+            }, 600);
+        }
+        window.addEventListener('orientationchange', handleOrientationChange);
+        window.addEventListener('resize', handleOrientationChange);
 
         // ── PWA: Service worker registration ──────────────
         // Skip inside Capacitor native wrap — SW is web-only and the registration
