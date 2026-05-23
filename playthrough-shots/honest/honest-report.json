@@ -1,0 +1,583 @@
+{
+  "final": {
+    "day": 30,
+    "hour": 8,
+    "money": 172503,
+    "rep": 0,
+    "dayEnded": false,
+    "paused": false,
+    "cars": 0,
+    "queue": 0,
+    "exitQueue": 0,
+    "served": 0,
+    "angry": 0,
+    "escaped": 0,
+    "revenue": 0,
+    "salaries": 549,
+    "employees": 3,
+    "roster": 3,
+    "upgrades": [
+      "booth",
+      "pos"
+    ],
+    "speedMult": 1,
+    "splash": false,
+    "onboardOpen": false
+  },
+  "issues": [
+    {
+      "type": "phaser-tap-needs-fallback",
+      "upgrade": "booth",
+      "msg": "CDP mouse event did not trigger Phaser pointerdown; used emit() fallback",
+      "fallbackOk": true
+    },
+    {
+      "type": "phaser-tap-needs-fallback",
+      "upgrade": "pos",
+      "msg": "CDP mouse event did not trigger Phaser pointerdown; used emit() fallback",
+      "fallbackOk": true
+    }
+  ],
+  "events": [
+    {
+      "ts": 1779545414692,
+      "kind": "info",
+      "msg": "Connected. Starting HONEST playthrough — real taps, real days."
+    },
+    {
+      "ts": 1779545423674,
+      "kind": "info",
+      "msg": "Reconnected after app restart"
+    },
+    {
+      "ts": 1779545423789,
+      "kind": "info",
+      "msg": "Tap EMPEZAR (HTML splash)"
+    },
+    {
+      "ts": 1779545425665,
+      "kind": "info",
+      "msg": "Tap Entendido (onboarding)"
+    },
+    {
+      "ts": 1779545427914,
+      "kind": "info",
+      "msg": "After splash: day=1 money=$79,836 rep=100 employees=1"
+    },
+    {
+      "ts": 1779545430346,
+      "kind": "info",
+      "msg": "\n══════ Day 1 ══════"
+    },
+    {
+      "ts": 1779545502183,
+      "kind": "info",
+      "msg": "End of day 1: served=2 rev=$13,590 salaries=$7,998 money=$85,591 rep=90 angry=1 escaped=1 taps=74"
+    },
+    {
+      "ts": 1779545502817,
+      "kind": "info",
+      "msg": "Have $85,591 ≥ $60,000 for booth — try buy"
+    },
+    {
+      "ts": 1779545504553,
+      "kind": "info",
+      "msg": "  ⚠️ Tap on Upgrades tab didn't switch — forcing via state + re-render"
+    },
+    {
+      "ts": 1779545505243,
+      "kind": "info",
+      "msg": "Tap upgrade button:  🛂 CASETA  $60.000 "
+    },
+    {
+      "ts": 1779545507209,
+      "kind": "info",
+      "msg": "  ↩ Phaser pointerdown didn't fire — invoking listener directly (same code path a real tap reaches)"
+    },
+    {
+      "ts": 1779545509532,
+      "kind": "info",
+      "msg": "  ✅ bought booth"
+    },
+    {
+      "ts": 1779545510184,
+      "kind": "info",
+      "msg": "  ⏩ Scene restarted mid-day (still day 1). Continuing."
+    },
+    {
+      "ts": 1779545510218,
+      "kind": "info",
+      "msg": "\n══════ Day 2 ══════"
+    },
+    {
+      "ts": 1779545579517,
+      "kind": "info",
+      "msg": "End of day 1: served=2 rev=$9,420 salaries=$7,995 money=$27,016 rep=83 angry=0 escaped=1 taps=72"
+    },
+    {
+      "ts": 1779545581553,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779545584709,
+      "kind": "info",
+      "msg": "\n══════ Day 3 ══════"
+    },
+    {
+      "ts": 1779545654460,
+      "kind": "info",
+      "msg": "End of day 2: served=2 rev=$9,990 salaries=$7,990 money=$29,015 rep=69 angry=0 escaped=2 taps=61"
+    },
+    {
+      "ts": 1779545656365,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779545658979,
+      "kind": "info",
+      "msg": "\n══════ Day 4 ══════"
+    },
+    {
+      "ts": 1779545728535,
+      "kind": "info",
+      "msg": "End of day 3: served=2 rev=$11,700 salaries=$7,996 money=$32,719 rep=62 angry=0 escaped=1 taps=79"
+    },
+    {
+      "ts": 1779545730160,
+      "kind": "info",
+      "msg": "  dismissed in-canvas: ⏰  Lo pienso (más tarde)"
+    },
+    {
+      "ts": 1779545731582,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779545734876,
+      "kind": "info",
+      "msg": "\n══════ Day 5 ══════"
+    },
+    {
+      "ts": 1779545804927,
+      "kind": "info",
+      "msg": "End of day 4: served=3 rev=$14,430 salaries=$7,992 money=$39,157 rep=48 angry=0 escaped=2 taps=85"
+    },
+    {
+      "ts": 1779545805786,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779545808383,
+      "kind": "info",
+      "msg": "\n══════ Day 6 ══════"
+    },
+    {
+      "ts": 1779545870047,
+      "kind": "info",
+      "msg": "End of day 5: served=4 rev=$17,970 salaries=$7,996 money=$49,130 rep=38 angry=1 escaped=1 taps=92"
+    },
+    {
+      "ts": 1779545871848,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779545874855,
+      "kind": "info",
+      "msg": "\n══════ Day 7 ══════"
+    },
+    {
+      "ts": 1779545943115,
+      "kind": "info",
+      "msg": "End of day 6: served=0 rev=$0 salaries=$0 money=$49,130 rep=38 angry=0 escaped=0 taps=0"
+    },
+    {
+      "ts": 1779545945173,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779545947935,
+      "kind": "info",
+      "msg": "\n══════ Day 8 ══════"
+    },
+    {
+      "ts": 1779546018366,
+      "kind": "info",
+      "msg": "End of day 7: served=0 rev=$0 salaries=$0 money=$47,630 rep=38 angry=0 escaped=0 taps=0"
+    },
+    {
+      "ts": 1779546019900,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546022552,
+      "kind": "info",
+      "msg": "\n══════ Day 9 ══════"
+    },
+    {
+      "ts": 1779546089351,
+      "kind": "info",
+      "msg": "End of day 8: served=3 rev=$16,740 salaries=$7,993 money=$56,377 rep=17 angry=0 escaped=3 taps=84"
+    },
+    {
+      "ts": 1779546090784,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546093427,
+      "kind": "info",
+      "msg": "\n══════ Day 10 ══════"
+    },
+    {
+      "ts": 1779546159706,
+      "kind": "info",
+      "msg": "End of day 9: served=4 rev=$18,330 salaries=$7,995 money=$66,711 rep=10 angry=0 escaped=1 taps=92"
+    },
+    {
+      "ts": 1779546161070,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546163720,
+      "kind": "info",
+      "msg": "\n══════ Day 11 ══════"
+    },
+    {
+      "ts": 1779546227361,
+      "kind": "info",
+      "msg": "End of day 10: served=3 rev=$14,550 salaries=$7,993 money=$73,267 rep=0 angry=1 escaped=2 taps=80"
+    },
+    {
+      "ts": 1779546229283,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546231960,
+      "kind": "info",
+      "msg": "\n══════ Day 12 ══════"
+    },
+    {
+      "ts": 1779546297814,
+      "kind": "info",
+      "msg": "End of day 11: served=2 rev=$10,980 salaries=$7,989 money=$76,258 rep=0 angry=0 escaped=1 taps=67"
+    },
+    {
+      "ts": 1779546299292,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546301875,
+      "kind": "info",
+      "msg": "\n══════ Day 13 ══════"
+    },
+    {
+      "ts": 1779546369550,
+      "kind": "info",
+      "msg": "End of day 12: served=3 rev=$20,130 salaries=$7,995 money=$88,393 rep=0 angry=1 escaped=3 taps=78"
+    },
+    {
+      "ts": 1779546371220,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546373875,
+      "kind": "info",
+      "msg": "\n══════ Day 14 ══════"
+    },
+    {
+      "ts": 1779546441851,
+      "kind": "info",
+      "msg": "End of day 13: served=0 rev=$0 salaries=$0 money=$88,393 rep=0 angry=0 escaped=0 taps=0"
+    },
+    {
+      "ts": 1779546442941,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546445552,
+      "kind": "info",
+      "msg": "\n══════ Day 15 ══════"
+    },
+    {
+      "ts": 1779546517725,
+      "kind": "info",
+      "msg": "End of day 14: served=0 rev=$0 salaries=$0 money=$88,393 rep=0 angry=0 escaped=0 taps=0"
+    },
+    {
+      "ts": 1779546520354,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546523117,
+      "kind": "info",
+      "msg": "\n══════ Day 16 ══════"
+    },
+    {
+      "ts": 1779546591100,
+      "kind": "info",
+      "msg": "End of day 15: served=4 rev=$21,600 salaries=$7,990 money=$98,145 rep=0 angry=1 escaped=1 taps=82"
+    },
+    {
+      "ts": 1779546593015,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546596270,
+      "kind": "info",
+      "msg": "\n══════ Day 17 ══════"
+    },
+    {
+      "ts": 1779546662203,
+      "kind": "info",
+      "msg": "End of day 16: served=3 rev=$16,200 salaries=$7,999 money=$106,346 rep=0 angry=0 escaped=2 taps=75"
+    },
+    {
+      "ts": 1779546663044,
+      "kind": "info",
+      "msg": "Hiring extra cobrador (roster=1)"
+    },
+    {
+      "ts": 1779546665009,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546667838,
+      "kind": "info",
+      "msg": "\n══════ Day 18 ══════"
+    },
+    {
+      "ts": 1779546740216,
+      "kind": "info",
+      "msg": "End of day 17: served=9 rev=$50,100 salaries=$16,000 money=$128,445 rep=0 angry=0 escaped=0 taps=83"
+    },
+    {
+      "ts": 1779546740885,
+      "kind": "info",
+      "msg": "Hiring extra cobrador (roster=2)"
+    },
+    {
+      "ts": 1779546742174,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546744759,
+      "kind": "info",
+      "msg": "\n══════ Day 19 ══════"
+    },
+    {
+      "ts": 1779546811970,
+      "kind": "info",
+      "msg": "End of day 18: served=9 rev=$56,940 salaries=$15,983 money=$169,401 rep=0 angry=0 escaped=0 taps=75"
+    },
+    {
+      "ts": 1779546813912,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546817095,
+      "kind": "info",
+      "msg": "\n══════ Day 20 ══════"
+    },
+    {
+      "ts": 1779546886260,
+      "kind": "info",
+      "msg": "End of day 19: served=9 rev=$46,830 salaries=$15,992 money=$200,239 rep=0 angry=0 escaped=0 taps=72"
+    },
+    {
+      "ts": 1779546888017,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546890744,
+      "kind": "info",
+      "msg": "\n══════ Day 21 ══════"
+    },
+    {
+      "ts": 1779546956378,
+      "kind": "info",
+      "msg": "End of day 20: served=2 rev=$8,400 salaries=$7,990 money=$200,648 rep=0 angry=1 escaped=2 taps=67"
+    },
+    {
+      "ts": 1779546957918,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779546960689,
+      "kind": "info",
+      "msg": "\n══════ Day 22 ══════"
+    },
+    {
+      "ts": 1779547030664,
+      "kind": "info",
+      "msg": "End of day 21: served=1 rev=$7,230 salaries=$7,991 money=$199,887 rep=0 angry=0 escaped=3 taps=70"
+    },
+    {
+      "ts": 1779547032787,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779547036428,
+      "kind": "info",
+      "msg": "\n══════ Day 23 ══════"
+    },
+    {
+      "ts": 1779547105579,
+      "kind": "info",
+      "msg": "End of day 22: served=9 rev=$51,210 salaries=$15,984 money=$226,453 rep=0 angry=0 escaped=0 taps=75"
+    },
+    {
+      "ts": 1779547107372,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779547110291,
+      "kind": "info",
+      "msg": "\n══════ Day 24 ══════"
+    },
+    {
+      "ts": 1779547175471,
+      "kind": "info",
+      "msg": "End of day 23: served=9 rev=$56,040 salaries=$16,001 money=$266,491 rep=0 angry=0 escaped=0 taps=78"
+    },
+    {
+      "ts": 1779547176120,
+      "kind": "info",
+      "msg": "Have $266,491 ≥ $200,000 for pos — try buy"
+    },
+    {
+      "ts": 1779547177336,
+      "kind": "info",
+      "msg": "Tap upgrade button:  💳 POS DIGITAL  $200.000 "
+    },
+    {
+      "ts": 1779547179266,
+      "kind": "info",
+      "msg": "  ↩ Phaser pointerdown didn't fire — invoking listener directly (same code path a real tap reaches)"
+    },
+    {
+      "ts": 1779547182805,
+      "kind": "info",
+      "msg": "  ✅ bought pos"
+    },
+    {
+      "ts": 1779547184272,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779547187025,
+      "kind": "info",
+      "msg": "\n══════ Day 25 ══════"
+    },
+    {
+      "ts": 1779547255454,
+      "kind": "info",
+      "msg": "End of day 24: served=8 rev=$40,890 salaries=$16,006 money=$86,944 rep=0 angry=0 escaped=0 taps=66"
+    },
+    {
+      "ts": 1779547257566,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779547260347,
+      "kind": "info",
+      "msg": "\n══════ Day 26 ══════"
+    },
+    {
+      "ts": 1779547328689,
+      "kind": "info",
+      "msg": "End of day 25: served=9 rev=$44,640 salaries=$15,990 money=$115,593 rep=0 angry=0 escaped=0 taps=69"
+    },
+    {
+      "ts": 1779547332706,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779547335310,
+      "kind": "info",
+      "msg": "\n══════ Day 27 ══════"
+    },
+    {
+      "ts": 1779547399141,
+      "kind": "info",
+      "msg": "End of day 26: served=10 rev=$43,590 salaries=$15,996 money=$143,186 rep=0 angry=0 escaped=0 taps=74"
+    },
+    {
+      "ts": 1779547401265,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779547404018,
+      "kind": "info",
+      "msg": "\n══════ Day 28 ══════"
+    },
+    {
+      "ts": 1779547470327,
+      "kind": "info",
+      "msg": "End of day 27: served=4 rev=$17,190 salaries=$7,992 money=$152,384 rep=0 angry=0 escaped=1 taps=78"
+    },
+    {
+      "ts": 1779547472235,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779547475007,
+      "kind": "info",
+      "msg": "\n══════ Day 29 ══════"
+    },
+    {
+      "ts": 1779547538241,
+      "kind": "info",
+      "msg": "End of day 28: served=1 rev=$3,930 salaries=$7,989 money=$148,325 rep=0 angry=1 escaped=1 taps=67"
+    },
+    {
+      "ts": 1779547540247,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779547542927,
+      "kind": "info",
+      "msg": "\n══════ Day 30 ══════"
+    },
+    {
+      "ts": 1779547613170,
+      "kind": "info",
+      "msg": "End of day 29: served=9 rev=$40,710 salaries=$15,982 money=$173,052 rep=0 angry=0 escaped=0 taps=65"
+    },
+    {
+      "ts": 1779547615557,
+      "kind": "info",
+      "msg": "Tap DÍA SIGUIENTE"
+    },
+    {
+      "ts": 1779547618341,
+      "kind": "info",
+      "msg": "\n\nFINAL: day=30 money=$172,503 rep=0 upgrades=booth,pos"
+    }
+  ]
+}

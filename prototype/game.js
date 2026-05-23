@@ -4406,6 +4406,17 @@ function closeCinematic() {
     S.dayEnded = false;
     S.paused = false;
     S.scene.tweens.resumeAll();
+    // Bug fix v0.67: if the cinematic was triggered from endDay() (i.e. the
+    // day was already over when Ana popped up), dismissing it via "Lo pienso"
+    // left the player with no end-of-day summary and no DÍA SIGUIENTE button
+    // — game softlocked at 22:00. update() would fire endDay() again on the
+    // next frame, but only if S.paused became false AND another tick brought
+    // timeMinutes back past endHour. On a paused tween system the update
+    // pipeline can miss this. So we explicitly re-enter the end-of-day flow
+    // now that cinematicShown is true (which skips the cinematic branch).
+    if (S.timeMinutes >= CONFIG.endHour * 60) {
+        endDay();
+    }
 }
 
 function purchaseSubscription() {
@@ -5087,8 +5098,12 @@ function repositionExitQueue() {
 
 // ─── COBRO ─────────────────────────────────────────────────
 function attemptCobroAnyone() {
+    // Diagnostic counter — incremented every time this is called. Used by the
+    // honest-playthrough bot to confirm taps actually reach the handler.
+    window.__cobroCalls = (window.__cobroCalls || 0) + 1;
     const emp = findAvailableEmployee();
     if (!emp) {
+        window.__cobroNoEmp = (window.__cobroNoEmp || 0) + 1;
         if (!isOpen()) flashEvent('🚫 LOT CERRADO — sin personal en turno.');
         else flashEvent('🛂 Todos los cobradores ocupados!');
         return;

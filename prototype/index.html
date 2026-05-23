@@ -532,7 +532,8 @@
     </div>
 
     <!-- ── ONBOARDING TIP (Día 1) ──────────────────────── -->
-    <div id="onboarding" style="display:none; position:fixed; left:50%; bottom:80px; transform:translateX(-50%); background:#0f172aee; border:2px solid #fbbf24; border-radius:10px; padding:18px 24px; max-width:560px; z-index:1000; box-shadow:0 8px 30px rgba(0,0,0,0.5); font-family:monospace;">
+    <div id="onboarding-backdrop" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.55); z-index:999; backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);"></div>
+    <div id="onboarding" style="display:none; position:fixed; left:50%; top:50%; transform:translate(-50%, -50%); background:#0f172aee; border:2px solid #fbbf24; border-radius:10px; padding:18px 24px; max-width:560px; max-height:90vh; overflow-y:auto; z-index:1000; box-shadow:0 8px 30px rgba(0,0,0,0.7); font-family:monospace;">
         <div style="font-size:16px; font-weight:bold; color:#fbbf24; margin-bottom:10px;">💡 Día 1 — Cómo jugar</div>
         <!-- Desktop hints (keyboard shortcuts) -->
         <div id="onboarding-desktop" style="font-size:13px; color:#cbd5e1; line-height:1.7;">
@@ -590,7 +591,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.65 · prototype</div>
+            <div class="splash-version">v0.67 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -599,7 +600,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.65 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.67 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -749,6 +750,15 @@
             setTimeout(() => {
                 splash.style.display = 'none';
                 if (showOnboarding && !window.__onboardingShown) {
+                    // Pause the game while the tutorial is visible.
+                    // Previously the game ran "behind" the tutorial — clock
+                    // advanced, cars spawned and got angry, salaries ticked.
+                    // A new player would lose the first day reading the rules.
+                    if (typeof S !== 'undefined' && S) {
+                        S.__pausedForOnboarding = true;
+                        S.paused = true;
+                    }
+                    document.getElementById('onboarding-backdrop').style.display = 'block';
                     document.getElementById('onboarding').style.display = 'block';
                     window.__onboardingShown = true;
                 }
@@ -805,10 +815,10 @@
         // History:
         //   v0.x  : clearSave() ran BEFORE peekSave() check → reload never fired
         //           → stale endDayUI persisted after game-over.
-        //   v0.65 : added sceneAlreadyBooted check → BUT Phaser always boots the
+        //   v0.67 : added sceneAlreadyBooted check → BUT Phaser always boots the
         //           scene on page load, so this triggered reload on EVERY click,
         //           making the button feel "dead" on first run.
-        //   v0.65 (here): only reload when there's actually something stale to
+        //   v0.67 (here): only reload when there's actually something stale to
         //           reset — i.e. a save exists, OR the scene already advanced
         //           past day 1 / has end-day UI showing. Fresh first-boot just
         //           dismisses the splash like before.
@@ -844,6 +854,15 @@
 
         document.getElementById('onboarding-close').addEventListener('click', () => {
             document.getElementById('onboarding').style.display = 'none';
+            const bd = document.getElementById('onboarding-backdrop');
+            if (bd) bd.style.display = 'none';
+            // Resume the game iff we paused it specifically for the tutorial.
+            // (Don't blindly unpause — the player might have pressed P during
+            // the tutorial, in which case they'd want to stay paused.)
+            if (typeof S !== 'undefined' && S && S.__pausedForOnboarding) {
+                S.__pausedForOnboarding = false;
+                S.paused = false;
+            }
         });
 
         // ── Mobile touch action buttons ──────────────────
