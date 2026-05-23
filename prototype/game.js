@@ -4080,7 +4080,9 @@ function showLevelMilestone(opts) {
     // v0.78: don't pauseAll — it freezes the tween manager and our own
     // cinematic tweens (scale-in, alpha-in) never tick. The dim backdrop
     // hides any moving game-world sprites behind it. See showPOSCelebration.
+    // v0.84: force resume — same defensive measure as showPOSCelebration.
     S.paused = true;
+    try { scene.tweens.resumeAll(); } catch (e) {}
     hapticBuzz('MEDIUM');
 
     // Dim backdrop
@@ -4154,7 +4156,9 @@ function showGameWonCelebration() {
     const W = CONFIG.width, H = CONFIG.height;
     const ui = [];
     // v0.78: don't pauseAll — see showPOSCelebration fix.
+    // v0.84: force resume in case TM was left paused upstream.
     S.paused = true;
+    try { scene.tweens.resumeAll(); } catch (e) {}
     hapticBuzz('HEAVY');
     // Triple-buzz fanfare for the winner
     setTimeout(() => hapticBuzz('HEAVY'), 200);
@@ -4216,7 +4220,9 @@ function showBarriersCelebration() {
     const ui = [];
 
     // v0.78: see showPOSCelebration — don't pauseAll, it kills our own tweens.
+    // v0.84: force resume in case manager was left paused upstream.
     S.paused = true;
+    try { scene.tweens.resumeAll(); } catch (e) {}
 
     SFX.purchase();
     setTimeout(() => beep && beep(800, 0.12, 'square', 0.07), 200);
@@ -4305,7 +4311,11 @@ function showPOSCelebration() {
     // "círculo sin nada" the user reported). We only need to pause game
     // logic, not the tween manager. The dim backdrop hides any car movement
     // behind the cinematic, so leaving tweens running is fine visually.
+    // v0.84: defensive — if the manager was left paused by another code path
+    // (e.g. management panel open at purchase time → scene.restart), our
+    // tweens still wouldn't run. Force resume here so cinematics are reliable.
     S.paused = true;
+    try { scene.tweens.resumeAll(); } catch (e) {}
 
     // Fanfare sound — ascending chord
     SFX.purchase();
