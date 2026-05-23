@@ -4003,8 +4003,10 @@ function showLevelMilestone(opts) {
     const scene = S.scene;
     const W = CONFIG.width, H = CONFIG.height;
     const ui = [];
+    // v0.78: don't pauseAll — it freezes the tween manager and our own
+    // cinematic tweens (scale-in, alpha-in) never tick. The dim backdrop
+    // hides any moving game-world sprites behind it. See showPOSCelebration.
     S.paused = true;
-    scene.tweens.pauseAll();
     hapticBuzz('MEDIUM');
 
     // Dim backdrop
@@ -4067,7 +4069,7 @@ function showLevelMilestone(opts) {
     btn.on('pointerdown', () => {
         ui.forEach(o => { try { o.destroy(); } catch(e) {} });
         S.paused = false;
-        scene.tweens.resumeAll();
+        // v0.78: no resumeAll, didn't pauseAll.
         if (opts.onClose) opts.onClose();
     });
     ui.push(btn);
@@ -4077,8 +4079,8 @@ function showGameWonCelebration() {
     const scene = S.scene;
     const W = CONFIG.width, H = CONFIG.height;
     const ui = [];
+    // v0.78: don't pauseAll — see showPOSCelebration fix.
     S.paused = true;
-    scene.tweens.pauseAll();
     hapticBuzz('HEAVY');
     // Triple-buzz fanfare for the winner
     setTimeout(() => hapticBuzz('HEAVY'), 200);
@@ -4139,8 +4141,8 @@ function showBarriersCelebration() {
     const W = CONFIG.width, H = CONFIG.height;
     const ui = [];
 
+    // v0.78: see showPOSCelebration — don't pauseAll, it kills our own tweens.
     S.paused = true;
-    scene.tweens.pauseAll();
 
     SFX.purchase();
     setTimeout(() => beep && beep(800, 0.12, 'square', 0.07), 200);
@@ -4210,7 +4212,7 @@ function showBarriersCelebration() {
     btn.on('pointerdown', () => {
         ui.forEach(o => { try { o.destroy(); } catch(e) {} });
         S.paused = false;
-        scene.tweens.resumeAll();
+        // v0.78: no resumeAll, didn't pauseAll.
         flashEvent('🚧 Barreras operativas — autos se procesan solos.');
         S.scene.scene.restart();
     });
@@ -4222,20 +4224,30 @@ function showPOSCelebration() {
     const W = CONFIG.width, H = CONFIG.height;
     const ui = [];
 
-    // Pause game
+    // v0.78 bug fix: scene.tweens.pauseAll() puts the WHOLE tween manager into
+    // a paused state — including any new tweens added afterwards. That meant
+    // the title-scale-in, subtitle-alpha-in, dialog-line-alpha-in tweens never
+    // ticked, leaving the title at scale 0 and the lines at alpha 0 (the
+    // "círculo sin nada" the user reported). We only need to pause game
+    // logic, not the tween manager. The dim backdrop hides any car movement
+    // behind the cinematic, so leaving tweens running is fine visually.
     S.paused = true;
-    scene.tweens.pauseAll();
 
     // Fanfare sound — ascending chord
     SFX.purchase();
     setTimeout(() => beep(1047, 0.18, 'square', 0.07), 280);
     setTimeout(() => beep(1319, 0.25, 'square', 0.08), 460);
 
+    // v0.78: every cinematic element MUST setDepth(>=1000) or it renders BEHIND
+    // game-world sprites (cars, fence, signs) — that was the user-reported
+    // "transición es un círculo sin nada" bug. The dim backdrop + halo were
+    // the only things drawn at depth 0 that happened to be on top.
+
     // Dim background
-    ui.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.94));
+    ui.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.94).setDepth(1000));
 
     // Animated radial glow behind title
-    const glow = scene.add.circle(W/2, 100, 140, 0xfbbf24, 0.15);
+    const glow = scene.add.circle(W/2, 100, 140, 0xfbbf24, 0.15).setDepth(1001);
     scene.tweens.add({ targets: glow, radius: 220, alpha: 0.35, duration: 800, yoyo: true, repeat: -1 });
     ui.push(glow);
 
@@ -4247,7 +4259,7 @@ function showPOSCelebration() {
             Math.random() * W, -30 + Math.random() * -100,
             6, 12,
             colors[Math.floor(Math.random() * colors.length)]
-        );
+        ).setDepth(1001);
         scene.tweens.add({
             targets: c, y: H + 40, angle: 360 + Math.random() * 360,
             duration: 1800 + Math.random() * 1500, delay: Math.random() * 700,
@@ -4260,35 +4272,35 @@ function showPOSCelebration() {
     const title = scene.add.text(W/2, 100, '🎉  ¡POS INSTALADO!  🎉', {
         font: 'bold 32px monospace', color: '#fbbf24',
         stroke: '#000', strokeThickness: 5
-    }).setOrigin(0.5).setScale(0);
+    }).setOrigin(0.5).setScale(0).setDepth(1002);
     scene.tweens.add({ targets: title, scale: 1, duration: 600, ease: 'Back.easeOut' });
     ui.push(title);
 
     const subtitle = scene.add.text(W/2, 138, 'Entrás a la era ParkingApp', {
         font: 'italic 16px monospace', color: '#a5f3fc'
-    }).setOrigin(0.5).setAlpha(0);
+    }).setOrigin(0.5).setAlpha(0).setDepth(1002);
     scene.tweens.add({ targets: subtitle, alpha: 1, duration: 600, delay: 400 });
     ui.push(subtitle);
 
     // Ana portrait
     const portraitX = 180, portraitY = 270;
-    const halo = scene.add.circle(portraitX, portraitY, 78, 0xfbbf24, 0.3);
+    const halo = scene.add.circle(portraitX, portraitY, 78, 0xfbbf24, 0.3).setDepth(1001);
     scene.tweens.add({ targets: halo, radius: 90, alpha: 0.15, duration: 1000, yoyo: true, repeat: -1 });
     ui.push(halo);
-    const portraitCircle = scene.add.circle(portraitX, portraitY, 65, 0xa855f7).setStrokeStyle(4, 0xfbbf24);
-    const portraitEmoji = scene.add.image(portraitX, portraitY, 'ana_south').setScale(2.2);
+    const portraitCircle = scene.add.circle(portraitX, portraitY, 65, 0xa855f7).setStrokeStyle(4, 0xfbbf24).setDepth(1002);
+    const portraitEmoji = scene.add.image(portraitX, portraitY, 'ana_south').setScale(2.2).setDepth(1003);
     ui.push(portraitCircle, portraitEmoji);
     ui.push(scene.add.text(portraitX, portraitY + 90, 'Ana', {
         font: 'bold 18px monospace', color: '#fbbf24'
-    }).setOrigin(0.5));
+    }).setOrigin(0.5).setDepth(1003));
     ui.push(scene.add.text(portraitX, portraitY + 112, 'ParkingApp Sales', {
         font: 'italic 12px monospace', color: '#a5f3fc'
-    }).setOrigin(0.5));
+    }).setOrigin(0.5).setDepth(1003));
 
     // Dialog box
     const dialogX = 320, dialogY = 200;
     const dialogBg = scene.add.rectangle(dialogX + 200, dialogY + 70, 420, 220, 0x1e293b, 0.95)
-        .setStrokeStyle(2, 0xa855f7);
+        .setStrokeStyle(2, 0xa855f7).setDepth(1002);
     ui.push(dialogBg);
 
     const lines = [
@@ -4307,7 +4319,7 @@ function showPOSCelebration() {
         const t = scene.add.text(dialogX + 16, dialogY + i * 19 + 10, line, {
             font: i === 0 ? 'bold 16px monospace' : '14px monospace',
             color: i === 0 ? '#fbbf24' : (line.includes('⚡') ? '#10b981' : '#fff')
-        }).setAlpha(0);
+        }).setAlpha(0).setDepth(1003);
         scene.tweens.add({ targets: t, alpha: 1, duration: 300, delay: 600 + i * 80 });
         ui.push(t);
     });
@@ -4316,14 +4328,14 @@ function showPOSCelebration() {
     const btn = scene.add.text(W/2, H - 50, '▶   ¡VAMOS!   ▶', {
         font: 'bold 22px monospace', color: '#fff',
         backgroundColor: '#16a34a', padding: { x: 28, y: 14 }
-    }).setOrigin(0.5).setAlpha(0).setInteractive({ useHandCursor: true });
+    }).setOrigin(0.5).setAlpha(0).setDepth(1003).setInteractive({ useHandCursor: true });
     scene.tweens.add({ targets: btn, alpha: 1, duration: 400, delay: 2000 });
     scene.tweens.add({ targets: btn, scale: { from: 1, to: 1.05 },
         duration: 500, yoyo: true, repeat: -1, delay: 2400 });
     btn.on('pointerdown', () => {
         ui.forEach(o => { try { o.destroy(); } catch(e) {} });
         S.paused = false;
-        scene.tweens.resumeAll();
+        // v0.78: no resumeAll needed since we didn't pauseAll.
         flashEvent('💳 POS operativo. Te paga sus beneficios en una semana.');
         // Restart so the booth re-renders with the POS terminal
         S.scene.scene.restart();
@@ -4343,30 +4355,37 @@ function maybeShowParkingAppCinematic() {
 function renderCinematic() {
     S.dayEnded = true;
     S.paused = true;
-    S.scene.tweens.pauseAll();
+    // v0.78: pauseAll() killed every cinematic tween — and even though this
+    // function doesn't use tweens directly, the call left the manager paused
+    // so the NEXT cinematic (POS celebration) lost its animations. See
+    // showPOSCelebration for the same fix.
     const scene = S.scene;
     const W = CONFIG.width, H = CONFIG.height;
 
     S.endDayUI.forEach(o => { try { o.destroy(); } catch(e) {} });
     S.endDayUI = [];
 
-    S.endDayUI.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.93));
+    // v0.78: setDepth on EVERY cinematic element. Without it the dialog text
+    // and buttons render at default depth 0, hidden behind cars/fence/signs.
+    // The user saw "un círculo sin nada" — Ana's portrait circle (which
+    // happens to be drawn after the lot, so it shows) but no readable text.
+    S.endDayUI.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.93).setDepth(1500));
 
     // Title
     S.endDayUI.push(scene.add.text(W/2, 50, '✨ NUEVA OPORTUNIDAD', {
         font: 'bold 24px monospace', color: '#a5f3fc'
-    }).setOrigin(0.5));
+    }).setOrigin(0.5).setDepth(1502));
 
     // Ana portrait (placeholder circle)
     const portraitX = 180, portraitY = 200;
-    S.endDayUI.push(scene.add.circle(portraitX, portraitY, 60, 0xa855f7).setStrokeStyle(3, 0xfbbf24));
-    S.endDayUI.push(scene.add.text(portraitX, portraitY, '👩‍💼', { font: '52px sans-serif' }).setOrigin(0.5));
+    S.endDayUI.push(scene.add.circle(portraitX, portraitY, 60, 0xa855f7).setStrokeStyle(3, 0xfbbf24).setDepth(1501));
+    S.endDayUI.push(scene.add.text(portraitX, portraitY, '👩‍💼', { font: '52px sans-serif' }).setOrigin(0.5).setDepth(1502));
     S.endDayUI.push(scene.add.text(portraitX, portraitY + 80, 'Ana', {
         font: 'bold 18px monospace', color: '#fbbf24'
-    }).setOrigin(0.5));
+    }).setOrigin(0.5).setDepth(1502));
     S.endDayUI.push(scene.add.text(portraitX, portraitY + 102, 'ParkingApp', {
         font: 'italic 13px monospace', color: '#a5f3fc'
-    }).setOrigin(0.5));
+    }).setOrigin(0.5).setDepth(1502));
 
     // Dialog
     const dialog = [
@@ -4387,14 +4406,14 @@ function renderCinematic() {
     dialog.forEach((line, i) => {
         S.endDayUI.push(scene.add.text(dialogX, dialogY + i * 24, line, {
             font: '14px monospace', color: '#fff'
-        }));
+        }).setDepth(1502));
     });
 
     const acceptBtn = scene.add.text(W/2 - 110, H - 80, '💳  COMPRAR POS  -$40.000', {
         font: 'bold 16px monospace', color: '#fff',
         backgroundColor: S.money >= CONFIG.posCost ? '#16a34a' : '#475569',
         padding: { x: 16, y: 12 }
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(1502);
     if (S.money >= CONFIG.posCost) {
         acceptBtn.setInteractive({ useHandCursor: true });
         acceptBtn.on('pointerdown', () => {
@@ -4408,14 +4427,14 @@ function renderCinematic() {
         font: 'bold 14px monospace', color: '#fff',
         backgroundColor: '#475569',
         padding: { x: 14, y: 11 }
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    }).setOrigin(0.5).setDepth(1502).setInteractive({ useHandCursor: true });
     laterBtn.on('pointerdown', closeCinematic);
     S.endDayUI.push(laterBtn);
 
     S.endDayUI.push(scene.add.text(W/2, H - 25,
         '💡 El POS estará disponible siempre en Gestión.',
         { font: 'italic 12px monospace', color: '#cbd5e1' }
-    ).setOrigin(0.5));
+    ).setOrigin(0.5).setDepth(1502));
 }
 
 function closeCinematic() {
@@ -4423,7 +4442,7 @@ function closeCinematic() {
     S.endDayUI = [];
     S.dayEnded = false;
     S.paused = false;
-    S.scene.tweens.resumeAll();
+    // v0.78: no resumeAll, didn't pauseAll.
     // Bug fix v0.67: if the cinematic was triggered from endDay() (i.e. the
     // day was already over when Ana popped up), dismissing it via "Lo pienso"
     // left the player with no end-of-day summary and no DÍA SIGUIENTE button
