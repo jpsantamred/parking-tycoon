@@ -5828,8 +5828,16 @@ function currentLevelLabel() {
 // Called from updateInfoBoard (every frame) AND from each purchaseX() so the
 // title updates immediately even while the game is paused for a cinematic.
 function refreshPageTitle() {
-    const title = document.getElementById('page-title');
-    if (title) title.textContent = `🅿️ Parking Tycoon — ${currentLevelLabel()}`;
+    // v0.99: only update the level-text span — leave the .brand-mini logo
+    // mark alone. (Setting #page-title.textContent would clobber the span.)
+    const textEl = document.getElementById('page-title-text');
+    if (textEl) {
+        textEl.textContent = ` Parking Tycoon — ${currentLevelLabel()}`;
+    } else {
+        // Fallback for any pre-v0.99 cached HTML.
+        const title = document.getElementById('page-title');
+        if (title) title.textContent = `Parking Tycoon — ${currentLevelLabel()}`;
+    }
 }
 
 // Body classlist mirror of game state — used by CSS to hide touch-actions
@@ -5894,7 +5902,8 @@ function updateInfoBoard() {
     if (S.upgrades.drone) services.push({ label: '🚁 Drones N8', active: true });
     if (S.upgrades.spaceport) services.push({ label: '🚀 SPACEPORT N9', active: true });
     // ParkingApp + Redcomercio shown as a "tech stack" badge once integrated
-    if (S.cinematicShown) services.push({ label: '🅿️ ParkingApp', active: true });
+    // v0.99: 🅿️ -> brand mini mark for consistency with the page title.
+    if (S.cinematicShown) services.push({ label: '<span class="brand-mini">P</span>ParkingApp', active: true });
     if (S.upgrades.pos) services.push({ label: '💳 Redcomercio', active: true });
     if (S.upgrades.adScreens > 0) services.push({ label: `📺 ${S.upgrades.adScreens} pantallas`, active: true });
     if (S.upgrades.signs > 0) services.push({ label: `📣 ${S.upgrades.signs} carteles`, active: true });
