@@ -6487,6 +6487,44 @@ function renderEndOfDay() {
         { font: 'italic 11px monospace', color: '#64748b' }
     ).setOrigin(0.5));
 
+    // ── v0.95: utility trend mini-chart (last 7 days) ───────
+    // Shows revenue - salaries per day as a small bar series. Lets the
+    // player see at a glance whether they're trending up or down without
+    // having to open the Stats tab.
+    if (S.dailyStatsHistory.length >= 2) {
+        const recent = S.dailyStatsHistory.slice(-7);
+        const chartX = W / 2 - 110, chartY = H - 130;
+        const chartW = 220, chartH = 50;
+        // axis frame
+        S.endDayUI.push(scene.add.rectangle(
+            chartX + chartW/2, chartY + chartH/2, chartW, chartH,
+            0x0f172a, 0.55
+        ).setStrokeStyle(1, 0x334155));
+        S.endDayUI.push(scene.add.text(chartX, chartY - 14, '📈 Utilidad — últimos 7 días', {
+            font: 'bold 11px monospace', color: '#fde047'
+        }));
+        const values = recent.map(d => (d.revenue || 0) - (d.salaries || 0));
+        const maxAbs = Math.max(1, ...values.map(v => Math.abs(v)));
+        const barW = chartW / Math.max(7, recent.length) - 4;
+        recent.forEach((d, i) => {
+            const v = values[i];
+            const ratio = v / maxAbs;
+            const h = Math.abs(ratio) * (chartH / 2 - 2);
+            const bx = chartX + 2 + i * (chartW / Math.max(7, recent.length)) + barW / 2;
+            const by = v >= 0
+                ? chartY + chartH / 2 - h / 2
+                : chartY + chartH / 2 + h / 2;
+            S.endDayUI.push(scene.add.rectangle(
+                bx, by, barW, Math.max(2, h),
+                v >= 0 ? 0x10b981 : 0xef4444, 0.92
+            ));
+        });
+        // zero-line
+        S.endDayUI.push(scene.add.rectangle(
+            chartX + chartW / 2, chartY + chartH / 2, chartW, 1, 0x64748b, 0.6
+        ));
+    }
+
     // Lift all endDayUI elements above the canvas so cars/emojis stay underneath
     S.endDayUI.forEach(o => { try { o.setDepth(1001); } catch(e) {} });
     backdrop.setDepth(1000);  // backdrop just below content
