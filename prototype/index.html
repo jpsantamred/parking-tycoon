@@ -316,20 +316,69 @@
                scroll (no rubber-band) so scrolling works without bouncing. */
             html, body { overscroll-behavior-y: contain; }
         }
-        /* Landscape phones (height < 500): the canvas's 16:9 aspect would force
-           a height taller than the viewport, pushing the touch buttons + cards
-           off-screen with no way to scroll past the fixed bar. Cap the canvas
-           height so it fits + everything below is reachable. */
+        /* ── LANDSCAPE MODE — immersive layout ────────────────────
+           User feedback v0.70: "puedes optimizarlo para modo horizontal"
+           Strategy: every CSS pixel that's not the lot is a distraction.
+           Hide the title, subtitle, hint row, info-board, employee strip,
+           AND the toggle row. Keep only the game canvas + a compact
+           bottom-row touch bar. Player gets ~95% of the screen as the lot.
+           Cards/employee detail are reachable by rotating to portrait. */
         @media (orientation: landscape) and (max-height: 500px) {
+            body {
+                padding: 0;
+                /* No bottom padding — the touch bar is sized exactly to the
+                   compact buttons (~60px), no extra space needed. */
+                padding-bottom: env(safe-area-inset-bottom, 0);
+            }
+            h1, .subtitle, .hint-row, #mobile-info-toggles,
+            #info-board, #employee-strip-wrapper {
+                display: none !important;
+            }
+            /* Canvas takes everything except the touch bar at the bottom.
+               Use explicit HEIGHT (not max-height + flex-align) — Phaser
+               needs an unambiguous container size to compute its FIT scale.
+               Previously the flex centering caused the canvas to shrink to
+               its intrinsic size (~220px) instead of using the available
+               308px. */
             #game {
-                max-height: calc(100vh - 180px);   /* room for h1, toggles, touch bar */
-                display: flex;
-                justify-content: center;
+                width: 100vw;
+                max-width: 100vw;
+                height: calc(100vh - 64px - env(safe-area-inset-bottom, 0));
+                margin: 0;
+                border: none;
+                background: #0f172a;
+                overflow: hidden;
             }
             #game canvas {
-                max-height: 100% !important;
+                /* Center horizontally if 16:9 canvas is narrower than viewport */
+                display: block !important;
+                margin: 0 auto !important;
+                height: 100% !important;
                 width: auto !important;
-                max-width: 100%;
+                max-width: 100% !important;
+            }
+            /* Compact touch bar — smaller padding, smaller text labels */
+            #touch-actions {
+                bottom: env(safe-area-inset-bottom, 0);
+                padding: 4px 6px;
+                gap: 4px;
+                border-radius: 8px 8px 0 0;
+                border-bottom: 0;
+            }
+            #touch-actions button {
+                padding: 6px 10px;
+                font-size: 11px;
+                min-width: 48px;
+                min-height: 44px;
+            }
+            /* Music toggle stays accessible top-right but compact */
+            #music-toggle {
+                top: calc(4px + env(safe-area-inset-top, 0));
+                right: calc(4px + env(safe-area-inset-right, 0));
+                padding: 6px 8px;
+                font-size: 14px;
+                min-width: 36px;
+                min-height: 36px;
             }
         }
 
@@ -675,7 +724,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.69 · prototype</div>
+            <div class="splash-version">v0.70 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -684,7 +733,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.69 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.70 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -905,10 +954,10 @@
         // History:
         //   v0.x  : clearSave() ran BEFORE peekSave() check → reload never fired
         //           → stale endDayUI persisted after game-over.
-        //   v0.69 : added sceneAlreadyBooted check → BUT Phaser always boots the
+        //   v0.70 : added sceneAlreadyBooted check → BUT Phaser always boots the
         //           scene on page load, so this triggered reload on EVERY click,
         //           making the button feel "dead" on first run.
-        //   v0.69 (here): only reload when there's actually something stale to
+        //   v0.70 (here): only reload when there's actually something stale to
         //           reset — i.e. a save exists, OR the scene already advanced
         //           past day 1 / has end-day UI showing. Fresh first-boot just
         //           dismisses the splash like before.
