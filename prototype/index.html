@@ -562,7 +562,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.61 · prototype</div>
+            <div class="splash-version">v0.62 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -571,7 +571,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.61 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.62 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -774,17 +774,25 @@
         });
 
         // EMPEZAR (new game) — always starts fresh (clears any save).
-        // Bug fix v0.61: previously clearSave() ran BEFORE peekSave() check, so
-        // the reload branch never fired (peekSave was already null). The result
-        // was that pressing "EMPEZAR NUEVA PARTIDA" from a corrupted Phaser
-        // scene (e.g. after game-over) kept stale game objects on screen.
+        // History:
+        //   v0.x  : clearSave() ran BEFORE peekSave() check → reload never fired
+        //           → stale endDayUI persisted after game-over.
+        //   v0.62 : added sceneAlreadyBooted check → BUT Phaser always boots the
+        //           scene on page load, so this triggered reload on EVERY click,
+        //           making the button feel "dead" on first run.
+        //   v0.62 (here): only reload when there's actually something stale to
+        //           reset — i.e. a save exists, OR the scene already advanced
+        //           past day 1 / has end-day UI showing. Fresh first-boot just
+        //           dismisses the splash like before.
         document.getElementById('splash-start').addEventListener('click', () => {
             const hadSave = typeof peekSave === 'function' && !!peekSave();
-            const sceneAlreadyBooted = !!(window.game && window.game.scene && window.game.scene.scenes && window.game.scene.scenes[0] && window.game.scene.scenes[0].sys && window.game.scene.scenes[0].sys.isActive());
+            const sceneIsStale = !!(typeof S !== 'undefined' && S && (
+                S.day > 1 ||
+                S.dayEnded ||
+                (S.endDayUI && S.endDayUI.length > 0)
+            ));
             if (typeof clearSave === 'function') clearSave();
-            // If we already played in this session OR there was a save, do a hard reload
-            // so the Phaser scene re-initializes from scratch.
-            if (hadSave || sceneAlreadyBooted) { location.reload(); return; }
+            if (hadSave || sceneIsStale) { location.reload(); return; }
             dismissSplash(true);
         });
 
