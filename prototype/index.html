@@ -361,6 +361,24 @@
         #touch-actions button.primary:active { background: #15803d; }
         #touch-actions button.warn { background: #ca8a04; }
         #touch-actions button.danger { background: #dc2626; }
+        /* v1.07: Atender is the most-used action — make it visibly bigger
+           than its siblings (~1.7× wider) so it's hard to miss in a tap.
+           Also bump the icon font so the 🛂 reads at a glance. */
+        #touch-actions button#touch-attend {
+            min-width: clamp(72px, 14vmin, 96px);
+            padding-left: clamp(10px, 2.2vmin, 16px);
+            padding-right: clamp(10px, 2.2vmin, 16px);
+            font-size: clamp(14px, 3vmin, 18px);
+            box-shadow: 0 2px 8px rgba(22, 163, 74, 0.45);
+        }
+        #touch-actions button#touch-attend span { font-size: 10px; }
+        /* Subtle pulse so new players notice it. Disabled when day-ended
+           (button is hidden then anyway) or when management modal is open. */
+        @keyframes attendPulse {
+            0%, 100% { box-shadow: 0 2px 8px rgba(22, 163, 74, 0.45); }
+            50%      { box-shadow: 0 2px 14px rgba(22, 163, 74, 0.85); }
+        }
+        #touch-actions button#touch-attend { animation: attendPulse 2.4s ease-in-out infinite; }
         /* Secondary toggles (Tarifas, Equipo) — visually distinct from the
            4 primary game buttons. Smaller + grey. Active when expanded. */
         #touch-actions button.info-toggle {
@@ -1214,7 +1232,7 @@
         <div class="onb-body">
             <!-- Desktop hints (keyboard shortcuts) -->
             <div id="onboarding-desktop">
-                • <kbd>Espacio</kbd> o <kbd>click</kbd> en el cobrador para atender el primer auto.<br>
+                • <kbd>Espacio</kbd>, <kbd>click</kbd> en el cobrador <strong>o click en el auto</strong> para atenderlo.<br>
                 • Los autos en cola pierden paciencia rápido — atendelos antes de que se aburran.<br>
                 • Cobras al SALIR: $30/min × tiempo en el lote. Quedate atento a la <strong>cola roja</strong> de exit (🅿️→).<br>
                 • Abrí <kbd>G</kbd> Gestión para comprar caseta, contratar más gente y mejorar.<br>
@@ -1222,7 +1240,7 @@
             </div>
             <!-- Mobile/touch hints (shown via media query when coarse pointer) -->
             <div id="onboarding-mobile">
-                • Tocá el botón <strong style="color:#fb923c;">🛂 Atender</strong> abajo para que el cobrador atienda el primer auto.<br>
+                • Tocá el botón verde <strong style="color:#16a34a;">🛂 Atender</strong> abajo <strong>o tocá el auto directamente</strong> para atenderlo.<br>
                 • Los autos en cola pierden paciencia rápido — atendelos antes de que se aburran.<br>
                 • Cobrás al SALIR: $30/min × tiempo en el lote. Mirá la cola roja de exit (🅿️→).<br>
                 • Botón <strong style="color:#a78bfa;">⚙️ Gestión</strong> abre el panel para comprar caseta, contratar y mejorar.<br>
@@ -1342,7 +1360,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v1.06 · prototype</div>
+            <div class="splash-version">v1.07 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1355,7 +1373,7 @@
          which refreshPageTitle() updates via .textContent (safe), while the
          mark is its own span so the textContent swap doesn't blow it away. -->
     <h1 id="page-title"><span class="brand-mini" aria-hidden="true">P</span><span id="page-title-text"> Parking Tycoon — Nivel 1: Papeleta</span></h1>
-    <div class="subtitle">v1.06 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v1.07 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">

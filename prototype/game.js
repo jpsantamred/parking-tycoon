@@ -4998,10 +4998,33 @@ function showMoneyFloat(x, y, amount, isPremium) {
 // Mouse over a car shows a small info popup (state, patience, est. revenue).
 function attachCarTooltip(car) {
     if (!car.sprite) return;
-    car.sprite.setInteractive({ useHandCursor: false });
+    // v1.07: useHandCursor true so desktop users see that cars are clickable.
+    // On touch devices it's a no-op but doesn't hurt.
+    car.sprite.setInteractive({ useHandCursor: true });
     car.sprite.on('pointerover', () => showCarTooltip(car));
     car.sprite.on('pointermove', () => showCarTooltip(car));
     car.sprite.on('pointerout', () => hideCarTooltip());
+    // v1.07: tap the car directly to admit (entry queue) or charge (exit
+    // queue). Routes through the standard cobro logic — the first available
+    // employee handles it. Doesn't interfere with the existing carwash
+    // pointerdown that attaches on PARKED cars (different state).
+    car.sprite.on('pointerdown', () => {
+        if (S.dayEnded || S.paused) return;
+        if (car.state === 'queueing' || car.state === 'exit-waiting') {
+            attemptCobroAnyone();
+            // Tiny visual feedback so the player knows the tap landed even
+            // if the action gets routed to another car (e.g. tapped a
+            // queueing car while an exit was waiting — exits go first).
+            if (car.sprite && car.sprite.scene) {
+                car.sprite.scene.tweens.add({
+                    targets: car.sprite,
+                    scale: { from: 1.0, to: 1.12 },
+                    duration: 90,
+                    yoyo: true,
+                });
+            }
+        }
+    });
 }
 
 function showCarTooltip(car) {
