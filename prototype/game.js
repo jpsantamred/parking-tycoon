@@ -2113,6 +2113,24 @@ function renderManagementPanel() {
     });
     S.managementUI.push(musicBtn);
 
+    // ── HELP BUTTON (v0.81) ───────────────────────────────
+    // Once the player dismissed the onboarding modal there was no way to
+    // re-read the basic mechanics. Now they can re-open it from Gestión.
+    const helpBtn = scene.add.text(W - 26 - 60 - 110, 24, '❓ Ayuda', {
+        font: 'bold 13px monospace', color: '#fff',
+        backgroundColor: '#0891b2',
+        padding: { x: 10, y: 8 }
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    helpBtn.on('pointerdown', () => {
+        closeManagementPanel();
+        // Re-show the HTML onboarding modal (it's still in the DOM).
+        const onb = document.getElementById('onboarding');
+        const backdrop = document.getElementById('onboarding-backdrop');
+        if (onb) onb.classList.add('is-open');
+        if (backdrop) backdrop.style.display = 'block';
+    });
+    S.managementUI.push(helpBtn);
+
     // ── TABS ───────────────────────────────────────────────
     const tabs = [
         { id: 'employees', label: '👥 Equipo' },
