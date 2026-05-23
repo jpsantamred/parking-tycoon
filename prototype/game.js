@@ -2131,6 +2131,23 @@ function renderManagementPanel() {
     });
     S.managementUI.push(helpBtn);
 
+    // ── RESTART BUTTON (v0.82) ─────────────────────────────
+    // Mid-game restart for players who want to try a different strategy
+    // (or for testers). Uses native confirm() so it's clear this wipes
+    // progress — no accidental taps.
+    const restartBtn = scene.add.text(W - 26 - 60 - 110 - 110, 24, '🔁 Reiniciar', {
+        font: 'bold 13px monospace', color: '#fff',
+        backgroundColor: '#dc2626',
+        padding: { x: 10, y: 8 }
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    restartBtn.on('pointerdown', () => {
+        if (confirm('¿Borrar partida actual y empezar de cero? Tu progreso se perderá.')) {
+            if (typeof clearSave === 'function') clearSave();
+            location.reload();
+        }
+    });
+    S.managementUI.push(restartBtn);
+
     // ── TABS ───────────────────────────────────────────────
     const tabs = [
         { id: 'employees', label: '👥 Equipo' },
