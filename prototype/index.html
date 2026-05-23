@@ -202,6 +202,9 @@
             font-size: 11px;
         }
 
+        /* Mobile toggle row hidden on desktop (overridden in mobile @media) */
+        #mobile-info-toggles { display: none; }
+
         /* ── Info Board ──────────────────────────────────── */
         #info-board {
             width: 100%;
@@ -302,10 +305,64 @@
             .subtitle { font-size: 10px; }
             .hint-row { display: none; }   /* keyboard hints irrelevant on touch */
             #touch-actions { display: flex; }
-            #info-board { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+
+            /* User feedback: HORARIOS/TARIFAS/SERVICIOS/HOY were eating ~60%
+               of vertical space on phones, shrinking the lot + Gestión panel
+               to a tiny strip. Collapse them behind a toggle. Players rarely
+               need to look at hours/tariffs once they understand the loop —
+               and the HOY revenue+rep is already in the canvas HUD at top. */
+            #info-board {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease;
+                margin-top: 0;
+            }
+            #info-board.expanded {
+                max-height: 700px;
+                margin-top: 12px;
+            }
             .info-section { padding: 6px 8px; }
             .info-section h3 { font-size: 11px; }
             .info-row { font-size: 10px; }
+            /* Employee strip: collapse-by-default same as info-board on mobile.
+               The HUD already shows "👥 N/total" in the canvas. */
+            #employee-strip-wrapper {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease;
+                margin-top: 0;
+            }
+            #employee-strip-wrapper.expanded {
+                max-height: 600px;
+                margin-top: 10px;
+            }
+            /* Toggle button row — fits between canvas and (collapsed) cards */
+            #mobile-info-toggles {
+                display: flex !important;
+                gap: 8px;
+                justify-content: center;
+                margin-top: 6px;
+                flex-wrap: wrap;
+            }
+            #mobile-info-toggles button {
+                background: #1e293b;
+                color: #cbd5e1;
+                border: 1px solid #475569;
+                padding: 8px 14px;
+                border-radius: 6px;
+                font-family: monospace;
+                font-size: 12px;
+                cursor: pointer;
+                min-height: 36px;
+                -webkit-tap-highlight-color: transparent;
+            }
+            #mobile-info-toggles button.active {
+                background: #14532d;
+                color: #86efac;
+                border-color: #16a34a;
+            }
             /* leave extra bottom padding so touch-actions doesn't cover the
                employee strip when scrolling */
             body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0)); }
@@ -591,7 +648,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.67 · prototype</div>
+            <div class="splash-version">v0.68 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -600,7 +657,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.67 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.68 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -609,6 +666,12 @@
         <div><kbd>G</kbd> Gestión</div>
         <div><kbd>H</kbd> Contratar</div>
         <div><kbd>P</kbd> Pausa</div>
+    </div>
+
+    <!-- Mobile-only toggles — hidden on desktop. Tap to expand the info / employee panels below. -->
+    <div id="mobile-info-toggles">
+        <button id="toggle-info" data-target="info-board">ⓘ Tarifas & Horarios</button>
+        <button id="toggle-equipo" data-target="employee-strip-wrapper">👥 Equipo</button>
     </div>
 
     <!-- ── INFO BOARD (tarifario + horarios + servicios + hoy) ─── -->
@@ -815,10 +878,10 @@
         // History:
         //   v0.x  : clearSave() ran BEFORE peekSave() check → reload never fired
         //           → stale endDayUI persisted after game-over.
-        //   v0.67 : added sceneAlreadyBooted check → BUT Phaser always boots the
+        //   v0.68 : added sceneAlreadyBooted check → BUT Phaser always boots the
         //           scene on page load, so this triggered reload on EVERY click,
         //           making the button feel "dead" on first run.
-        //   v0.67 (here): only reload when there's actually something stale to
+        //   v0.68 (here): only reload when there's actually something stale to
         //           reset — i.e. a save exists, OR the scene already advanced
         //           past day 1 / has end-day UI showing. Fresh first-boot just
         //           dismisses the splash like before.
@@ -878,6 +941,25 @@
         });
         document.getElementById('touch-pause').addEventListener('click', () => {
             if (typeof togglePause === 'function') togglePause();
+        });
+
+        // ── Mobile info / equipo toggles ─────────────────────
+        // User feedback: HORARIOS+TARIFAS+SERVICIOS+HOY and EQUIPO cards
+        // crowded out the actual game canvas on phones. They're now collapsed
+        // by default and expand on demand via these toggle buttons.
+        document.querySelectorAll('#mobile-info-toggles button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.getAttribute('data-target');
+                const target = document.getElementById(targetId);
+                if (!target) return;
+                target.classList.toggle('expanded');
+                btn.classList.toggle('active', target.classList.contains('expanded'));
+                // Smooth scroll the expanded panel into view so the player
+                // doesn't have to hunt for it after tapping.
+                if (target.classList.contains('expanded')) {
+                    setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 350);
+                }
+            });
         });
 
         // ── PWA: Service worker registration ──────────────
