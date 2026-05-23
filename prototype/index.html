@@ -386,20 +386,36 @@
                    compact buttons (~60px), no extra space needed. */
                 padding-bottom: env(safe-area-inset-bottom, 0);
             }
-            h1#page-title, .subtitle, .hint-row, #mobile-info-toggles,
+            h1#page-title, .subtitle, .hint-row, #mobile-info-toggles {
+                display: none !important;
+            }
+            /* v0.74: in landscape we keep the info-board and employee strip
+               in the DOM (hidden), but when their toggle is tapped the panel
+               appears as a FLOATING OVERLAY on top of the canvas. The user
+               had no way to consult Tarifas/Equipo in landscape before. */
             #info-board, #employee-strip-wrapper {
-                display: none !important;
+                display: none;   /* hidden by default, even in landscape */
             }
-            /* (was `h1` globally — collapsed the splash <h1.splash-title> too,
-               leaving the splash without its "PARKING TYCOON" title in landscape.
-               Scoped to #page-title.) */
-            /* In landscape, the info/equipo toggles inside the touch bar
-               are also irrelevant (their target panels are hidden). Hide
-               them too so the touch bar stays compact with just the 4
-               primary game actions. */
-            #touch-actions button.info-toggle {
-                display: none !important;
+            #info-board.expanded, #employee-strip-wrapper.expanded {
+                display: grid;
+                position: fixed;
+                left: 8px;
+                right: 8px;
+                bottom: calc(56px + env(safe-area-inset-bottom, 0) + 8px);
+                max-height: calc(100vh - 80px - env(safe-area-inset-bottom, 0));
+                overflow-y: auto;
+                z-index: 80;
+                background: rgba(15, 23, 42, 0.96);
+                border: 1px solid #475569;
+                border-radius: 10px;
+                padding: 10px;
+                box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6);
             }
+            #employee-strip-wrapper.expanded {
+                display: block;
+            }
+            /* Info-toggle buttons in the touch bar stay VISIBLE in landscape
+               (was hidden) — they now open the floating overlay. */
             /* Canvas takes everything except the touch bar at the bottom.
                Use explicit HEIGHT (not max-height + flex-align) — Phaser
                needs an unambiguous container size to compute its FIT scale.
@@ -797,7 +813,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.73 · prototype</div>
+            <div class="splash-version">v0.74 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -806,7 +822,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.73 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.74 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -1093,16 +1109,32 @@
         // User feedback: HORARIOS+TARIFAS+SERVICIOS+HOY and EQUIPO cards
         // crowded out the actual game canvas on phones. They're now collapsed
         // by default and expand on demand via these toggle buttons.
-        document.querySelectorAll('#mobile-info-toggles button').forEach(btn => {
+        // v0.74: handler covers BOTH the legacy #mobile-info-toggles row AND
+        // the consolidated #touch-actions .info-toggle buttons (Tarifas/Equipo
+        // were moved into the touch bar in v0.73). Whichever the user taps,
+        // the linked panel toggles `.expanded`.
+        document.querySelectorAll('#mobile-info-toggles button, #touch-actions button.info-toggle').forEach(btn => {
             btn.addEventListener('click', () => {
                 const targetId = btn.getAttribute('data-target');
                 const target = document.getElementById(targetId);
                 if (!target) return;
+                // Mutual-exclusion in landscape: only one floating overlay at
+                // a time so they don't stack on top of each other.
+                const isLandscapeImmersive = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+                if (isLandscapeImmersive && !target.classList.contains('expanded')) {
+                    document.querySelectorAll('#info-board.expanded, #employee-strip-wrapper.expanded').forEach(el => {
+                        if (el !== target) el.classList.remove('expanded');
+                    });
+                    document.querySelectorAll('#touch-actions button.info-toggle.active').forEach(b => {
+                        if (b !== btn) b.classList.remove('active');
+                    });
+                }
                 target.classList.toggle('expanded');
                 btn.classList.toggle('active', target.classList.contains('expanded'));
-                // Smooth scroll the expanded panel into view so the player
-                // doesn't have to hunt for it after tapping.
-                if (target.classList.contains('expanded')) {
+                // Smooth scroll the expanded panel into view (portrait only —
+                // in landscape it's a fixed overlay and scroll would jump the
+                // page).
+                if (target.classList.contains('expanded') && !isLandscapeImmersive) {
                     setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 350);
                 }
             });

@@ -1982,6 +1982,10 @@ function fireEmployee(rosterId) {
 }
 
 function createHireButton(scene) {
+    // v0.74: on mobile the HTML #touch-hire button in the bottom bar does the
+    // same thing — skip drawing the canvas version to avoid duplicate UI.
+    // User feedback v0.73: "el botón de gestión y contratar está dos veces".
+    if (isMobileDevice()) return;
     const btn = scene.add.text(CONFIG.width - 20, CONFIG.height - 56, '+ Cobrador (H)', {
         font: 'bold 14px monospace', color: '#fff',
         backgroundColor: '#16a34a', padding: { x: 12, y: 8 }
@@ -1990,10 +1994,9 @@ function createHireButton(scene) {
 }
 
 function createManagementButton(scene) {
-    // Right-aligned, sitting LEFT of the Cobrador button. The Cobrador button is
-    // ~142 px wide at right-edge x=940, so it spans (798, 940). We push GESTIÓN's
-    // right edge to 790 (width-170) so there's an 8-px gap. Tightened from -150
-    // to -170 in v0.63 after audit caught a 12-px overlap with "+ Cobrador (H)".
+    // v0.74: same rationale as createHireButton — HTML touch-gestion handles
+    // this on mobile, don't render the canvas duplicate.
+    if (isMobileDevice()) return;
     const btn = scene.add.text(CONFIG.width - 170, CONFIG.height - 56, '🏗️ GESTIÓN (G)', {
         font: 'bold 14px monospace', color: '#fff',
         backgroundColor: '#7c3aed', padding: { x: 12, y: 8 }
