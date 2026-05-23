@@ -32,7 +32,6 @@
     "@capacitor/core": "^6.1.2",
     "@capacitor/haptics": "^6.0.1",
     "@capacitor/ios": "^6.1.2",
-    "@capacitor/keep-awake": "^6.0.2",
     "@capacitor/preferences": "^6.0.2",
     "@capacitor/screen-orientation": "^6.0.2",
     "@capacitor/splash-screen": "^6.0.2",

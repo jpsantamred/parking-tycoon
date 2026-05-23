@@ -8,21 +8,22 @@
  * Bump CACHE_VERSION when game.js or core assets change to invalidate clients.
  */
 
-const CACHE_VERSION = 'pt-v0.55';
+const CACHE_VERSION = 'pt-v0.58';
 const CACHE_NAME = `parking-tycoon-${CACHE_VERSION}`;
 
 // Files to precache at install (everything needed to boot offline)
+// NOTE: v0.56 bundles Phaser locally (vendor/phaser.min.js) so the game
+// works inside Capacitor WebView and offline without CDN.
 const PRECACHE_URLS = [
     './',
     './index.html',
     './game.js',
     './manifest.json',
+    './vendor/phaser.min.js',
     './icons/icon-192.png',
     './icons/icon-512.png',
     './icons/apple-touch-icon.png',
     './icons/favicon-32.png',
-    // Phaser CDN — cache so we work offline. Browser will follow the CORS.
-    'https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js',
 ];
 
 // Sprite assets are added to a separate list so installation doesn't fail

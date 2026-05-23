@@ -504,7 +504,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.55 · prototype</div>
+            <div class="splash-version">v0.58 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -513,7 +513,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.55 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.58 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -560,9 +560,57 @@
         <div id="employee-strip"></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
-    <script src="game.js"></script>
     <script>
+        // ─── Fail-loud error overlay + resource-load diagnostics ──
+        // Capture phase listener catches ALSO resource load failures (script/img/link 404s)
+        // which the bubble-phase listener misses. Critical for diagnosing mobile WebView issues.
+        function showFatalOverlay(title, msg, stack) {
+            let o = document.getElementById('fatal-overlay');
+            if (!o) {
+                o = document.createElement('div');
+                o.id = 'fatal-overlay';
+                o.style.cssText = 'position:fixed;inset:0;background:#1e293bee;color:#fff;font:12px/1.4 monospace;padding:20px;overflow:auto;z-index:99999;white-space:pre-wrap;';
+                document.body.appendChild(o);
+            }
+            o.innerHTML = `<strong style="color:#fca5a5;font-size:14px;">🔴 ${title}</strong>\n\n${msg}\n\n${stack ? '─── Stack ───\n' + stack : ''}\n\n<button onclick="this.parentElement.remove()" style="margin-top:12px;padding:8px 16px;background:#475569;color:#fff;border:0;border-radius:4px;font-size:14px;">Cerrar</button>`;
+        }
+        window.__bootLog = [];
+        function bootLog(m) { window.__bootLog.push(`[${Date.now()}] ${m}`); console.log('[BOOT]', m); }
+        bootLog('index.html early script start');
+
+        window.addEventListener('error', (ev) => {
+            // Resource load failures (script/img/link 404) come with a target element, not a message
+            if (ev.target && ev.target !== window && ev.target.tagName) {
+                const el = ev.target;
+                const src = el.src || el.href || '(no src)';
+                const tag = el.tagName.toLowerCase();
+                const msg = `Recurso no carga: <${tag}> src="${src}"`;
+                console.error('[RESOURCE LOAD FAIL]', msg);
+                showFatalOverlay('Recurso 404 / load fail', msg + `\n\nBoot log:\n${(window.__bootLog||[]).join('\n')}`, '');
+                return;
+            }
+            const msg = `${ev.message}\n  at ${ev.filename}:${ev.lineno}:${ev.colno}`;
+            console.error('[GLOBAL ERROR]', msg, ev.error);
+            showFatalOverlay('JS Error', msg, ev.error && ev.error.stack);
+        }, true);  // ← capture phase = catches resource load failures
+        window.addEventListener('unhandledrejection', (ev) => {
+            const msg = (ev.reason && (ev.reason.message || String(ev.reason))) || 'unknown rejection';
+            console.error('[UNHANDLED PROMISE]', msg);
+            showFatalOverlay('Promise rejection', msg, ev.reason && ev.reason.stack);
+        });
+    </script>
+    <script src="vendor/phaser.min.js" onerror="showFatalOverlay('Phaser script tag onerror','vendor/phaser.min.js fallo al cargar','')" onload="bootLog('Phaser tag onload, Phaser='+typeof Phaser)"></script>
+    <script src="game.js" onerror="showFatalOverlay('game.js script tag onerror','game.js fallo al cargar','')" onload="bootLog('game.js tag onload, peekSave='+typeof peekSave)"></script>
+    <script>
+        bootLog('after both <script src> tags');
+        // Sanity check both critical scripts loaded
+        if (typeof Phaser === 'undefined') {
+            showFatalOverlay('Phaser no cargo', 'vendor/phaser.min.js no se ejecuto.\n\nBoot log:\n' + window.__bootLog.join('\n'), '');
+        }
+        if (typeof peekSave !== 'function') {
+            showFatalOverlay('game.js no cargo', 'game.js no definio peekSave. Probables causas:\n- 404 al cargar el archivo\n- error de syntax en game.js\n- WebView bloqueo el script\n\nBoot log:\n' + window.__bootLog.join('\n') + '\n\nObjetos en window:\n' + Object.keys(window).filter(k => /game|peek|save|CONFIG|S$/i.test(k)).join(', '), '');
+        }
+
         // ─── Save / Load wiring ─────────────────────────
         function dismissSplash(showOnboarding) {
             const splash = document.getElementById('splash');
@@ -625,8 +673,8 @@
         // EMPEZAR (new game) — always starts fresh (clears any save).
         document.getElementById('splash-start').addEventListener('click', () => {
             if (typeof clearSave === 'function') clearSave();
-            // Page reload so S re-initializes to defaults
-            if (peekSave && peekSave()) { location.reload(); return; }
+            // Page reload so S re-initializes to defaults (defensive: only if peekSave loaded)
+            if (typeof peekSave === 'function' && peekSave()) { location.reload(); return; }
             dismissSplash(true);
         });
 
@@ -668,7 +716,10 @@
         });
 
         // ── PWA: Service worker registration ──────────────
-        if ('serviceWorker' in navigator) {
+        // Skip inside Capacitor native wrap — SW is web-only and the registration
+        // throws in WebView, which can break boot. Only enable in real browsers.
+        const isCapacitorNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+        if ('serviceWorker' in navigator && !isCapacitorNative && location.protocol !== 'file:') {
             // Wait for window load to avoid competing with game boot
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').then(reg => {

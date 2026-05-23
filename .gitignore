@@ -20,3 +20,6 @@ dist/
 *.keystore
 *.jks
 key.properties
+
+# Generated screenshots (debug)
+emulator-*.png

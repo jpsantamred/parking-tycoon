@@ -6015,7 +6015,7 @@ function renderEndOfDay() {
 
     const scene = S.scene;
     const W = CONFIG.width, H = CONFIG.height;
-    const utility = S.revenueToday - S.salariesPaidToday;
+    // `utility` already declared above (line ~6003) — reuse it
     const subRev = S.subscriptionRevenueToday || 0;
     const adRev = S.adRevenueToday || 0;
     const appRev = S.appRevenueToday || 0;
