@@ -468,81 +468,128 @@
            bottom-row touch bar. Player gets ~95% of the screen as the lot.
            Cards/employee detail are reachable by rotating to portrait. */
         @media (orientation: landscape) and (max-height: 500px) {
+            /* v0.88 — Widescreen layout. User feedback: "en widescreen
+               podemos poner las tarjetas de empleados al lado ya que no
+               usamos la pantalla completa". The canvas is 16:9 — on a 944×372
+               landscape phone it only fills ~562 wide, leaving 380 px of
+               wasted side bars. Use that space for info-board (left) and
+               employee strip (right). Both panels are now always visible —
+               no floating overlay, no X button, no Tarifas/Equipo toggles. */
             body {
                 padding: 0;
-                /* No bottom padding — the touch bar is sized exactly to the
-                   compact buttons (~60px), no extra space needed. */
                 padding-bottom: env(safe-area-inset-bottom, 0);
+                display: flex;
+                flex-direction: row;
+                align-items: stretch;
+                gap: 6px;
+                padding-left: 6px;
+                padding-right: 6px;
+                min-height: 100vh;
             }
             h1#page-title, .subtitle, .hint-row, #mobile-info-toggles {
                 display: none !important;
             }
-            /* v0.74: in landscape we keep the info-board and employee strip
-               in the DOM (hidden), but when their toggle is tapped the panel
-               appears as a FLOATING OVERLAY on top of the canvas. The user
-               had no way to consult Tarifas/Equipo in landscape before. */
-            #info-board, #employee-strip-wrapper {
-                display: none;   /* hidden by default, even in landscape */
+            /* ── Left side panel: Tarifas / Horarios / Servicios / Hoy ── */
+            /* All these !important because the base #info-board rule (grid
+               4 columns, max-width 1280, margin auto) has the same specificity
+               and was winning the cascade. */
+            #info-board {
+                display: grid !important;
+                grid-template-columns: 1fr !important;
+                gap: 4px !important;
+                width: 160px !important;
+                max-width: 160px !important;
+                flex: 0 0 160px;
+                margin: 0 !important;
+                /* Height is set in JS via applyGameSize() — see v0.88. Don't
+                   put it here or the cascade overrides the inline style. */
+                /* CRITICAL: the mobile (pointer: coarse) rule at line 626
+                   sets `max-height: 0` to collapse the cards behind a
+                   toggle on portrait. That rule survives into landscape and
+                   was the reason info-board.offsetHeight was 0 even with
+                   inline height: 312px set. Force it off in landscape. */
+                max-height: none !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                order: 1;
+                /* Reset all the floating-overlay positioning from v0.79 */
+                position: static;
+                left: auto; right: auto; bottom: auto;
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                padding: 0 !important;
+                z-index: auto;
+                align-content: start;   /* don't stretch cells; pack to top */
             }
-            #info-board.expanded, #employee-strip-wrapper.expanded {
-                display: grid;
-                position: fixed;
-                left: 8px;
-                right: 8px;
-                bottom: calc(56px + env(safe-area-inset-bottom, 0) + 8px);
-                max-height: calc(100vh - 80px - env(safe-area-inset-bottom, 0));
-                overflow-y: auto;
-                z-index: 80;
-                background: rgba(15, 23, 42, 0.96);
-                border: 1px solid #475569;
-                border-radius: 10px;
-                /* v0.79: extra top padding makes room for the X close button
-                   without overlapping the EQUIPO / TARIFAS heading. */
-                padding: 40px 10px 10px 10px;
-                box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6);
+            #info-board .info-section {
+                padding: 5px 7px;
+                border-radius: 6px;
             }
-            #employee-strip-wrapper.expanded {
-                display: block;
+            #info-board .info-section h3 {
+                font-size: 9px;
+                margin-bottom: 3px;
+                letter-spacing: 0.5px;
             }
-            /* v0.79: show the X close button when the overlay is expanded
-               in landscape immersive. In portrait the cards just collapse —
-               no overlay metaphor, no close button. */
-            #info-board.expanded .overlay-close,
-            #employee-strip-wrapper.expanded .overlay-close {
-                display: block;
+            #info-board .info-row {
+                font-size: 9px;
+                line-height: 1.4;
             }
-            /* Info-toggle buttons in the touch bar stay VISIBLE in landscape
-               (was hidden) — they now open the floating overlay. */
-            /* Canvas takes everything except the touch bar at the bottom.
-               Use explicit HEIGHT (not max-height + flex-align) — Phaser
-               needs an unambiguous container size to compute its FIT scale.
-               Previously the flex centering caused the canvas to shrink to
-               its intrinsic size (~220px) instead of using the available
-               308px. */
+            /* ── Center: the game canvas — fills whatever's left ── */
             #game {
-                width: 100vw;
-                max-width: 100vw;
-                /* v0.73: shrunk reservation 64→56 px so the canvas gets more vertical room. */
-                height: calc(100vh - 56px - env(safe-area-inset-bottom, 0));
+                flex: 1 1 auto;
+                /* JS sets explicit height in applyGameSize() — see v0.76.
+                   We don't set width here; flex computes it from the row.
+                   No CSS height fallback because the inline JS style would
+                   lose the cascade fight if we set it here too. */
                 margin: 0;
                 border: none;
                 background: #0f172a;
                 overflow: hidden;
-            }
-            /* v0.75: when the touch bar is hidden (end-of-day, post-win), let
-               the canvas reclaim its 56 px so the modal renders large enough
-               to read. */
-            body.state-day-ended #game {
-                height: calc(100vh - env(safe-area-inset-bottom, 0));
+                order: 2;
             }
             #game canvas {
-                /* Center horizontally if 16:9 canvas is narrower than viewport */
                 display: block !important;
                 margin: 0 auto !important;
                 height: 100% !important;
                 width: auto !important;
                 max-width: 100% !important;
             }
+            /* ── Right side panel: Equipo (employee cards) ── */
+            #employee-strip-wrapper {
+                display: block !important;
+                width: 160px;
+                flex: 0 0 160px;
+                margin: 0;
+                /* Height is set in JS — see #info-board. Override the mobile
+                   `max-height: 0` collapse rule (line 647) which would
+                   otherwise crush the strip in landscape too. */
+                max-height: none !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                order: 3;
+                background: rgba(15, 23, 42, 0.65);
+                border: 1px solid #334155;
+                border-radius: 8px;
+                padding: 6px;
+                /* Reset overlay positioning */
+                position: static;
+                left: auto; right: auto; bottom: auto;
+                box-shadow: none;
+                z-index: auto;
+            }
+            #employee-strip-title {
+                font-size: 11px;
+                margin-bottom: 4px;
+            }
+            /* No need for the floating-overlay X close — side panels are
+               always visible. No need for Tarifas/Equipo touch-bar toggles
+               either, since their panels never hide. */
+            .overlay-close { display: none !important; }
+            #touch-actions #touch-info-toggle,
+            #touch-actions #touch-equipo-toggle { display: none !important; }
+            /* And no need for the backdrop click-outside region. */
+            #overlay-backdrop { display: none !important; }
             /* Compact touch bar — v0.73 shrunk further: 56 px total height so
                the lot canvas gets more space. */
             #touch-actions {
@@ -998,7 +1045,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.87 · prototype</div>
+            <div class="splash-version">v0.88 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1007,7 +1054,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.87 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.88 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -1377,19 +1424,31 @@
         // `window.innerHeight` on every rotation, then call game.scale.refresh().
         function applyGameSize() {
             const gameDiv = document.getElementById('game');
+            const infoBoard = document.getElementById('info-board');
+            const empStrip = document.getElementById('employee-strip-wrapper');
             if (!gameDiv) return;
-            const vw = window.innerWidth, vh = window.innerHeight;
+            const vh = window.innerHeight;
             const isLandImmersive = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
             const isDayEnd = document.body.classList.contains('state-day-ended');
             if (isLandImmersive) {
                 // Touch bar slot is 56 px tall when visible; gone when day ended.
-                const reserveBottom = isDayEnd ? 0 : 56;
-                gameDiv.style.height = (vh - reserveBottom) + 'px';
-                gameDiv.style.width = vw + 'px';
+                // Force height in JS to bypass the Android WebView 100vh bug.
+                const reserveBottom = isDayEnd ? 0 : 60;
+                const panelH = (vh - reserveBottom) + 'px';
+                gameDiv.style.height = panelH;
+                // v0.88: do NOT set width — let the side-panel flex layout
+                // compute it. The previous `vw` value made #game eat the
+                // whole viewport and pushed the side panels off-screen.
+                gameDiv.style.width = '';
+                // Side panels need explicit height too — same Android 100vh bug.
+                if (infoBoard) infoBoard.style.height = panelH;
+                if (empStrip)  empStrip.style.height  = panelH;
             } else {
                 // Portrait: clear inline styles so CSS takes over.
                 gameDiv.style.height = '';
                 gameDiv.style.width = '';
+                if (infoBoard) infoBoard.style.height = '';
+                if (empStrip)  empStrip.style.height  = '';
             }
         }
         function handleOrientationChange() {
