@@ -3,8 +3,8 @@
   "milestones": [
     {
       "level": "N1-Papeleta",
-      "fps": "54.1",
-      "heap": 11,
+      "fps": "53.1",
+      "heap": 14,
       "objectCount": 293,
       "interactiveCount": 6,
       "overlaps": [],
@@ -71,14 +71,14 @@
         }
       ],
       "upgrades": [],
-      "money": 78419,
+      "money": 78413,
       "day": 1,
       "rep": 100
     },
     {
       "level": "N1.5-Booth",
-      "fps": "54.6",
-      "heap": 11,
+      "fps": "53.6",
+      "heap": 14,
       "objectCount": 351,
       "interactiveCount": 15,
       "overlaps": [],
@@ -207,14 +207,14 @@
       "upgrades": [
         "booth"
       ],
-      "money": 4939985,
+      "money": 4939987,
       "day": 1,
       "rep": 100
     },
     {
       "level": "N2-POS",
-      "fps": "55.1",
-      "heap": 11,
+      "fps": "53.7",
+      "heap": 14,
       "objectCount": 343,
       "interactiveCount": 5,
       "overlaps": [],
@@ -280,8 +280,8 @@
     },
     {
       "level": "N3-Barriers",
-      "fps": "55.1",
-      "heap": 11,
+      "fps": "55.3",
+      "heap": 14,
       "objectCount": 363,
       "interactiveCount": 6,
       "overlaps": [],
@@ -358,8 +358,8 @@
     },
     {
       "level": "N3-EntryTotem",
-      "fps": "53.3",
-      "heap": 11,
+      "fps": "55.1",
+      "heap": 14,
       "objectCount": 383,
       "interactiveCount": 15,
       "overlaps": [],
@@ -497,8 +497,8 @@
     },
     {
       "level": "N4-ExitTotem",
-      "fps": "55.1",
-      "heap": 11,
+      "fps": "54.1",
+      "heap": 14,
       "objectCount": 394,
       "interactiveCount": 15,
       "overlaps": [],
@@ -631,14 +631,14 @@
         "entryTotem",
         "exitTotem"
       ],
-      "money": 4719991,
+      "money": 4719989,
       "day": 1,
       "rep": 100
     },
     {
       "level": "N5-ParkingApp",
-      "fps": "54.3",
-      "heap": 11,
+      "fps": "54.4",
+      "heap": 14,
       "objectCount": 394,
       "interactiveCount": 15,
       "overlaps": [],
@@ -772,14 +772,14 @@
         "exitTotem",
         "parkingApp"
       ],
-      "money": 4600015,
+      "money": 4600023,
       "day": 1,
       "rep": 100
     },
     {
       "level": "N6-ValetAI",
-      "fps": "55.7",
-      "heap": 11,
+      "fps": "54.6",
+      "heap": 14,
       "objectCount": 394,
       "interactiveCount": 15,
       "overlaps": [],
@@ -920,8 +920,8 @@
     },
     {
       "level": "N7-Vertical",
-      "fps": "55.2",
-      "heap": 11,
+      "fps": "55.4",
+      "heap": 14,
       "objectCount": 397,
       "interactiveCount": 15,
       "overlaps": [],
@@ -1057,14 +1057,14 @@
         "valetAI",
         "multiLevel"
       ],
-      "money": 4000163,
+      "money": 4000114,
       "day": 1,
       "rep": 100
     },
     {
       "level": "N8-Drone",
-      "fps": "56.5",
-      "heap": 11,
+      "fps": "55.3",
+      "heap": 14,
       "objectCount": 415,
       "interactiveCount": 15,
       "overlaps": [],
@@ -1207,10 +1207,10 @@
     },
     {
       "level": "N9-Spaceport",
-      "fps": "56.2",
-      "heap": 11,
-      "objectCount": 429,
-      "interactiveCount": 16,
+      "fps": "57.8",
+      "heap": 14,
+      "objectCount": 398,
+      "interactiveCount": 5,
       "overlaps": [],
       "interactives": [
         {
@@ -1255,82 +1255,12 @@
         },
         {
           "type": "Text",
-          "text": "✕",
-          "x": 934,
-          "y": 24,
-          "w": 48,
-          "h": 38,
-          "depth": 200,
-          "visible": true
-        },
-        {
-          "type": "Text",
-          "text": " 👥 Equipo ",
-          "x": 64,
-          "y": 84,
-          "w": 107,
-          "h": 33,
-          "depth": 200,
-          "visible": true
-        },
-        {
-          "type": "Text",
-          "text": " 🛠️ Upgrades ",
-          "x": 194,
-          "y": 84,
-          "w": 123,
-          "h": 33,
-          "depth": 200,
-          "visible": true
-        },
-        {
-          "type": "Text",
-          "text": " 📍 Lotes ",
-          "x": 324,
-          "y": 84,
-          "w": 99,
-          "h": 33,
-          "depth": 200,
-          "visible": true
-        },
-        {
-          "type": "Text",
-          "text": " 📊 Stats ",
-          "x": 454,
-          "y": 84,
-          "w": 99,
-          "h": 33,
-          "depth": 200,
-          "visible": true
-        },
-        {
-          "type": "Text",
-          "text": " Mañana L-V 8-16 ",
-          "x": 224,
-          "y": 224,
-          "w": 129,
-          "h": 27,
-          "depth": 200,
-          "visible": true
-        },
-        {
-          "type": "Text",
-          "text": " Tarde L-V 14-22 ",
-          "x": 424,
-          "y": 224,
-          "w": 129,
-          "h": 27,
-          "depth": 200,
-          "visible": true
-        },
-        {
-          "type": "Text",
-          "text": " Mañana S-D 8-16 ",
-          "x": 224,
-          "y": 260,
-          "w": 129,
-          "h": 27,
-          "depth": 200,
+          "text": "🔁  EMPEZAR DE NUEVO",
+          "x": 480,
+          "y": 490,
+          "w": 257,
+          "h": 46,
+          "depth": 2001,
           "visible": true
         }
       ],
@@ -1346,7 +1276,7 @@
         "drone",
         "spaceport"
       ],
-      "money": 0,
+      "money": 7746,
       "day": 1,
       "rep": 100
     }

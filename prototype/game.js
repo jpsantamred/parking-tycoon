@@ -1376,6 +1376,13 @@ function create() {
     if (S.upgrades.multiLevel) drawMultiLevel(this);
     if (S.upgrades.drone) drawDrones(this);
     if (S.upgrades.spaceport) drawSpaceport(this);
+    // Deferred win celebration: when purchaseSpaceport() triggers a
+    // scene.restart so drawSpaceport runs, we set this flag so the new
+    // scene can show the win overlay AFTER the UFOs are drawn.
+    if (S.shouldShowWinCelebration) {
+        S.shouldShowWinCelebration = false;
+        this.time.delayedCall(400, () => { try { showGameWonCelebration(); } catch (e) { console.error(e); } });
+    }
     // drawPaymentDecal removed — was redundant with booth sticker / SERVICIOS card,
     // and the previous position interfered with road traffic / ad screens.
 
@@ -3959,7 +3966,16 @@ function purchaseSpaceport() {
     S.reputation = Math.min(100, S.reputation + CONFIG.spaceportRepBonus);
     flashEvent('🚀 ¡SPACEPORT! Has llegado a las naves espaciales. ¡Ganaste el juego!');
     SFX.purchase();
-    showGameWonCelebration();
+    // BUG FIX v0.65: drawSpaceport() only runs inside create() — we need a
+    // scene.restart so the UFOs / banner actually appear behind the win
+    // celebration. Without this, the player sees an entirely black overlay
+    // and assumes the spaceport visuals are missing.
+    S.scene.scene.restart();
+    // showGameWonCelebration must be deferred until after the new scene is
+    // created — Phaser destroys all game objects during restart, including
+    // the one we'd add here. Stash a flag for the new scene's create() to
+    // pick up.
+    S.shouldShowWinCelebration = true;
 }
 
 // Generic mini-cinematic for milestone purchases (N4, N5, N6, N7, N8).
@@ -3981,9 +3997,12 @@ function showLevelMilestone(opts) {
     scene.tweens.add({ targets: halo, radius: 90, alpha: 0.15, duration: 1200, yoyo: true, repeat: -1 });
     ui.push(halo);
 
-    // Big emoji in the center
+    // Big emoji in the center. Font stack explicitly includes the OS-specific
+    // emoji fonts because Android WebView's default sans-serif sometimes lacks
+    // coverage at large sizes — without these, the emoji renders as a blank
+    // square and the player sees only the colored halo circle behind it.
     const icon = scene.add.text(W/2, H/2 - 30, opts.icon, {
-        font: '64px sans-serif'
+        font: '64px "Apple Color Emoji","Noto Color Emoji","Segoe UI Emoji","EmojiOne Color",sans-serif'
     }).setOrigin(0.5).setScale(0).setDepth(1502);
     scene.tweens.add({ targets: icon, scale: 1, duration: 500, ease: 'Back.easeOut' });
     ui.push(icon);
@@ -4047,7 +4066,10 @@ function showGameWonCelebration() {
     setTimeout(() => hapticBuzz('HEAVY'), 200);
     setTimeout(() => hapticBuzz('HEAVY'), 500);
 
-    ui.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.95).setDepth(2000));
+    // Backdrop softened from 0.95 → 0.78 in v0.65 so the player can actually see
+    // the spaceport visuals (UFOs, banner) behind the celebration text. Before
+    // this it looked like the spaceport visuals were missing entirely.
+    ui.push(scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.78).setDepth(2000));
 
     const title = scene.add.text(W/2, 100, '🚀  ¡GANASTE!  🚀', {
         font: 'bold 44px monospace', color: '#fde047',
