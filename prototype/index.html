@@ -158,17 +158,24 @@
             min-height: 100vh;
             padding: 8px;
         }
-        h1 {
+        h1#page-title {
             font-size: 18px;
             margin-bottom: 2px;
             color: #fbbf24;
             /* Single line on desktop; truncate with ellipsis if anyone makes a
-               longer level name in the future. */
+               longer level name in the future. Scoped to #page-title so the
+               splash <h1 class="splash-title"> doesn't inherit the nowrap. */
             max-width: 100%;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             text-align: center;
+        }
+        h1.splash-title {
+            /* Belongs to the splash — its own .splash-title rule below sets
+               size + color. Don't let the global h1 nowrap collapse it. */
+            white-space: normal;
+            overflow: visible;
         }
         .subtitle { color: #94a3b8; margin-bottom: 8px; font-size: 12px; }
         #game {
@@ -297,6 +304,19 @@
         #touch-actions button.primary:active { background: #15803d; }
         #touch-actions button.warn { background: #ca8a04; }
         #touch-actions button.danger { background: #dc2626; }
+        /* Secondary toggles (Tarifas, Equipo) — visually distinct from the
+           4 primary game buttons. Smaller + grey. Active when expanded. */
+        #touch-actions button.info-toggle {
+            background: #334155;
+            color: #94a3b8;
+            font-size: 12px;
+            min-width: 48px;
+        }
+        #touch-actions button.info-toggle.active {
+            background: #14532d;
+            color: #86efac;
+            border-color: #16a34a;
+        }
         /* When the canvas shows the end-of-day modal (or any equivalent state
            where Phaser has its own DÍA SIGUIENTE / GESTIÓN buttons), hide the
            fixed-bottom touch-actions bar so it doesn't overlap and block the
@@ -316,8 +336,44 @@
                scroll (no rubber-band) so scrolling works without bouncing. */
             html, body { overscroll-behavior-y: contain; }
         }
+        /* Splash in landscape needs to shrink — its content (logo + title +
+           tagline + story + buttons + leaderboard + version + credits) is
+           ~508 CSS px tall, more than the 372 px landscape viewport. Without
+           this rule the logo and title get clipped above the visible area. */
+        @media (orientation: landscape) and (max-height: 500px) {
+            #splash {
+                padding: 8px 16px;
+                align-items: flex-start;
+            }
+            .splash-content {
+                padding: 6px 20px;
+                max-width: 720px;     /* wider in landscape so we use the room */
+            }
+            .splash-logo { font-size: 36px; margin-bottom: 0; }
+            .splash-title { font-size: 22px; letter-spacing: 1px; margin-bottom: 4px; }
+            .splash-tagline { font-size: 11px; margin-bottom: 8px; }
+            .splash-story {
+                font-size: 11px;
+                line-height: 1.4;
+                padding: 8px 14px;
+                margin-bottom: 8px;
+                max-width: 100%;
+            }
+            .splash-story p { margin-bottom: 2px; }
+            .splash-button {
+                padding: 10px 28px;
+                font-size: 15px;
+                min-height: 44px;
+                margin: 0 4px;
+            }
+            #splash-difficulty { margin-top: 6px; font-size: 11px; }
+            #splash-leaderboard { font-size: 9px; padding: 5px 8px; margin-top: 6px; }
+            .splash-version { margin-top: 6px; }
+            .splash-credits { display: none; }   /* save vertical space */
+        }
+
         /* ── LANDSCAPE MODE — immersive layout ────────────────────
-           User feedback v0.70: "puedes optimizarlo para modo horizontal"
+           User feedback v0.71: "puedes optimizarlo para modo horizontal"
            Strategy: every CSS pixel that's not the lot is a distraction.
            Hide the title, subtitle, hint row, info-board, employee strip,
            AND the toggle row. Keep only the game canvas + a compact
@@ -330,8 +386,18 @@
                    compact buttons (~60px), no extra space needed. */
                 padding-bottom: env(safe-area-inset-bottom, 0);
             }
-            h1, .subtitle, .hint-row, #mobile-info-toggles,
+            h1#page-title, .subtitle, .hint-row, #mobile-info-toggles,
             #info-board, #employee-strip-wrapper {
+                display: none !important;
+            }
+            /* (was `h1` globally — collapsed the splash <h1.splash-title> too,
+               leaving the splash without its "PARKING TYCOON" title in landscape.
+               Scoped to #page-title.) */
+            /* In landscape, the info/equipo toggles inside the touch bar
+               are also irrelevant (their target panels are hidden). Hide
+               them too so the touch bar stays compact with just the 4
+               primary game actions. */
+            #touch-actions button.info-toggle {
                 display: none !important;
             }
             /* Canvas takes everything except the touch bar at the bottom.
@@ -662,6 +728,10 @@
         <button id="touch-gestion" title="Gestión (G)">⚙️<br><span style="font-size:9px;">Gestión</span></button>
         <button id="touch-hire" class="warn" title="Contratar (H)">➕<br><span style="font-size:9px;">Contratar</span></button>
         <button id="touch-pause" title="Pausa (P)">⏸<br><span style="font-size:9px;">Pausa</span></button>
+        <!-- v0.71: Tarifas + Equipo toggles moved here. Hidden in landscape
+             (where info-board is hidden anyway). Visible in portrait. -->
+        <button id="touch-info-toggle" class="info-toggle" data-target="info-board" title="Tarifas & Horarios">ⓘ<br><span style="font-size:9px;">Tarifas</span></button>
+        <button id="touch-equipo-toggle" class="info-toggle" data-target="employee-strip-wrapper" title="Equipo">👥<br><span style="font-size:9px;">Equipo</span></button>
     </div>
 
     <!-- ── ONBOARDING TIP (Día 1) ──────────────────────── -->
@@ -724,7 +794,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v0.70 · prototype</div>
+            <div class="splash-version">v0.71 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -733,7 +803,7 @@
     </div>
 
     <h1 id="page-title">🅿️ Parking Tycoon — Nivel 1: Papeleta</h1>
-    <div class="subtitle">v0.70 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v0.71 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -744,11 +814,8 @@
         <div><kbd>P</kbd> Pausa</div>
     </div>
 
-    <!-- Mobile-only toggles — hidden on desktop. Tap to expand the info / employee panels below. -->
-    <div id="mobile-info-toggles">
-        <button id="toggle-info" data-target="info-board">ⓘ Tarifas & Horarios</button>
-        <button id="toggle-equipo" data-target="employee-strip-wrapper">👥 Equipo</button>
-    </div>
+    <!-- v0.71: merged into #touch-actions below so we don't have two bars. -->
+    <div id="mobile-info-toggles" style="display:none"></div>
 
     <!-- ── INFO BOARD (tarifario + horarios + servicios + hoy) ─── -->
     <div id="info-board">
@@ -954,10 +1021,10 @@
         // History:
         //   v0.x  : clearSave() ran BEFORE peekSave() check → reload never fired
         //           → stale endDayUI persisted after game-over.
-        //   v0.70 : added sceneAlreadyBooted check → BUT Phaser always boots the
+        //   v0.71 : added sceneAlreadyBooted check → BUT Phaser always boots the
         //           scene on page load, so this triggered reload on EVERY click,
         //           making the button feel "dead" on first run.
-        //   v0.70 (here): only reload when there's actually something stale to
+        //   v0.71 (here): only reload when there's actually something stale to
         //           reset — i.e. a save exists, OR the scene already advanced
         //           past day 1 / has end-day UI showing. Fresh first-boot just
         //           dismisses the splash like before.
