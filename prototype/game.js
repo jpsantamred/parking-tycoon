@@ -6377,13 +6377,18 @@ function renderEndOfDay() {
         S.dayOfWeek = (S.dayOfWeek + 1) % 7;
         // Auto-save: persist progress so the player can reload and continue.
         const saveOk = saveGame();
-        // v0.85: surface a brief "Guardado" toast so the player knows progress
-        // was persisted. Previously the save was completely silent — players
-        // wouldn't know if they could safely close the app.
-        if (saveOk) {
-            flashEvent('💾 Día guardado — podés cerrar la app y volver');
-        }
         S.scene.scene.restart();
+        // v0.85: surface a brief "Guardado" toast so the player knows progress
+        // was persisted. Delayed so it appears AFTER the daily intro toast
+        // ("Día X (Martes) — a pie nomás") that scene.restart() fires from
+        // logEvent in the recreated scene.
+        if (saveOk) {
+            setTimeout(() => {
+                if (typeof flashEvent === 'function') {
+                    flashEvent('💾 Día guardado — podés cerrar la app y volver');
+                }
+            }, 2800);
+        }
     });
     S.endDayUI.push(nextBtn);
 
