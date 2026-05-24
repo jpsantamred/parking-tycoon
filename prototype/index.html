@@ -466,9 +466,17 @@
                toggle-to-expand fallback kicks in. */
             #touch-actions #touch-info-toggle,
             #touch-actions #touch-equipo-toggle { display: none !important; }
+            /* v1.13: hide the overlay-backdrop (with its blur) whenever the
+               cards are inline. The backdrop only made sense back when the
+               cards floated over the canvas — now they're in document flow
+               and the blur was just making the whole page look hazy. */
+            #overlay-backdrop { display: none !important; }
             @media (max-height: 500px) and (orientation: portrait) {
                 #touch-actions #touch-info-toggle,
                 #touch-actions #touch-equipo-toggle { display: flex !important; }
+                /* Short-portrait fallback DOES use floating overlays, so the
+                   backdrop comes back here. */
+                body.has-floating-overlay #overlay-backdrop { display: block !important; }
             }
             /* v1.10: GLOBAL touch-bar = full-width bottom strip on every touch
                device, regardless of orientation or aspect-ratio. The earlier
@@ -1442,7 +1450,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v1.12 · prototype</div>
+            <div class="splash-version">v1.13 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1455,7 +1463,7 @@
          which refreshPageTitle() updates via .textContent (safe), while the
          mark is its own span so the textContent swap doesn't blow it away. -->
     <h1 id="page-title"><span class="brand-mini" aria-hidden="true">P</span><span id="page-title-text"> Parking Tycoon — Nivel 1: Papeleta</span></h1>
-    <div class="subtitle">v1.12 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v1.13 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
