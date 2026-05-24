@@ -171,7 +171,20 @@ function giveBonus(rosterId) {
     const entry = S.employeeRoster.find(e => e.id === rosterId);
     if (!entry) return false;
     if (S.money < CONFIG.bonusCost) {
-        flashEvent('💸 Sin plata para pagar bono.');
+        // v1.08: clearer feedback — show shortfall + temporary card shake
+        // so the player notices even with music + busy HUD. Also pulse the
+        // money number red briefly.
+        const need = CONFIG.bonusCost - S.money;
+        flashEvent(`💸 Fondos insuficientes para el bono — faltan $${need.toLocaleString('es-CL')}.`);
+        // Shake the bonus button card on the HTML side so the visual feedback
+        // is attached to the thing they clicked.
+        const card = document.querySelector(`.emp-card[data-emp-id="${rosterId}"]`);
+        if (card) {
+            card.classList.remove('shake-insufficient');
+            // Force reflow so the animation can restart if clicked repeatedly.
+            void card.offsetWidth;
+            card.classList.add('shake-insufficient');
+        }
         return false;
     }
     S.money -= CONFIG.bonusCost;
@@ -1875,10 +1888,18 @@ function updateEmployeeCardsHTML() {
                 <span class="meta-item">${daysWorked}d</span>
                 <span class="meta-item">$${totalPaid.toLocaleString('es-CL')} pago</span>
             </div>
-            ${isMaxLevel ? '' : `
-            <button class="bonus-btn" data-emp="${entry.id}" style="margin-top:6px; width:100%; padding:4px; background:#16a34a; color:#fff; border:none; border-radius:4px; font-family:monospace; font-size:10px; font-weight:bold; cursor:pointer;">
-                💰 Bono $${CONFIG.bonusCost.toLocaleString('es-CL')} (+${CONFIG.bonusXp} XP)
-            </button>`}
+            ${isMaxLevel ? '' : (() => {
+                // v1.08: grey out the bonus button when funds are short so the
+                // player sees up-front that it won't work. Tap still triggers
+                // giveBonus() which now shows a clear shortfall toast + shake.
+                const canAffordBonus = S.money >= CONFIG.bonusCost;
+                const bg = canAffordBonus ? '#16a34a' : '#475569';
+                const op = canAffordBonus ? '1' : '0.7';
+                const need = canAffordBonus ? '' : ` · faltan $${(CONFIG.bonusCost - S.money).toLocaleString('es-CL')}`;
+                return `<button class="bonus-btn" data-emp="${entry.id}" style="margin-top:6px; width:100%; padding:4px; background:${bg}; opacity:${op}; color:#fff; border:none; border-radius:4px; font-family:monospace; font-size:10px; font-weight:bold; cursor:pointer;">
+                    💰 Bono $${CONFIG.bonusCost.toLocaleString('es-CL')} (+${CONFIG.bonusXp} XP)${need}
+                </button>`;
+            })()}
         `;
         // Card click = attend; bonus button click = bono (stopPropagation)
         card.addEventListener('click', (e) => {
@@ -4526,7 +4547,7 @@ function renderCinematic() {
         '— Después podemos seguir: barreras, tótem',
         '   de autopago, app, suscripciones, multi-sucursal.',
         '',
-        '— ¿Cuánto? Solo $40.000 por el POS.',
+        `— ¿Cuánto? Solo $${CONFIG.posCost.toLocaleString('es-CL')} por el POS.`,
         '   Te paga sus propios beneficios en una semana.',
         ''
     ];
@@ -4537,18 +4558,57 @@ function renderCinematic() {
         }).setDepth(1502));
     });
 
-    const acceptBtn = scene.add.text(W/2 - 110, H - 80, '💳  COMPRAR POS  -$40.000', {
+    // v1.08: button is ALWAYS interactive — when funds are short it shows
+    // an IN-MODAL warning (the bottom flashEvent strip is hidden behind
+    // the modal's black overlay, so flashEvent alone wasn't enough). User
+    // previously saw a greyed button that didn't respond at all and had
+    // no way to learn why.
+    const canAfford = S.money >= CONFIG.posCost;
+    const acceptBtnX = W/2 - 110;
+    const acceptBtn = scene.add.text(acceptBtnX, H - 80, `💳  COMPRAR POS  -$${CONFIG.posCost.toLocaleString('es-CL')}`, {
         font: 'bold 16px monospace', color: '#fff',
-        backgroundColor: S.money >= CONFIG.posCost ? '#16a34a' : '#475569',
+        backgroundColor: canAfford ? '#16a34a' : '#475569',
         padding: { x: 16, y: 12 }
-    }).setOrigin(0.5).setDepth(1502);
-    if (S.money >= CONFIG.posCost) {
-        acceptBtn.setInteractive({ useHandCursor: true });
-        acceptBtn.on('pointerdown', () => {
+    }).setOrigin(0.5).setDepth(1502).setInteractive({ useHandCursor: true });
+
+    // Pre-warn: if funds short, show the gap right under the button (always
+    // visible, not just on click) so the player understands at a glance.
+    let shortageHint = null;
+    if (!canAfford) {
+        const need = CONFIG.posCost - S.money;
+        shortageHint = scene.add.text(acceptBtnX, H - 50,
+            `💸 Faltan $${need.toLocaleString('es-CL')} — vuelve cuando tengas plata (lo guardamos en Gestión).`,
+            { font: 'bold 11px monospace', color: '#fca5a5' }
+        ).setOrigin(0.5).setDepth(1502);
+        S.endDayUI.push(shortageHint);
+    }
+
+    acceptBtn.on('pointerdown', () => {
+        if (S.money >= CONFIG.posCost) {
             purchasePOS();
             closeCinematic();
-        });
-    }
+        } else {
+            // Brief shake + flash the warning so the player sees the tap was
+            // received. The warning is already visible — the shake just
+            // emphasizes it.
+            scene.tweens.add({
+                targets: acceptBtn,
+                x: { from: acceptBtnX - 6, to: acceptBtnX + 6 },
+                duration: 60,
+                yoyo: true,
+                repeat: 2,
+                onComplete: () => acceptBtn.setX(acceptBtnX),
+            });
+            if (shortageHint) {
+                scene.tweens.add({
+                    targets: shortageHint,
+                    alpha: { from: 0.4, to: 1 },
+                    scale: { from: 1.15, to: 1 },
+                    duration: 220,
+                });
+            }
+        }
+    });
     S.endDayUI.push(acceptBtn);
 
     const laterBtn = scene.add.text(W/2 + 130, H - 80, '⏰  Lo pienso (más tarde)', {
@@ -4653,11 +4713,13 @@ function createHUD(scene) {
         font: 'bold 15px monospace', color: '#fbbf24'
     });
 
-    // Hard mode badge in the HUD
+    // v1.08: Hard mode badge — moved to ROW 2 right edge (y=36) so it stops
+    // overlapping the row-1 "P 0/16" spaces text. Also shrunk font and made
+    // padding tighter so it doesn't crowd the rival warning either.
     if (isHardMode()) {
-        scene.add.text(CONFIG.width - 240, 10, '🔥 HARD', {
-            font: 'bold 13px monospace', color: '#fff',
-            backgroundColor: '#dc2626', padding: { x: 6, y: 3 }
+        scene.add.text(CONFIG.width - 20, 36, '🔥 HARD', {
+            font: 'bold 11px monospace', color: '#fff',
+            backgroundColor: '#dc2626', padding: { x: 5, y: 2 }
         }).setOrigin(1, 0);
     }
 
@@ -4674,11 +4736,13 @@ function createPauseButton(scene) {
     S.hud.pauseBtn = btn;
 
     // Speed control button (cycles 1x → 2x → 3x → 1x)
+    // v1.08: pushed further left (was -130, now -140) and tighter padding
+    // so it doesn't visually touch the PAUSA button next to it.
     const speedLabel = '⏩ ' + (S.speedMultiplier || 1) + 'x';
     const initialColor = (S.speedMultiplier || 1) === 1 ? '#475569' : ((S.speedMultiplier || 1) === 2 ? '#0891b2' : '#dc2626');
-    const speedBtn = scene.add.text(CONFIG.width - 130, 10, speedLabel, {
-        font: 'bold 15px monospace', color: '#fff',
-        backgroundColor: initialColor, padding: { x: 10, y: 6 }
+    const speedBtn = scene.add.text(CONFIG.width - 140, 10, speedLabel, {
+        font: 'bold 14px monospace', color: '#fff',
+        backgroundColor: initialColor, padding: { x: 8, y: 5 }
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
     speedBtn.on('pointerdown', cycleSpeed);
     S.hud.speedBtn = speedBtn;

@@ -1074,6 +1074,19 @@
         .emp-card.on-shift {
             border-color: #10b981;
         }
+        /* v1.08: shake on insufficient-funds bonus click */
+        @keyframes shakeInsufficient {
+            0%, 100% { transform: translateX(0); border-color: #475569; }
+            15%      { transform: translateX(-6px); border-color: #dc2626; }
+            30%      { transform: translateX( 6px); border-color: #dc2626; }
+            45%      { transform: translateX(-4px); border-color: #dc2626; }
+            60%      { transform: translateX( 4px); border-color: #dc2626; }
+            75%      { transform: translateX(-2px); border-color: #dc2626; }
+            90%      { transform: translateX( 2px); border-color: #dc2626; }
+        }
+        .emp-card.shake-insufficient {
+            animation: shakeInsufficient 0.55s ease both;
+        }
         .emp-card.busy {
             border-color: #ea580c;
             background: #1c1410;
@@ -1360,7 +1373,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v1.07 · prototype</div>
+            <div class="splash-version">v1.08 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1373,7 +1386,7 @@
          which refreshPageTitle() updates via .textContent (safe), while the
          mark is its own span so the textContent swap doesn't blow it away. -->
     <h1 id="page-title"><span class="brand-mini" aria-hidden="true">P</span><span id="page-title-text"> Parking Tycoon — Nivel 1: Papeleta</span></h1>
-    <div class="subtitle">v1.07 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v1.08 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
