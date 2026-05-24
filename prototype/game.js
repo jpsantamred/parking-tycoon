@@ -599,16 +599,12 @@ function getDemandMultiplier(hour) {
     const isWeekend = S.dayOfWeek >= 5;
     const table = isWeekend ? DEMAND_WEEKEND : DEMAND_WEEKDAY;
     let mult = table[h] ?? 0.5;
-    // v1.18: gentle onboarding ramp. Day 1 was killing new players with 17
-    // escapes vs 7 served — the lunch/dinner peaks (1.7-1.8x) are brutal
-    // before the player understands the controls. Scale demand for early
-    // days: D1=55%, D2=75%, D3=90%, D4+=100%. Hard mode skips the ramp
-    // (player chose pain). Also applies to subsequent runs after restart.
-    if (!isHardMode()) {
-        if (S.day === 1) mult *= 0.55;
-        else if (S.day === 2) mult *= 0.75;
-        else if (S.day === 3) mult *= 0.9;
-    }
+    // v1.19: cap peak demand on Day 1 only — the noon/dinner peaks (1.7-1.8x)
+    // were impossible for a brand-new player who hadn't figured out controls.
+    // earlyEase already cuts spawn rate by 50% on D1; this extra cap on the
+    // PEAK hours stops the worst burst. Other hours run at normal demand.
+    // Day 2+ no nerf — earlyEase alone is enough easing.
+    if (!isHardMode() && S.day === 1 && mult > 1.2) mult = 1.2;
     // Rush event doubles demand temporarily
     if (S.rushUntilMin && S.timeMinutes < S.rushUntilMin) mult *= 2;
     return mult;
@@ -6148,8 +6144,15 @@ function updateHUD() {
     S.hud.time.setText(`⏰ ${pad(hours)}:${pad(minutes)} ${DAY_SHORT[S.dayOfWeek]} D${S.day}`);
     S.hud.money.setText(`💰 $${Math.floor(S.money).toLocaleString('es-CL')}`);
     S.hud.reputation.setText(`⭐ ${S.reputation}%`);
-    S.hud.queue.setText(`🚗 ${S.queue.length}`);
-    S.hud.exitQueue.setText(`🅿️→ ${S.exitQueue.filter(c => c.state === 'exit-waiting').length}`);
+    // v1.19: highlight queue counter when 2+ cars are waiting — players were
+    // not noticing the queue grow until cars escaped. Red when 2+, yellow
+    // when ≥4 (urgent).
+    const qLen = S.queue.length;
+    S.hud.queue.setText(`🚗 ${qLen}`);
+    S.hud.queue.setColor(qLen >= 4 ? '#fde047' : (qLen >= 2 ? '#fb7185' : '#fff'));
+    const exitLen = S.exitQueue.filter(c => c.state === 'exit-waiting').length;
+    S.hud.exitQueue.setText(`🅿️→ ${exitLen}`);
+    S.hud.exitQueue.setColor(exitLen >= 4 ? '#fde047' : (exitLen >= 1 ? '#fb7185' : '#94a3b8'));
     const occupied = S.spaces.filter(s => s.occupied).length;
     S.hud.spaces.setText(`P ${occupied}/${S.spaces.length}`);
 
