@@ -1116,8 +1116,13 @@ const S = {
 const phaserConfig = {
     type: Phaser.AUTO, width: CONFIG.width, height: CONFIG.height,
     parent: 'game', backgroundColor: COLORS.bgOutside,
-    // On mobile we drop antialias + cap the renderer DPR. Cheap GPU win.
-    pixelArt: false, antialias: !isMobileDevice(), roundPixels: true,
+    // v1.14: enable pixelArt + roundPixels so sprites render crisp instead of
+    // smoothed. Was `pixelArt: false, antialias: !mobile` — antialias was
+    // smoothing the pixel sprites, making the whole canvas look hazy when
+    // downscaled for phone widths. pixelArt: true implies antialias: false
+    // and uses NEAREST texture filter — exactly what Stardew-style pixel art
+    // needs.
+    pixelArt: true, roundPixels: true,
     scale: {
         mode: Phaser.Scale.FIT,            // canvas scales to fit viewport
         autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
