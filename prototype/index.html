@@ -460,6 +460,36 @@
             .subtitle { display: none; }
             .hint-row { display: none; }   /* keyboard hints irrelevant on touch */
             #touch-actions { display: flex; }
+            /* v1.10: GLOBAL touch-bar = full-width bottom strip on every touch
+               device, regardless of orientation or aspect-ratio. The earlier
+               centered floating pill kept overlapping employee cards on its
+               sides in stacked / tablet / fold layouts. A full-width strip
+               with solid bg + top border makes the boundary between
+               document content and the bar unambiguous, and the body's
+               padding-bottom guarantees the cards always end above it. */
+            #touch-actions {
+                bottom: 0;
+                left: 0;
+                right: 0;
+                transform: none;
+                width: 100%;
+                max-width: 100%;
+                justify-content: center;
+                background: rgba(15, 23, 42, 0.97);
+                border-radius: 0;
+                border-left: 0;
+                border-right: 0;
+                border-bottom: 0;
+                border-top: 1px solid #334155;
+                box-shadow: 0 -4px 14px rgba(0,0,0,0.4);
+                padding: 6px clamp(8px, 2vmin, 16px);
+                padding-bottom: calc(6px + env(safe-area-inset-bottom, 0));
+                gap: 8px;
+            }
+            /* Reserve room below page content so the strip never overlaps the
+               last card. 96 px covers the strip (~75 px) + safe-area + a few
+               px of comfort. */
+            body { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); }
             /* Allow the page to scroll vertically — earlier `overscroll-behavior: none`
                on html/body was preventing the user from reaching the bottom
                content on short landscape viewports. We re-enable contained
@@ -1390,7 +1420,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v1.09 · prototype</div>
+            <div class="splash-version">v1.10 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1403,7 +1433,7 @@
          which refreshPageTitle() updates via .textContent (safe), while the
          mark is its own span so the textContent swap doesn't blow it away. -->
     <h1 id="page-title"><span class="brand-mini" aria-hidden="true">P</span><span id="page-title-text"> Parking Tycoon — Nivel 1: Papeleta</span></h1>
-    <div class="subtitle">v1.09 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v1.10 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
