@@ -599,6 +599,16 @@ function getDemandMultiplier(hour) {
     const isWeekend = S.dayOfWeek >= 5;
     const table = isWeekend ? DEMAND_WEEKEND : DEMAND_WEEKDAY;
     let mult = table[h] ?? 0.5;
+    // v1.18: gentle onboarding ramp. Day 1 was killing new players with 17
+    // escapes vs 7 served — the lunch/dinner peaks (1.7-1.8x) are brutal
+    // before the player understands the controls. Scale demand for early
+    // days: D1=55%, D2=75%, D3=90%, D4+=100%. Hard mode skips the ramp
+    // (player chose pain). Also applies to subsequent runs after restart.
+    if (!isHardMode()) {
+        if (S.day === 1) mult *= 0.55;
+        else if (S.day === 2) mult *= 0.75;
+        else if (S.day === 3) mult *= 0.9;
+    }
     // Rush event doubles demand temporarily
     if (S.rushUntilMin && S.timeMinutes < S.rushUntilMin) mult *= 2;
     return mult;
