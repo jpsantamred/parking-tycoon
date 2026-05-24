@@ -1930,6 +1930,46 @@ function updateEmployeeCardsHTML() {
         empty.textContent = '➕ Sin empleados. Contrata con H o desde Gestión.';
         strip.appendChild(empty);
     }
+
+    // v1.17: wire ◀ ▶ nav buttons. Programmatic horizontal scroll is more
+    // reliable than touch-swipe in some Android WebViews. Buttons step by
+    // one card width (+ gap) each press.
+    setupEmpStripNav();
+}
+
+// v1.17: separate function so it's safe to call multiple times — handlers
+// get replaced via .onclick assignment (not addEventListener stacks).
+function setupEmpStripNav() {
+    const strip = document.getElementById('employee-strip');
+    const prevBtn = document.getElementById('emp-nav-prev');
+    const nextBtn = document.getElementById('emp-nav-next');
+    if (!strip || !prevBtn || !nextBtn) return;
+
+    function step() {
+        const first = strip.querySelector('.emp-card, .emp-card-empty');
+        if (!first) return 220;
+        const cardW = first.getBoundingClientRect().width;
+        const styles = window.getComputedStyle(strip);
+        const gap = parseFloat(styles.gap || styles.columnGap || '10') || 10;
+        return cardW + gap;
+    }
+    function refreshDisabled() {
+        const maxScroll = strip.scrollWidth - strip.clientWidth;
+        prevBtn.disabled = strip.scrollLeft <= 1;
+        nextBtn.disabled = strip.scrollLeft >= maxScroll - 1;
+    }
+    prevBtn.onclick = () => {
+        strip.scrollBy({ left: -step(), behavior: 'smooth' });
+        // re-check disabled state after the smooth scroll settles
+        setTimeout(refreshDisabled, 350);
+    };
+    nextBtn.onclick = () => {
+        strip.scrollBy({ left: step(), behavior: 'smooth' });
+        setTimeout(refreshDisabled, 350);
+    };
+    // Also keep button enabled-state in sync if the user manages to swipe
+    strip.onscroll = refreshDisabled;
+    refreshDisabled();
 }
 
 function isOnShift(emp, hour) {

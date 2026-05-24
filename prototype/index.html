@@ -1120,6 +1120,26 @@
             font-size: 12px;
             color: #a5f3fc;
         }
+        /* v1.17: explicit prev/next chevrons next to the count pill */
+        .emp-nav-btn {
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 4px 10px;
+            min-width: 36px;
+            min-height: 32px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: rgba(34, 211, 238, 0.3);
+            user-select: none;
+            transition: background 0.1s, border-color 0.1s, opacity 0.15s;
+        }
+        .emp-nav-btn:hover { border-color: #22d3ee; color: #22d3ee; }
+        .emp-nav-btn:active { background: #334155; transform: scale(0.95); }
+        .emp-nav-btn:disabled { opacity: 0.35; cursor: default; }
         #employee-strip {
             display: flex;
             gap: 10px;
@@ -1479,7 +1499,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v1.16 · prototype</div>
+            <div class="splash-version">v1.17 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1492,7 +1512,7 @@
          which refreshPageTitle() updates via .textContent (safe), while the
          mark is its own span so the textContent swap doesn't blow it away. -->
     <h1 id="page-title"><span class="brand-mini" aria-hidden="true">P</span><span id="page-title-text"> Parking Tycoon — Nivel 1: Papeleta</span></h1>
-    <div class="subtitle">v1.16 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v1.17 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -1544,7 +1564,13 @@
         <button class="overlay-close" data-target="employee-strip-wrapper" aria-label="Cerrar">✕</button>
         <div id="employee-strip-title">
             <span>👥 EQUIPO</span>
-            <span class="count-pill" id="emp-count-pill">0/0</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <!-- v1.17: explicit nav buttons. Touch-swipe was unreliable
+                     in the WebView; explicit ◀ ▶ buttons always work. -->
+                <button class="emp-nav-btn" id="emp-nav-prev" aria-label="Anterior">◀</button>
+                <span class="count-pill" id="emp-count-pill">0/0</span>
+                <button class="emp-nav-btn" id="emp-nav-next" aria-label="Siguiente">▶</button>
+            </div>
         </div>
         <div id="employee-strip"></div>
     </div>
