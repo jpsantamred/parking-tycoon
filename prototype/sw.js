@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION when game.js or core assets change to invalidate clients.
  */
 
-const CACHE_VERSION = 'pt-v1.14';
+const CACHE_VERSION = 'pt-v1.15';
 const CACHE_NAME = `parking-tycoon-${CACHE_VERSION}`;
 
 // Files to precache at install (everything needed to boot offline)

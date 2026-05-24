@@ -1122,6 +1122,21 @@
             padding-bottom: 8px;
             scrollbar-width: thin;
             scrollbar-color: #475569 #1e293b;
+            /* v1.15: tell the browser this container handles HORIZONTAL pans
+               so the WebView doesn't lose the gesture to the body's vertical
+               scroll when the player has 3+ employees. Without this, swiping
+               left/right on the strip would either scroll the page vertically
+               (mis-detected) or do nothing (gesture stolen by parent). */
+            touch-action: pan-x;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
+            /* Smooth scroll on programmatic scrollLeft updates */
+            scroll-behavior: smooth;
+            /* Slight snap so cards align nicely as the player swipes */
+            scroll-snap-type: x proximity;
+        }
+        #employee-strip .emp-card {
+            scroll-snap-align: start;
         }
         #employee-strip::-webkit-scrollbar {
             height: 8px;
@@ -1457,7 +1472,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v1.14 · prototype</div>
+            <div class="splash-version">v1.15 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1470,7 +1485,7 @@
          which refreshPageTitle() updates via .textContent (safe), while the
          mark is its own span so the textContent swap doesn't blow it away. -->
     <h1 id="page-title"><span class="brand-mini" aria-hidden="true">P</span><span id="page-title-text"> Parking Tycoon — Nivel 1: Papeleta</span></h1>
-    <div class="subtitle">v1.14 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v1.15 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
