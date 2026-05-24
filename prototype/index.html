@@ -460,6 +460,16 @@
             .subtitle { display: none; }
             .hint-row { display: none; }   /* keyboard hints irrelevant on touch */
             #touch-actions { display: flex; }
+            /* v1.12: cards show inline in portrait now (see rule below), so the
+               Tarifas/Equipo toggles in the touch bar are redundant — hide
+               them by default and only show on short portrait where the
+               toggle-to-expand fallback kicks in. */
+            #touch-actions #touch-info-toggle,
+            #touch-actions #touch-equipo-toggle { display: none !important; }
+            @media (max-height: 500px) and (orientation: portrait) {
+                #touch-actions #touch-info-toggle,
+                #touch-actions #touch-equipo-toggle { display: flex !important; }
+            }
             /* v1.10: GLOBAL touch-bar = full-width bottom strip on every touch
                device, regardless of orientation or aspect-ratio. The earlier
                centered floating pill kept overlapping employee cards on its
@@ -956,37 +966,49 @@
             }
         }
 
-            /* User feedback: HORARIOS/TARIFAS/SERVICIOS/HOY were eating ~60%
-               of vertical space on phones, shrinking the lot + Gestión panel
-               to a tiny strip. Collapse them behind a toggle. Players rarely
-               need to look at hours/tariffs once they understand the loop —
-               and the HOY revenue+rep is already in the canvas HUD at top. */
+            /* v1.12: tarifas + equipo now show INLINE in portrait by default.
+               The old "collapse behind a toggle" rule made sense back when the
+               canvas + cards were fighting for 6" phone screens, but modern
+               phones (and especially tablets in portrait) have plenty of
+               vertical room below the 16:9 canvas. The user saw a giant
+               empty area below the canvas while the cards sat hidden behind
+               a Tarifas/Equipo toggle. Now: visible inline in portrait,
+               toggle-collapse only fires on SHORT viewports (max-height ≤ 500)
+               where the canvas truly needs every vertical pixel. */
             #info-board {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 6px;
-                max-height: 0;
-                overflow: hidden;
-                transition: max-height 0.3s ease;
-                margin-top: 0;
-            }
-            #info-board.expanded {
-                max-height: 700px;
-                margin-top: 12px;
+                margin-top: 8px;
             }
             .info-section { padding: 6px 8px; }
             .info-section h3 { font-size: 11px; }
             .info-row { font-size: 10px; }
-            /* Employee strip: collapse-by-default same as info-board on mobile.
-               The HUD already shows "👥 N/total" in the canvas. */
             #employee-strip-wrapper {
-                max-height: 0;
-                overflow: hidden;
-                transition: max-height 0.3s ease;
-                margin-top: 0;
+                margin-top: 8px;
             }
-            #employee-strip-wrapper.expanded {
-                max-height: 600px;
-                margin-top: 10px;
+            /* Short-portrait fallback (older / smaller phones) — keep the
+               toggle-to-expand behavior so the canvas isn't crushed. */
+            @media (max-height: 500px) and (orientation: portrait) {
+                #info-board {
+                    max-height: 0;
+                    overflow: hidden;
+                    transition: max-height 0.3s ease;
+                    margin-top: 0;
+                }
+                #info-board.expanded {
+                    max-height: 700px;
+                    margin-top: 12px;
+                }
+                #employee-strip-wrapper {
+                    max-height: 0;
+                    overflow: hidden;
+                    transition: max-height 0.3s ease;
+                    margin-top: 0;
+                }
+                #employee-strip-wrapper.expanded {
+                    max-height: 600px;
+                    margin-top: 10px;
+                }
             }
             /* Toggle button row — fits between canvas and (collapsed) cards */
             #mobile-info-toggles {
@@ -1420,7 +1442,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v1.11 · prototype</div>
+            <div class="splash-version">v1.12 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1433,7 +1455,7 @@
          which refreshPageTitle() updates via .textContent (safe), while the
          mark is its own span so the textContent swap doesn't blow it away. -->
     <h1 id="page-title"><span class="brand-mini" aria-hidden="true">P</span><span id="page-title-text"> Parking Tycoon — Nivel 1: Papeleta</span></h1>
-    <div class="subtitle">v1.11 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v1.12 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
