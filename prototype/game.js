@@ -6555,8 +6555,10 @@ function renderEndOfDay() {
         '💡 Cinemática POS se activa Día 3+ con caseta',
     ];
     const tip = tips[Math.floor(Math.random() * tips.length)];
-    S.endDayUI.push(scene.add.text(W/2, 290, tip, {
-        font: 'italic 12px monospace', color: '#94a3b8'
+    // v1.11: moved tip from y=290 to y=405 so the larger chart fits above
+    // it without overlap. Tip is decorative, chart is data — chart wins.
+    S.endDayUI.push(scene.add.text(W/2, 405, tip, {
+        font: 'italic 11px monospace', color: '#94a3b8'
     }).setOrigin(0.5));
 
     // Buttons (centered, large)
@@ -6612,45 +6614,101 @@ function renderEndOfDay() {
     // Day 1 EOD the modal had a big empty gap between 'Próximo día' and
     // the buttons because the chart was hidden. A single bar reads as
     // 'your first day' just fine.
+    // v1.11: redesigned — bigger frame, per-bar value labels in $K format,
+    // today's bar highlighted with yellow border, zero-line with label,
+    // max/min Y-axis hints. Goal: a single glance tells the player
+    // (a) trend direction, (b) magnitude of each day, (c) which is today.
     if (S.dailyStatsHistory.length >= 1) {
-        const recent = S.dailyStatsHistory.slice(-7);
-        const chartX = W / 2 - 110, chartY = 340;
-        const chartW = 220, chartH = 50;
-        // axis frame
+        const recent = S.dailyStatsHistory.slice(-10);  // up to 10 days
+        const chartW = 360, chartH = 90;
+        const chartX = W / 2 - chartW / 2;
+        const chartY = 280;
+
+        // Title with avg utility callout
+        const values = recent.map(d => (d.revenue || 0) - (d.salaries || 0));
+        const avg = values.reduce((a,b) => a+b, 0) / values.length;
+        const avgColor = avg >= 0 ? '#10b981' : '#ef4444';
+        const avgK = (avg >= 0 ? '+' : '') + (Math.abs(avg) >= 1000
+            ? Math.round(avg/1000) + 'K'
+            : Math.round(avg));
+        S.endDayUI.push(scene.add.text(chartX, chartY - 18,
+            `📈 Utilidad — últimos ${recent.length} día${recent.length === 1 ? '' : 's'}`, {
+            font: 'bold 12px monospace', color: '#fde047'
+        }));
+        S.endDayUI.push(scene.add.text(chartX + chartW, chartY - 18,
+            `prom: $${avgK}`, {
+            font: 'bold 11px monospace', color: avgColor
+        }).setOrigin(1, 0));
+
+        // Chart frame
         S.endDayUI.push(scene.add.rectangle(
             chartX + chartW/2, chartY + chartH/2, chartW, chartH,
-            0x0f172a, 0.55
+            0x0f172a, 0.6
         ).setStrokeStyle(1, 0x334155));
-        S.endDayUI.push(scene.add.text(chartX, chartY - 14,
-            `📈 Utilidad — últimos ${recent.length} día${recent.length === 1 ? '' : 's'}`, {
-            font: 'bold 11px monospace', color: '#fde047'
-        }));
-        const values = recent.map(d => (d.revenue || 0) - (d.salaries || 0));
+
         const maxAbs = Math.max(1, ...values.map(v => Math.abs(v)));
-        // Slot count = actual number of days, so bars fill the frame.
+        const midY = chartY + chartH / 2;
+        const halfH = chartH / 2 - 4;
+
+        // Subtle dashed mid-lines for ±50% references (helps read magnitudes)
+        [0.5, -0.5].forEach(ratio => {
+            const y = midY - ratio * halfH;
+            S.endDayUI.push(scene.add.rectangle(
+                chartX + chartW / 2, y, chartW - 4, 1, 0x475569, 0.25
+            ));
+        });
+
+        // Y-axis hints: max value at top, min value at bottom (if relevant)
+        const maxK = Math.abs(maxAbs) >= 1000
+            ? Math.round(maxAbs/1000) + 'K'
+            : Math.round(maxAbs);
+        S.endDayUI.push(scene.add.text(chartX + 3, chartY + 2,
+            '+$' + maxK, { font: '9px monospace', color: '#64748b' }
+        ));
+        if (values.some(v => v < 0)) {
+            S.endDayUI.push(scene.add.text(chartX + 3, chartY + chartH - 11,
+                '-$' + maxK, { font: '9px monospace', color: '#64748b' }
+            ));
+        }
+
+        // Bars
         const slotW = chartW / recent.length;
-        const barW = Math.min(28, slotW - 4);
+        const barW = Math.min(32, slotW - 6);
         recent.forEach((d, i) => {
             const v = values[i];
             const ratio = v / maxAbs;
-            const h = Math.abs(ratio) * (chartH / 2 - 2);
+            const h = Math.max(2, Math.abs(ratio) * halfH);
             const bx = chartX + i * slotW + slotW / 2;
-            const by = v >= 0
-                ? chartY + chartH / 2 - h / 2
-                : chartY + chartH / 2 + h / 2;
-            S.endDayUI.push(scene.add.rectangle(
-                bx, by, barW, Math.max(2, h),
-                v >= 0 ? 0x10b981 : 0xef4444, 0.92
-            ));
-            // Tiny day-number label under each bar for clarity (e.g. "D3").
-            S.endDayUI.push(scene.add.text(bx, chartY + chartH + 2, 'D' + (d.day || (i+1)), {
-                font: '8px monospace', color: '#64748b'
+            const by = v >= 0 ? midY - h / 2 : midY + h / 2;
+            const isToday = i === recent.length - 1;  // last entry is current day
+            const color = v >= 0 ? 0x10b981 : 0xef4444;
+            const bar = scene.add.rectangle(bx, by, barW, h, color, 0.92);
+            if (isToday) bar.setStrokeStyle(2, 0xfde047);   // yellow border = today
+            S.endDayUI.push(bar);
+
+            // Value label (above bar for positive, below for negative)
+            const valStr = (v >= 0 ? '+' : '-') + '$' + (Math.abs(v) >= 1000
+                ? Math.round(Math.abs(v)/1000) + 'K'
+                : Math.round(Math.abs(v)));
+            const valY = v >= 0 ? by - h/2 - 7 : by + h/2 + 7;
+            S.endDayUI.push(scene.add.text(bx, valY, valStr, {
+                font: 'bold 9px monospace', color: v >= 0 ? '#86efac' : '#fca5a5'
+            }).setOrigin(0.5, 0.5));
+
+            // Day label below frame; today gets brighter
+            S.endDayUI.push(scene.add.text(bx, chartY + chartH + 4, 'D' + (d.day || (i+1)), {
+                font: isToday ? 'bold 10px monospace' : '9px monospace',
+                color: isToday ? '#fde047' : '#94a3b8'
             }).setOrigin(0.5, 0));
         });
-        // zero-line
+
+        // Zero-line (drawn AFTER bars so it sits on top)
         S.endDayUI.push(scene.add.rectangle(
-            chartX + chartW / 2, chartY + chartH / 2, chartW, 1, 0x64748b, 0.6
+            chartX + chartW / 2, midY, chartW, 1, 0xcbd5e1, 0.5
         ));
+        S.endDayUI.push(scene.add.text(chartX + chartW - 3, midY - 6, '0', {
+            font: '8px monospace', color: '#64748b'
+        }).setOrigin(1, 0));
     }
 
     // Lift all endDayUI elements above the canvas so cars/emojis stay underneath
