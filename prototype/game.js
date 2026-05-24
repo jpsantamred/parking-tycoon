@@ -2257,6 +2257,40 @@ Tu progreso se perderá.`;
     });
     S.managementUI.push(restartBtn);
 
+    // ── ROTATE / ORIENTATION TOGGLE (v1.20) ────────────────
+    // Cycles landscape → portrait → libre. Persisted in localStorage.
+    // Hidden on desktop (where orientation is a window-resize concern).
+    const isTouch = window.matchMedia('(pointer: coarse)').matches;
+    if (isTouch) {
+        const orientMode = localStorage.getItem('pt-orientation') || 'landscape';
+        const orientLabel = orientMode === 'landscape' ? '↔ Horiz'
+                           : orientMode === 'portrait' ? '↕ Vert'
+                           : '🔓 Libre';
+        const orientBg = orientMode === 'landscape' ? '#0891b2'
+                       : orientMode === 'portrait' ? '#7c3aed'
+                       : '#475569';
+        const orientBtn = scene.add.text(W - 26 - 60 - 110 - 110 - 100, 24, orientLabel, {
+            font: 'bold 13px monospace', color: '#fff',
+            backgroundColor: orientBg,
+            padding: { x: 10, y: 8 }
+        }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+        orientBtn.on('pointerdown', () => {
+            if (typeof window.cycleOrientation === 'function') {
+                const next = window.cycleOrientation();
+                flashEvent('🔄 Orientación: ' + (
+                    next === 'landscape' ? 'Horizontal (acostado)' :
+                    next === 'portrait'  ? 'Vertical (parado)' :
+                    'Libre — gira el celu'
+                ));
+                // Re-render so the button label updates
+                renderManagementPanel();
+            } else {
+                flashEvent('🔄 Rotación no disponible en este navegador');
+            }
+        });
+        S.managementUI.push(orientBtn);
+    }
+
     // ── TABS ───────────────────────────────────────────────
     const tabs = [
         { id: 'employees', label: '👥 Equipo' },
@@ -5119,6 +5153,25 @@ function showMoneyFloat(x, y, amount, isPremium) {
     });
 }
 
+// ─── QUEUE ATTENTION PULSE (v1.20) ─────────────────────────
+// A subtle 1.0→1.08 scale pulse on queueing cars so the player notices
+// them in peripheral vision without having to read the HUD queue counter.
+// Tween is owned by `car.__pulseTween`; cancelled when the car leaves the
+// queueing state (handled in attendEntry / escape / angry-leave paths via
+// killTweensOf(car.sprite) elsewhere, which also kills this).
+function startQueueAttentionPulse(car) {
+    if (!car || !car.sprite || !car.sprite.scene) return;
+    if (car.__pulseTween) return;  // already pulsing
+    car.__pulseTween = car.sprite.scene.tweens.add({
+        targets: car.sprite,
+        scale: { from: 1, to: 1.08 },
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.InOut',
+    });
+}
+
 // ─── CAR HOVER TOOLTIPS ────────────────────────────────────
 // Mouse over a car shows a small info popup (state, patience, est. revenue).
 function attachCarTooltip(car) {
@@ -5355,13 +5408,13 @@ function spawnQueueCar() {
             { x: L.entryOpeningX, y: L.entryLaneY, angle: 0, duration: 1000 },
             { angle: 90, duration: 200 },
             { x: L.queueHeadInsideX, y: L.queueHeadInsideY, duration: 600 },
-        ], () => { car.state = 'queueing'; });
+        ], () => { car.state = 'queueing'; startQueueAttentionPulse(car); });
     } else {
         // Stop on the street west of the opening, behind other queued cars
         const targetX = L.entryOpeningX - queueIdx * L.queueStreetSpacing;
         driveCar(car, [
             { x: targetX, y: L.entryLaneY, angle: 0, duration: 1100 },
-        ], () => { car.state = 'queueing'; });
+        ], () => { car.state = 'queueing'; startQueueAttentionPulse(car); });
     }
 }
 
@@ -5421,7 +5474,7 @@ function repositionQueue() {
                     { x: L.entryOpeningX, y: L.entryLaneY, angle: 0, duration: 400 },
                     { angle: 90, duration: 150 },
                     { x: L.queueHeadInsideX, y: L.queueHeadInsideY, duration: 450 },
-                ], () => { car.state = 'queueing'; });
+                ], () => { car.state = 'queueing'; startQueueAttentionPulse(car); });
             } else {
                 S.scene.tweens.add({
                     targets: [car.sprite, car.windows],

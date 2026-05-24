@@ -1514,7 +1514,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v1.19 · prototype</div>
+            <div class="splash-version">v1.20 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1527,7 +1527,7 @@
          which refreshPageTitle() updates via .textContent (safe), while the
          mark is its own span so the textContent swap doesn't blow it away. -->
     <h1 id="page-title"><span class="brand-mini" aria-hidden="true">P</span><span id="page-title-text"> Parking Tycoon — Nivel 1: Papeleta</span></h1>
-    <div class="subtitle">v1.19 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v1.20 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
@@ -2025,10 +2025,52 @@
                 if (KeepAwake && KeepAwake.keepAwake) {
                     KeepAwake.keepAwake().catch(() => {});
                 }
+                // v1.20: lock orientation to landscape by default (game is
+                // designed 16:9). Player can toggle via Gestión button.
+                const savedOrient = localStorage.getItem('pt-orientation') || 'landscape';
+                window.applyOrientation(savedOrient);
             } catch (e) {
                 console.warn('[Capacitor] hook setup failed:', e);
             }
         });
+
+        // v1.20: orientation lock helper — works in both Capacitor and
+        // standard web. Capacitor uses the ScreenOrientation plugin; web
+        // falls back to screen.orientation.lock().
+        window.applyOrientation = function (mode) {
+            // mode: 'landscape' | 'portrait' | 'any'
+            try {
+                const Cap = window.Capacitor;
+                const SO = Cap && Cap.Plugins && Cap.Plugins.ScreenOrientation;
+                if (SO && mode === 'any') {
+                    SO.unlock().catch(() => {});
+                } else if (SO) {
+                    SO.lock({ orientation: mode }).catch((e) => {
+                        console.warn('[Orient] lock fail:', e && e.message);
+                    });
+                } else if (screen.orientation && screen.orientation.lock) {
+                    if (mode === 'any') {
+                        screen.orientation.unlock();
+                    } else {
+                        screen.orientation.lock(mode).catch(() => {});
+                    }
+                }
+                localStorage.setItem('pt-orientation', mode);
+                window.__orientationMode = mode;
+            } catch (e) {
+                console.warn('[Orient] apply fail:', e);
+            }
+        };
+
+        // Cycle through landscape → portrait → any (free) → landscape
+        window.cycleOrientation = function () {
+            const cur = localStorage.getItem('pt-orientation') || 'landscape';
+            const next = cur === 'landscape' ? 'portrait'
+                       : cur === 'portrait'  ? 'any'
+                       : 'landscape';
+            window.applyOrientation(next);
+            return next;
+        };
 
         // Expose a global vibrate() helper for game.js — no-op on web,
         // real haptic feedback inside the native wrap.
