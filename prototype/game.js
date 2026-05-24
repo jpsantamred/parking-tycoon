@@ -1346,6 +1346,7 @@ function resetTransientState() {
     S.timeMinutes = CONFIG.startHour * 60;
     S.carsServedToday = 0; S.angryToday = 0; S.escapedToday = 0;
     S.revenueToday = 0; S.drivePastToday = 0; S.salariesPaidToday = 0; S.adRevenueToday = 0; S.appRevenueToday = 0; S.branchRevenueToday = 0;
+    S.washRevenueToday = 0; S.washesToday = 0;   // v1.09: track carwash separately for EOD breakdown
     S.nextCarMultiplier = 1; S.rushUntilMin = 0;
     S.eventTimer = 0; S.nextEventIn = Phaser.Math.Between(45000, 120000);
     S.subscriptionRevenueToday = 0;
@@ -2238,8 +2239,12 @@ Tu progreso se perderá.`;
     }).setOrigin(0.5));
 
     // All management UI sits ABOVE booth (depth 15), guard accessories (~depth 0),
-    // barriers and other lot decoration. Set high depth so the panel always wins.
-    S.managementUI.forEach(o => { try { o.setDepth(200); } catch(e) {} });
+    // barriers and other lot decoration. v1.09: bumped from 200 → 2000 so the
+    // panel also sits above the FIN DEL DÍA modal (backdrop depth 1000) and
+    // cinematic overlays (depth 1500). Previously, tapping GESTIÓN on the
+    // EOD summary opened the panel BEHIND the still-visible modal — looked
+    // like the button did nothing.
+    S.managementUI.forEach(o => { try { o.setDepth(2000); } catch(e) {} });
 }
 
 function renderEmployeesTab(scene, contentY, panelW) {
@@ -3488,7 +3493,12 @@ function processExitViaTotem() {
         if (S.upgrades.valetAI) amount *= CONFIG.valetAITariffMultiplier;     // Nivel 6
         if (S.upgrades.drone) amount *= CONFIG.droneTariffMultiplier;         // Nivel 8
         if (S.upgrades.spaceport) amount *= CONFIG.spaceportTariffMultiplier; // Nivel 9
-        if (car.washed) { amount += CONFIG.washPrice; flashEvent(`🚿 +$${CONFIG.washPrice.toLocaleString('es-CL')} lavado!`); }
+        if (car.washed) {
+            amount += CONFIG.washPrice;
+            S.washRevenueToday = (S.washRevenueToday || 0) + CONFIG.washPrice;   // v1.09 track for EOD breakdown
+            S.washesToday = (S.washesToday || 0) + 1;
+            flashEvent(`🚿 +$${CONFIG.washPrice.toLocaleString('es-CL')} lavado!`);
+        }
         if (S.nextCarMultiplier > 1) {
             amount *= S.nextCarMultiplier;
             S.nextCarMultiplier = 1;
@@ -5751,6 +5761,8 @@ function attendExit(emp) {
             // Car wash is now MANUAL — applied per car when player clicked it
             if (car.washed) {
                 amount += CONFIG.washPrice;
+                S.washRevenueToday = (S.washRevenueToday || 0) + CONFIG.washPrice;   // v1.09 track for EOD breakdown
+                S.washesToday = (S.washesToday || 0) + 1;
                 flashEvent(`🚿 +$${CONFIG.washPrice.toLocaleString('es-CL')} de lavado!`);
             }
             if (S.nextCarMultiplier > 1) {
@@ -6386,6 +6398,7 @@ function hardReset() {
     S.branchLots = [];
     S.dailyStatsHistory = [];
     S.subscriptionRevenueToday = 0;
+    S.washRevenueToday = 0; S.washesToday = 0;   // v1.09
     S.endDayUI.forEach(o => { try { o.destroy(); } catch(e) {} });
     S.endDayUI = [];
     if (S.hud && S.hud.events) S.hud.events.setVisible(true);
@@ -6424,6 +6437,8 @@ function renderEndOfDay() {
     const adRev = S.adRevenueToday || 0;
     const appRev = S.appRevenueToday || 0;
     const branchRev = S.branchRevenueToday || 0;
+    const washRev = S.washRevenueToday || 0;          // v1.09 — show carwash explicitly
+    const washes = S.washesToday || 0;
     // Estimate passive revenue from N7/N8/N9 (game ran for 14h × 60 = 840 game min)
     const mlRev = S.upgrades.multiLevel ? CONFIG.multiLevelPassiveIncomePerMin * 840 : 0;
     const drnRev = S.upgrades.drone ? CONFIG.droneAmbientRevenuePerMin * 840 : 0;
@@ -6468,6 +6483,7 @@ function renderEndOfDay() {
         { label: '💰 Flujo', color: '#a5f3fc', bold: true },
         { label: `Revenue:`,   val: `+$${Math.floor(S.revenueToday).toLocaleString('es-CL')}`, color: '#fbbf24' },
         subRev > 0 ? { label: `  Mensualistas:`, val: `+$${Math.floor(subRev).toLocaleString('es-CL')}`, color: '#cbd5e1' } : null,
+        washRev > 0 ? { label: `  Lavados (${washes}):`, val: `+$${Math.floor(washRev).toLocaleString('es-CL')}`, color: '#bae6fd' } : null,
         S.upgrades.adScreens > 0 ? { label: `  Pantallas:`, val: `+$${Math.floor(adRev).toLocaleString('es-CL')}`, color: '#cbd5e1' } : null,
         S.upgrades.parkingApp ? { label: `  App subs:`, val: `+$${Math.floor(appRev).toLocaleString('es-CL')}`, color: '#bfdbfe' } : null,
         (S.branchLots && S.branchLots.length > 0) ? { label: `  Sucursales (${S.branchLots.length}):`, val: `+$${Math.floor(branchRev).toLocaleString('es-CL')}`, color: '#fde047' } : null,

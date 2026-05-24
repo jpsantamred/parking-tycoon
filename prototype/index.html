@@ -785,13 +785,12 @@
         @media (orientation: landscape) and (pointer: coarse) and (max-aspect-ratio: 16/10) {
             body {
                 padding: 0;
-                /* v1.06: reserve ~80px at the bottom so the fixed
-                   #touch-actions bar (Atender/Gestión/Contratar/Pausa) doesn't
-                   cover the employee strip. The bar is ~67px tall + 8px
-                   bottom offset; 80 leaves a small comfort margin so the
-                   bonus button stays readable. Body becomes taller than the
-                   viewport, so the user can scroll past the last card. */
-                padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+                /* v1.09: bumped 80→96 because v1.07 made the Atender button
+                   bigger, so the bar grew to ~75-80 px tall. Without extra
+                   margin the bottom of an employee card (e.g. the bonus
+                   button on the rightmost card) ended up tucked behind the
+                   bar at scroll=0. */
+                padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
                 padding-left: env(safe-area-inset-left, 0);
                 padding-right: env(safe-area-inset-right, 0);
                 display: flex;
@@ -901,11 +900,29 @@
             #touch-actions #touch-info-toggle,
             #touch-actions #touch-equipo-toggle { display: none !important; }
             #overlay-backdrop { display: none !important; }
-            /* Touch bar: stay fixed at bottom but compact */
+            /* v1.09: touch bar is now a FULL-WIDTH bottom strip instead of a
+               centered floating pill. The pill version visually overlapped
+               employee cards on the right (they extended into its center-
+               bottom footprint). Full-width strip + solid bg makes the
+               separation between cards-above and bar-below unambiguous. */
             #touch-actions {
-                bottom: env(safe-area-inset-bottom, 0);
-                padding: 4px 8px;
-                gap: 6px;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                transform: none;
+                width: 100%;
+                max-width: 100%;
+                padding: 6px clamp(8px, 2vmin, 16px);
+                padding-bottom: calc(6px + env(safe-area-inset-bottom, 0));
+                gap: 8px;
+                justify-content: center;
+                background: rgba(15, 23, 42, 0.97);
+                border-radius: 0;
+                border-left: 0;
+                border-right: 0;
+                border-bottom: 0;
+                border-top: 1px solid #334155;
+                box-shadow: 0 -4px 14px rgba(0,0,0,0.4);
             }
         }
 
@@ -1373,7 +1390,7 @@
                 </label>
             </div>
             <div id="splash-leaderboard" style="display:none; margin-top:14px; padding:10px; background:#1e293b80; border:1px solid #334155; border-radius:6px; font-size:11px; color:#cbd5e1; text-align:left;"></div>
-            <div class="splash-version">v1.08 · prototype</div>
+            <div class="splash-version">v1.09 · prototype</div>
             <div class="splash-credits">
                 Hecho con Phaser 3 + sprites de PixelLab AI<br>
                 <a href="https://github.com/jpsantamred/parking-tycoon" target="_blank">github.com/jpsantamred/parking-tycoon</a>
@@ -1386,7 +1403,7 @@
          which refreshPageTitle() updates via .textContent (safe), while the
          mark is its own span so the textContent swap doesn't blow it away. -->
     <h1 id="page-title"><span class="brand-mini" aria-hidden="true">P</span><span id="page-title-text"> Parking Tycoon — Nivel 1: Papeleta</span></h1>
-    <div class="subtitle">v1.08 prototype | el dolor antes de ParkingApp</div>
+    <div class="subtitle">v1.09 prototype | el dolor antes de ParkingApp</div>
     <button id="music-toggle" onclick="window.__musicMuted = !window.__musicMuted; this.textContent = window.__musicMuted ? '🔇' : '🎵';" title="Música ambient" style="position:fixed; top:8px; right:8px; background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; z-index:50;">🎵</button>
     <div id="game"></div>
     <div class="hint-row">
